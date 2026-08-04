@@ -598,9 +598,19 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i
             // excluding the diagonal, where a single occurrence supplies both extremes
             result += log(fossil[yi]) + log(recip_young - diag/recip_old);
 
-            // the first/last rule leaves the interior count unreported, so it is marginalized
-            if ( record_complete == false )
+            if ( reporting != NULL )
             {
+                // each sampled interior occurrence is reported with probability r, so the
+                // reported interior is Poisson(r*Lambda): r^m from the m reported, and
+                // exp((1-r)*Lambda) correcting the complete term's exp(-Lambda)
+                double r = reporting->getValue();
+                if ( r <= 0.0 ) return RbConstants::Double::neginf;
+                result += double(count - 2) * log(r) + (1.0 - r) * Lambda;
+            }
+            else if ( record_complete == false )
+            {
+                // the first/last rule reports both extremes but leaves the interior count
+                // unknown, so the density carries P(at least count-2 were sampled)
                 double S1 = 0.0, f = 1.0;
                 for ( size_t kap = 0; kap < 200; kap++ )
                 {

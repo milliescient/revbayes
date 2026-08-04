@@ -106,6 +106,13 @@ namespace RevBayesCore {
         void                                            drawRanges();                                               //!< Draw an initial range and appearances for every taxon.
         double                                          computeLnFossilTotal();                                     //!< Total fossil-record log-density, for a dnFossilRecord node.
         void                                            setCompleteRecord(bool comp) { record_complete = comp; }    //!< The reporting model, pushed here by dnFossilRecord.
+        //!< Thin the reported interior rather than censor its count, pushed here by dnFossilRecord.
+        void                                            setReporting(const TypedDagNode<double>* r)
+                                                        {
+                                                            // registered once; a clone swap only re-points it
+                                                            if ( reporting == NULL && r != NULL ) range_parameters.push_back( r );
+                                                            reporting = r;
+                                                        }
         bool                                            unsampledSurvivors(void) const { return survivors; }        //!< False forbids the point mass outright.
 
         virtual void                                    setOccurrences(const std::vector<Taxon> &t);                //!< Adopt a clamped record's occurrences as the data.
@@ -141,6 +148,10 @@ namespace RevBayesCore {
         std::vector<Taxon>                              taxa;                                                  //!< Taxa that will be attached to new simulated trees.
         std::string                                     condition;
         bool                                            record_complete;                                        //!< Every occurrence reported, or the first/last rule.
+
+        //!< Chance a sampled interior occurrence is reported. NULL leaves the first/last rule,
+        //!< which censors the interior count instead of thinning it.
+        const TypedDagNode<double>*                     reporting = NULL;
         double                                          max_present_age;                                        //!< Youngest occurrence maximum; the timeline may not start above it.
 
         void                                            updateRecord(void);                                     //!< Refresh the reported bins and the bounds they put on the appearances.

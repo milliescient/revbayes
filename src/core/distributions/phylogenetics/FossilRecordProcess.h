@@ -1,6 +1,7 @@
 #ifndef FossilRecordProcess_H
 #define FossilRecordProcess_H
 
+#include "TypedDagNode.h"
 #include "TypedDistribution.h"
 #include "RbVector.h"
 #include "Taxon.h"
@@ -26,7 +27,8 @@ namespace RevBayesCore {
     class FossilRecordProcess : public TypedDistribution< RbVector<Taxon> > {
 
     public:
-        FossilRecordProcess(const DagNode *ranges, bool complete);
+        FossilRecordProcess(const DagNode *ranges, bool complete,
+                            const TypedDagNode<double>* reporting = NULL);
         virtual ~FossilRecordProcess() {}
 
         FossilRecordProcess*        clone(void) const override;
@@ -44,6 +46,7 @@ namespace RevBayesCore {
         const DagNode*                                   ranges_node;   // owns b,d,tau,psi,timeline + reporting term
         AbstractFossilizedBirthDeathRangeProcess*        ranges;        // downcast view for computeLnFossilTotal()
         bool                                             complete;      // every sampled occurrence reported; false is first/last. Pushed onto the range process
+        const TypedDagNode<double>*                      reporting;     // kept to recognise a touch on it
         std::vector<Taxon>                               taxa;          // reported occurrences (data)
     };
 }

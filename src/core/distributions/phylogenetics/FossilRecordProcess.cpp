@@ -35,11 +35,13 @@ AbstractFossilizedBirthDeathRangeProcess* FossilRecordProcess::rangesOf(const Da
  * log-density. The occurrences are read from the ranges' taxa, so they need not be supplied again
  * here; this node's value is that same taxon vector.
  */
-FossilRecordProcess::FossilRecordProcess(const DagNode *rn, bool comp) :
+FossilRecordProcess::FossilRecordProcess(const DagNode *rn, bool comp,
+                                         const TypedDagNode<double>* inreporting) :
     TypedDistribution< RbVector<Taxon> >( new RbVector<Taxon>() ),
     ranges_node( rn ),
     ranges( rangesOf( rn ) ),
     complete( comp ),
+    reporting( inreporting ),
     taxa()
 {
     if ( ranges == NULL )
@@ -48,6 +50,8 @@ FossilRecordProcess::FossilRecordProcess(const DagNode *rn, bool comp) :
     }
 
     addParameter( ranges_node );
+    // before the parents are adopted below, or an estimated rate never joins the model
+    ranges->setReporting( inreporting );
 
     // the reporting term reads psi and the timeline off the range process, not through its value
     const std::vector<const DagNode*> &rp = ranges->getRangeParameters();
@@ -149,5 +153,11 @@ void FossilRecordProcess::swapParameterInternal(const DagNode *oldP, const DagNo
     {
         ranges_node = newP;
         resolveRanges();
+    }
+    else if ( oldP == reporting )
+    {
+        // the clone must read the cloned rate, or moves on it never reach the density
+        reporting = static_cast<const TypedDagNode<double>* >( newP );
+        if ( ranges != NULL ) ranges->setReporting( reporting );
     }
 }

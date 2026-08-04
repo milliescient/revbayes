@@ -8,6 +8,7 @@
 #include "ArgumentRules.h"
 #include "ModelVector.h"
 #include "RlBoolean.h"
+#include "Probability.h"
 #include "RlString.h"
 #include "RlMatrixReal.h"
 #include "RlTimeTree.h"
@@ -38,7 +39,13 @@ RevBayesCore::FossilRecordProcess* Dist_FossilRecord::createDistribution( void )
     bool comp = static_cast<const RlBoolean &>( complete->getRevObject() ).getValue();
 
     // the occurrences are read from the range process, so no taxa argument is needed here
-    RevBayesCore::FossilRecordProcess* d = new RevBayesCore::FossilRecordProcess( rn, comp );
+    RevBayesCore::TypedDagNode<double>* rep = NULL;
+    if ( reporting != NULL && reporting->getRevObject() != RevNullObject::getInstance() )
+    {
+        rep = static_cast<const Probability &>( reporting->getRevObject() ).getDagNode();
+    }
+
+    RevBayesCore::FossilRecordProcess* d = new RevBayesCore::FossilRecordProcess( rn, comp, rep );
 
     return d;
 }
@@ -77,6 +84,7 @@ const MemberRules& Dist_FossilRecord::getParameterRules(void) const
         rangesTypes.push_back( TimeTree::getClassTypeSpec() );    // dnFBDSP
         dist_member_rules.push_back( new ArgumentRule( "ranges",  rangesTypes, "The FBD range process (a dnFBDRP or dnFBDSP node) supplying b/d, tau, psi and the timeline.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::STOCHASTIC ) );
         dist_member_rules.push_back( new ArgumentRule( "complete",  RlBoolean::getClassTypeSpec(),         "Is the fossil record complete (every sampled occurrence reported)? FALSE is first/last.", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean( false ) ) );
+        dist_member_rules.push_back( new ArgumentRule( "reporting", Probability::getClassTypeSpec(), "Chance a sampled interior occurrence is reported. Unset keeps the first/last rule.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
 
         rules_set = true;
     }
@@ -101,6 +109,10 @@ void Dist_FossilRecord::setConstParameter(const std::string& name, const RevPtr<
     else if ( name == "complete" )
     {
         complete = var;
+    }
+    else if ( name == "reporting" )
+    {
+        reporting = var;
     }
     else
     {
