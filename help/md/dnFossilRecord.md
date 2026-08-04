@@ -9,6 +9,8 @@ This is the observation half of the fossilized birth-death range model. The rang
 
 The `complete` argument selects how sampled specimens make it into the reported record: `complete=TRUE` (every sampled occurrence is reported) or `complete=FALSE` (only the oldest and youngest occurrence of each species are reported, i.e. first/last). It also determines the support of the augmented oldest age, which belongs to the range process, so both nodes use the model given here.
 
+The `reporting` argument replaces that choice with an estimated one: the oldest and youngest occurrence of each species are always reported, and each occurrence between them is reported independently with probability `reporting`. Leaving it unset keeps the `complete` rule, and setting it to 1 recovers `complete=TRUE`. There is no value of `reporting` that gives first/last, which reports the extremes and nothing else rather than thinning the interior at a rate. Because the extremes are always reported, the number of interior occurrences is what identifies the rate against the fossil sampling rate.
+
 The occurrences, the fossil sampling rate, its timeline, and the augmented occurrence ages are all read from the range process rather than given as arguments here. The sampling rate also appears in the range process's non-detection term, so the two nodes must share it.
 
 ## authors
