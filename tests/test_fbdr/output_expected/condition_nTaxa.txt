@@ -4,3 +4,5 @@ five intervals of one rate match one interval:
 TRUE	
 rho below one does not raise the factor:
 TRUE	
+complete lineage sampling pays the same factor:
+TRUE	

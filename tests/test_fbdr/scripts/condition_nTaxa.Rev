@@ -70,4 +70,26 @@ rec_rt.clamp(taxa)
 print(filename=out, append=TRUE, "rho below one does not raise the factor:\n")
 print(filename=out, append=TRUE, (bd_r.lnProbability() - bd_rt.lnProbability()) <= observed, "\n")
 
+# complete lineage sampling pays the same factor
+bds_t ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+                condition="time", origin=origin, complete=TRUE)
+rs_t ~ dnFossilRecord(ranges=bds_t, reporting="complete")
+rs_t.clamp(taxa)
+bds_cfg <- bds_t
+bds_ori <- bds_t.getOrigin()
+
+bds_c ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+                condition="nTaxa", origin=origin, complete=TRUE)
+bds_c.setValue(bds_cfg)
+rs_c ~ dnFossilRecord(ranges=bds_c, reporting="complete")
+rs_c.clamp(taxa)
+
+ex2 <- exp(-d * bds_ori)
+a2 <- mu * (1 - ex2) / (lambda - mu * ex2)
+b2 <- lambda * (1 - ex2) / (lambda - mu * ex2)
+print(filename=out, append=TRUE, "complete lineage sampling pays the same factor:\n")
+print(filename=out, append=TRUE,
+      abs((bds_c.lnProbability() - bds_t.lnProbability())
+          - -( ln(1 - a2) + ln(1 - b2) + 2 * ln(b2) )) < 1E-8, "\n")
+
 q()
