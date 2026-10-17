@@ -5,7 +5,7 @@ The fossil record of a set of stratigraphic ranges
 ## description
 The fossil record of a set of species, conditioned on a fossilized birth-death range process: the probability of the observed fossil occurrences given the species ranges that produced them.
 ## details
-This is the observation half of the fossilized birth-death range model. The range process (`dnFBDRP`) describes how species ranges diversify; this distribution gives the probability of the fossil record itself.
+This is the observation half of the fossilized birth-death range model. The range process (`dnFBDRP` or `dnFBDSP`) describes how species ranges diversify; this distribution gives the probability of the fossil record itself.
 
 The `reporting` argument selects how sampled specimens make it into the reported record: `reporting="complete"` (every sampled occurrence is reported) or `reporting="firstlast"` (the oldest and youngest occurrence of each species are reported, and the count in between is unknown).
 
@@ -15,6 +15,7 @@ The occurrences, the fossil sampling rate and its timeline are read from the ran
 June Walker
 ## see_also
 dnFossilizedBirthDeathRange
+mvStratigraphicRange
 ## example
 lambda ~ dnExp(10)
 mu ~ dnExp(10)
