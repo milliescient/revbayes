@@ -911,22 +911,54 @@ x ~ dnExponential(lambda=rate)
 x.probability())");
 	help_strings[string("dnExponential")][string("name")] = string(R"(dnExponential)");
 	help_strings[string("dnExponential")][string("title")] = string(R"(Exponential Distribution)");
+	help_arrays[string("dnFossilRecord")][string("authors")].push_back(string(R"(June Walker)"));
+	help_strings[string("dnFossilRecord")][string("description")] = string(R"(The fossil record of a set of species, conditioned on a fossilized birth-death range process: the probability of the observed fossil occurrences given the species ranges that produced them.)");
+	help_strings[string("dnFossilRecord")][string("details")] = string(R"(This is the observation half of the fossilized birth-death range model. The range process (`dnFBDRP`) describes how species ranges diversify; this distribution gives the probability of the fossil record itself.
+
+The `reporting` argument selects how sampled specimens make it into the reported record: `reporting="complete"` (every sampled occurrence is reported) or `reporting="firstlast"` (the oldest and youngest occurrence of each species are reported, and the count in between is unknown).
+
+The occurrences, the fossil sampling rate and its timeline are read from the range process rather than given as arguments here.)");
+	help_strings[string("dnFossilRecord")][string("example")] = string(R"(lambda ~ dnExp(10)
+mu ~ dnExp(10)
+psi ~ dnExp(10)
+
+# the birth-death range process
+bd ~ dnFBDRP(lambda=lambda, mu=mu, psi=psi, rho=1, taxa=taxa)
+
+# the fossil record, clamped to the observed occurrences
+rec ~ dnFossilRecord(ranges=bd, reporting="firstlast")
+rec.clamp(taxa)
+
+moves.append( mvMatrixElementScale(bd, weight=taxa.size()) )
+moves.append( mvMatrixElementSlide(bd, weight=taxa.size()) ))");
+	help_strings[string("dnFossilRecord")][string("name")] = string(R"(dnFossilRecord)");
+	help_references[string("dnFossilRecord")].push_back(RbHelpReference(R"(The fossilized birth-death model for the analysis of stratigraphic range data under different speciation modes. Stadler, Tanja et al. Journal of theoretical biology, 447:41-55.)",R"()",R"(https://www.sciencedirect.com/science/article/pii/S002251931830119X )"));
+	help_arrays[string("dnFossilRecord")][string("see_also")].push_back(string(R"(dnFossilizedBirthDeathRange)"));
+	help_strings[string("dnFossilRecord")][string("title")] = string(R"(The fossil record of a set of stratigraphic ranges)");
 	help_arrays[string("dnFossilizedBirthDeathRange")][string("authors")].push_back(string(R"(June Walker)"));
 	help_strings[string("dnFossilizedBirthDeathRange")][string("description")] = string(R"(The fossilized birth death range process (FBDRP) describes the distribution of a matrix of species divergence and extinction times under a model of asymmetric speciation and sampling of extinct species.)");
-	help_strings[string("dnFossilizedBirthDeathRange")][string("details")] = string(R"(Fossil species are represented by a collection of fossil occurrences with uncertainty. Speciation, extinction and sampling rates may be time-homogeneous or piecewise time-heterogeneous. If time-heterogeneous rates are provided, then a vector of rate change time-points musts also be provided. If only a subset of fossil occurrences is provided for each species (e.g. only first and last occurrencces), then the remaining number of fossil samples may be marginalized by specifying `complete=FALSE`. Under the hood, the fossil data is augmented with oldest occurrence ages for each species, which must be sampled during MCMC using `mvResampleFBD`. Setting `BDS` to true causes the model to assume complete lineage sampling i.e. using the Birth-Death with Rateshifts (BDS) model of Silvestro et al. (2019).)");
+	help_strings[string("dnFossilizedBirthDeathRange")][string("details")] = string(R"(This distribution is the birth-death range process on its own: it describes how species ranges diversify, and the fossil occurrences bound those ranges, but it does not include the probability of the fossil record itself. Pair it with a `dnFossilRecord` node clamped to the occurrences to get the full model. That node also selects the reporting model, i.e. how sampled occurrences reach the record: `reporting="complete"` (all reported) or `reporting="firstlast"` (only the oldest and youngest). A range process with no `dnFossilRecord` attached is a valid model, but it does not condition on the fossil record at all.
+
+The `condition` argument has to match whatever the data were selected for. `time` conditions on nothing, `sampling` on at least one sampled taxon, `survival` on at least one lineage alive at the present, and `nTaxa` on the number of taxa the record reports as extant, which is what data simulated under a fixed number of extant species needs.
+
+Fossil species are represented by a collection of fossil occurrences with uncertainty. Speciation, extinction and sampling rates may be time-homogeneous or piecewise time-heterogeneous. If time-heterogeneous rates are provided, then a vector of rate change time-points must also be provided. Under the hood, the fossil data is augmented with the first and last appearance of each species. These are latent, held in columns 2 and 3 of the value, and are sampled during MCMC by the matrix element moves. By default the process runs to age zero. `present` moves that boundary, so a record truncated at a stratigraphic horizon is analysed in the ages it already carries: the timeline starts there, no occurrence may be younger, and `rho` applies at that age rather than at zero.)");
 	help_strings[string("dnFossilizedBirthDeathRange")][string("example")] = string(R"(lambda ~ dnExp(10)
 mu ~ dnExp(10)
 psi ~ dnExp(10)
 
 bd ~ dnFBDRP(lambda=lambda, mu=mu, psi=psi, rho=1, taxa=taxa)
 
+# the fossil record, conditioned on the range process and clamped to the observed occurrences
+rec ~ dnFossilRecord(ranges=bd, reporting="firstlast")
+rec.clamp(taxa)
+
 moves.append( mvMatrixElementScale(bd, weight=taxa.size()) )
 moves.append( mvMatrixElementSlide(bd, weight=taxa.size()) ))");
 	help_strings[string("dnFossilizedBirthDeathRange")][string("name")] = string(R"(dnFossilizedBirthDeathRange)");
 	help_references[string("dnFossilizedBirthDeathRange")].push_back(RbHelpReference(R"(The fossilized birth-death model for the analysis of stratigraphic range data under different speciation modes. Stadler, Tanja et al. Journal of theoretical biology, 447:41-55.)",R"()",R"(https://www.sciencedirect.com/science/article/pii/S002251931830119X )"));
 	help_references[string("dnFossilizedBirthDeathRange")].push_back(RbHelpReference(R"(Improved estimation of macroevolutionary rates from fossil data using a Bayesian framework. Silvestro, Daniele et al. Paleobiology, 45:546-570.)",R"(https://doi.org/10.1017/pab.2019.23)",R"(https://www.cambridge.org/core/journals/paleobiology/article/improved-estimation-of-macroevolutionary-rates-from-fossil-data-using-a-bayesian-framework/334F08A74A6C92F1FEAD91A71FE59A1C )"));
-	help_arrays[string("dnFossilizedBirthDeathRange")][string("see_also")].push_back(string(R"(dnBirthDeathSamplingTreatment)"));
-	help_arrays[string("dnFossilizedBirthDeathRange")][string("see_also")].push_back(string(R"(mvResampleFBD)"));
+	help_arrays[string("dnFossilizedBirthDeathRange")][string("see_also")].push_back(string(R"(dnFossilRecord)"));
+	help_strings[string("dnFossilizedBirthDeathRange")][string("title")] = string(R"(The fossilized birth-death range process)");
 	help_arrays[string("dnGamma")][string("authors")].push_back(string(R"(Sebastian Hoehna)"));
 	help_strings[string("dnGamma")][string("description")] = string(R"(The Gamma distribution describes the probability of the sum of exponentially distributed variables.)");
 	help_strings[string("dnGamma")][string("details")] = string(R"(The gamma distribution takes two parameters, shape and rate. Similar to how 1/rate gives the mean of the exponential, shape/rate gives the mean of the gamma. It provides a natural prior distribution for parameters that could be considered as sums of exponential variables.
@@ -3578,6 +3610,19 @@ moves[1] = mvEmpiricalTree(tree))");
 	help_strings[string("mvEmpiricalTree")][string("title")] = string(R"(Move on an empirical tree distribution)");
 	help_strings[string("mvEventTimeBeta")][string("name")] = string(R"(mvEventTimeBeta)");
 	help_strings[string("mvEventTimeSlide")][string("name")] = string(R"(mvEventTimeSlide)");
+	help_arrays[string("mvExtinctionRJSwitch")][string("authors")].push_back(string(R"(June Walker)"));
+	help_strings[string("mvExtinctionRJSwitch")][string("description")] = string(R"(Moves one taxon's extinction time between the present, where it survived without being sampled, and a time above it.)");
+	help_strings[string("mvExtinctionRJSwitch")][string("details")] = string(R"(When rho is below one, a taxon reported extinct may have survived unsampled, so its extinction time has a point mass at the present. The continuous element moves never propose that point, so this move is needed to sample it. Taxa reported extant are never chosen.
+
+At rho = 1 the move has nothing to do.)");
+	help_strings[string("mvExtinctionRJSwitch")][string("example")] = string(R"(bd ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=0.5, timeline=timeline)
+
+moves.append( mvMatrixElementSlide(bd, delta=1, weight=taxa.size()/10) )
+moves.append( mvExtinctionRJSwitch(bd, weight=taxa.size()/10) ))");
+	help_strings[string("mvExtinctionRJSwitch")][string("name")] = string(R"(mvExtinctionRJSwitch)");
+	help_arrays[string("mvExtinctionRJSwitch")][string("see_also")].push_back(string(R"(mvMatrixElementSlide)"));
+	help_arrays[string("mvExtinctionRJSwitch")][string("see_also")].push_back(string(R"(mvRJSwitch)"));
+	help_strings[string("mvExtinctionRJSwitch")][string("title")] = string(R"(Jump a taxon's extinction time to and from the present)");
 	help_strings[string("mvFNPR")][string("description")] = string(R"(Tree topology move that prunes and re-attaches a subtree without changing any
 node heights.)");
 	help_strings[string("mvFNPR")][string("details")] = string(R"(`mvFNPR` randomly picks node i which is neither a tip nor the root, and prunes
