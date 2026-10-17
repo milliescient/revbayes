@@ -15,6 +15,7 @@ Fossil species are represented by a collection of fossil occurrences with uncert
 June Walker
 ## see_also
 dnFossilRecord
+mvStratigraphicRange
 ## example
 lambda ~ dnExp(10)
 mu ~ dnExp(10)
