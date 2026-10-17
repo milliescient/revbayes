@@ -153,6 +153,7 @@ namespace RevBayesCore {
         bool                                        isFossil(void) const;                                                               //!< Is node a fossil?
         bool                                        isInternal(void) const;                                                             //!< Is node internal?
         bool                                        isRoot(void) const;                                                                 //!< Is node root?
+        bool                                        continuesParentSpecies() const;                                                     //!< Is this node the same species as its parent?
         bool                                        isSampledAncestorTip() const;                                                       //!< Is node a tip sampled ancestor?
         bool                                        isSampledAncestorParent() const;                                                    //!< Is child node a tip a sampled ancestor?
         bool                                        isSampledAncestorTipOrParent() const;                                               //!< Is node or child node a tip a sampled ancestor?
@@ -167,6 +168,8 @@ namespace RevBayesCore {
         void                                        resolveMultifurcation(bool resolve_root = true);                                    //!< If node has more than 2 children, randomly resolve them into a bifurcating subtree
         void                                        scaleAgesFromTaxonAgesMBL(double minbl);                                            //!< Sets the age of the parent to the age of the oldest of its children + minbl
         void                                        setAge(double a, bool propagate = true );                                           //!< Set the age of this node (should only be done for tips).
+        void                                        setTipAgeUnconstrained(bool u) { tip_age_unconstrained = u; }                       //!< Extended trees: the tip is an extinction, not an occurrence
+        bool                                        isTipAgeUnconstrained(void) const { return tip_age_unconstrained; }
         void                                        setBranchLength(double b, bool flag_dirty=true);                                    //!< Set the length of the branch leading to this node.
         void                                        setIndex(size_t idx);                                                               //!< Set the index of the node
 
@@ -174,6 +177,7 @@ namespace RevBayesCore {
         void                                        setNumberOfShiftEvents(size_t n);                                                   //!< Set the number of shift events for stochastic character maps
         void                                        setParent(TopologyNode* p, bool recompute_branch_length = true);                    //!< Sets the node's parent
         void                                        setSampledAncestor(bool tf);                                                        //!< Set if the node is a sampled ancestor
+        void                                        setContinuesParentSpecies(bool tf);                                                 //!< Set whether this node continues its parent's species
         void                                        setSpeciesName(std::string const &n);                                               //!< Set the species name of this node
         void                                        setTaxon(Taxon const &t);                                                           //!< Set the taxon of this node
         void                                        setTimeInStates(std::vector<double> t);
@@ -214,6 +218,8 @@ namespace RevBayesCore {
 
         boost::optional<size_t>                     index;                                                                              //!< Node index
         bool                                        sampled_ancestor_tip = false;
+        bool                                        continues_parent_species = false;                                                   //!< Kept on the child, so it travels with the node
+        bool                                        tip_age_unconstrained = false;
 
         // information for newick representation
         std::vector<std::string>                    node_comments;
