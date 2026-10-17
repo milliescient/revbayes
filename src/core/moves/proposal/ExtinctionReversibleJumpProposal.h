@@ -4,6 +4,7 @@
 #include "MatrixReal.h"
 #include "Proposal.h"
 #include "StochasticNode.h"
+#include "Tree.h"
 
 namespace RevBayesCore {
 
@@ -15,6 +16,8 @@ namespace RevBayesCore {
      * Under rho < 1 a taxon reported extinct has a point mass at the present, which the
      * continuous element moves cannot reach.
      *
+     * It takes the range matrix of a dnFBDRP, or the tree of an extended dnFBDSP.
+     *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (June Walker)
      * @since 2026-08-03, version 1.0
@@ -24,6 +27,7 @@ namespace RevBayesCore {
 
     public:
         ExtinctionReversibleJumpProposal( StochasticNode<MatrixReal> *n );                          //!< Constructor
+        ExtinctionReversibleJumpProposal( StochasticNode<Tree> *n );                                //!< Constructor, extended trees only
 
         // Basic utility functions
         void                                    cleanProposal(void);                                //!< Clean up proposal
@@ -46,7 +50,8 @@ namespace RevBayesCore {
         AbstractFossilizedBirthDeathRangeProcess& rangeProcess(void) const;                         //!< The distribution, which owns the present and the taxa.
         void                                    collectEligible(void);                              //!< Taxa the record reports extinct, fixed for the run.
 
-        StochasticNode<MatrixReal>*             matrix = NULL;                                      //!< The range matrix.
+        StochasticNode<MatrixReal>*             matrix = NULL;                                      //!< One of these is the variable, the other stays null.
+        StochasticNode<Tree>*                   tree   = NULL;
 
         std::vector<size_t>                     eligible;                                           //!< Taxa reported extinct, the only ones with a point mass.
         size_t                                  stored_index = 0;                                   //!< The row touched, for the restore.

@@ -9,6 +9,7 @@
 #include "Move_ExtinctionReversibleJump.h"
 #include "RealPos.h"
 #include "RlMatrixReal.h"
+#include "RlTimeTree.h"
 #include "TypeSpec.h"
 #include "Move.h"
 #include "RevObject.h"
@@ -16,6 +17,7 @@
 #include "RevVariable.h"
 #include "RlMove.h"
 #include "StochasticNode.h"
+#include "Tree.h"
 
 namespace RevBayesCore { class Proposal; }
 namespace RevBayesCore { class MatrixReal; }
@@ -65,11 +67,21 @@ void Move_ExtinctionReversibleJump::constructInternalObject( void )
     
     RevBayesCore::Proposal *p = NULL;
 
-    // the range matrix of a dnFBDRP
-    RevBayesCore::TypedDagNode<RevBayesCore::MatrixReal>* tmp = static_cast<const MatrixReal &>( x->getRevObject() ).getDagNode();
-    RevBayesCore::StochasticNode<RevBayesCore::MatrixReal> *n = static_cast<RevBayesCore::StochasticNode<RevBayesCore::MatrixReal> *>( tmp );
+    // the range matrix of a dnFBDRP, or the tree of an extended dnFBDSP
+    if ( x->getRevObject().isType( TimeTree::getClassTypeSpec() ) )
+    {
+        RevBayesCore::TypedDagNode<RevBayesCore::Tree>* tmp = static_cast<const TimeTree &>( x->getRevObject() ).getDagNode();
+        RevBayesCore::StochasticNode<RevBayesCore::Tree> *n = static_cast<RevBayesCore::StochasticNode<RevBayesCore::Tree> *>( tmp );
 
-    p = new RevBayesCore::ExtinctionReversibleJumpProposal( n );
+        p = new RevBayesCore::ExtinctionReversibleJumpProposal( n );
+    }
+    else
+    {
+        RevBayesCore::TypedDagNode<RevBayesCore::MatrixReal>* tmp = static_cast<const MatrixReal &>( x->getRevObject() ).getDagNode();
+        RevBayesCore::StochasticNode<RevBayesCore::MatrixReal> *n = static_cast<RevBayesCore::StochasticNode<RevBayesCore::MatrixReal> *>( tmp );
+
+        p = new RevBayesCore::ExtinctionReversibleJumpProposal( n );
+    }
 
     // now allocate a new sliding move
     double w = static_cast<const RealPos &>( weight->getRevObject() ).getValue();
@@ -139,6 +151,7 @@ const MemberRules& Move_ExtinctionReversibleJump::getParameterRules(void) const
     {
         std::vector<TypeSpec> types;
         types.push_back( MatrixReal::getClassTypeSpec() );
+        types.push_back( TimeTree::getClassTypeSpec() );
         memberRules.push_back( new ArgumentRule( "x", types, "The fossilized birth death range process whose extinction times to jump.", ArgumentRule::BY_REFERENCE, ArgumentRule::STOCHASTIC ) );
         
         /* Inherit weight (but not tuneTarget!) from Move and put it after the arguments created above */

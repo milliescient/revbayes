@@ -54,6 +54,7 @@ AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProce
     origin_age( inorigin ),
     origin(0.0),
     max_birth(0),
+    resampled(false),
     touched(false),
     present_time(inpresent)
 {
@@ -369,10 +370,10 @@ double AbstractFossilizedBirthDeathRangeProcess::rangeLnProb( size_t i )
     // divide by q_tilde at the death time
     lnProb -= q( di, d, true);
 
-    // the extinction density
+    // the extinction density, or what closes a marginalized range
     if ( ranges[i].survived == false )
     {
-        lnProb += log( death[di] );
+        lnProb += rangeEndTerm( i, di, d );
     }
 
     return lnProb;
@@ -536,7 +537,7 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilTotal()
         }
 
         num_rho_sampled   += ( taxa[i].isExtinct() == false );          // l
-        num_rho_unsampled += ( taxa[i].isExtinct() && ranges[i].survived );    // n - m - l
+        num_rho_unsampled += ( taxa[i].isExtinct() && ranges[i].survived && marginalizesExtinction() == false );    // n - m - l
 
         // an extant taxon with no fossil sample carries no reporting term
         if ( taxa[i].getMaxAge() == times.front() ) continue;
@@ -805,6 +806,11 @@ void AbstractFossilizedBirthDeathRangeProcess::executeMethod(const std::string &
         AbstractFossilizedBirthDeathRangeProcess *self = const_cast<AbstractFossilizedBirthDeathRangeProcess *>( this );
         self->updateRanges();
 
+        if ( n == "getExtinctionTimes" && marginalizesExtinction() == true )
+        {
+            throw RbException("getExtinctionTimes is unavailable when extended=false: the extinction times are marginalized out rather than sampled. Use getLastAppearances for the youngest occurrence ages, or extended=true to sample extinction times.");
+        }
+
         rv.clear();
         for (size_t i = 0; i < ranges.size(); i++)
         {
@@ -848,10 +854,10 @@ void AbstractFossilizedBirthDeathRangeProcess::initializeFirstLast(size_t i)
 
     double lo, hi;
 
-    // within its reported bin, and above the death
+    // within its reported bin, and above the death unless that is marginalized
     if ( augment_youngest )
     {
-        lo = std::max( ranges[i].death, taxa[i].getMinAge() );
+        lo = marginalizesExtinction() ? taxa[i].getMinAge() : std::max( ranges[i].death, taxa[i].getMinAge() );
         hi = std::min( ranges[i].last_max, ranges[i].divergence );
         ranges[i].last = ( hi > lo ) ? rng->uniform01()*(hi - lo) + lo : lo;
     }
@@ -868,8 +874,26 @@ void AbstractFossilizedBirthDeathRangeProcess::initializeFirstLast(size_t i)
     // a single occurrence is its own youngest
     if ( augment_youngest == false ) ranges[i].last = ranges[i].first;
 
+    // a non-extended extinct range ends at its youngest appearance
+    if ( marginalizesExtinction() == true && taxa[i].isExtinct() == true )
+    {
+        ranges[i].death = ranges[i].last;
+        ranges[i].survived = ( ranges[i].last == times.front() );
+    }
+
     dirty_taxa[i] = true;
 }
+
+/** Without mvStratigraphicRange the appearances never move; warn once. */
+void AbstractFossilizedBirthDeathRangeProcess::warnIfNoResampleMove( void ) const
+{
+    if ( has_resample_move == false && warned_no_resample == false )
+    {
+        warned_no_resample = true;
+        RBOUT("Warning: no mvStratigraphicRange move. Appearances will not be sampled.");
+    }
+}
+
 
 /** Without a dnFossilRecord the sampling is unscored and psi has no data; warn once. */
 void AbstractFossilizedBirthDeathRangeProcess::warnIfNoReportingNode( void ) const
@@ -897,7 +921,7 @@ void AbstractFossilizedBirthDeathRangeProcess::warnIfInertNTaxaCondition( void )
 void AbstractFossilizedBirthDeathRangeProcess::warnIfNoSurvivalMove( void ) const
 {
     if ( has_survival_move == true || warned_no_survival == true ) return;
-    if ( homogeneous_rho->getValue() == 1.0 ) return;
+    if ( marginalizesExtinction() == true || homogeneous_rho->getValue() == 1.0 ) return;
 
     for (size_t i = 0; i < taxa.size(); i++)
     {
@@ -924,6 +948,43 @@ void AbstractFossilizedBirthDeathRangeProcess::switchSurvived(size_t i)
     dirty_taxa[i] = true;   // the status is in no value
 }
 
+
+void AbstractFossilizedBirthDeathRangeProcess::resampleFirstLast(size_t i)
+{
+    stored_range = i;
+    stored_first = ranges[i].first;
+    stored_last  = ranges[i].last;
+    resampled = true;
+
+    dirty_taxa[i] = true;   // a tree does not carry these ages
+
+    // a non-extended extinct range ends at its tip
+    if ( marginalizesExtinction() == true && taxa[i].isExtinct() == true && ranges[i].singleton )
+    {
+        return;
+    }
+
+    // data-fixed support
+    double hi = ranges[i].first_max;
+    ranges[i].first = GLOBAL_RNG->uniform01()*(ranges[i].first_min - hi) + hi;
+
+    // that tip is tau_K
+    if ( marginalizesExtinction() == true && taxa[i].isExtinct() == true )
+    {
+        return;
+    }
+
+    // a single reported occurrence is its own youngest
+    if ( ranges[i].singleton == false )
+    {
+        ranges[i].last = GLOBAL_RNG->uniform01()*(ranges[i].last_max - taxa[i].getMinAge()) + taxa[i].getMinAge();
+    }
+    else
+    {
+        ranges[i].last = ranges[i].first;
+    }
+
+}
 
 
 void AbstractFossilizedBirthDeathRangeProcess::drawRanges()
@@ -1041,6 +1102,7 @@ void AbstractFossilizedBirthDeathRangeProcess::keepSpecialization(const DagNode 
 {
     dirty_taxa = std::vector<bool>(taxa.size(), false);
 
+    resampled = false;
     switched = false;
     touched = false;
     weld_origin = true;
@@ -1053,6 +1115,12 @@ void AbstractFossilizedBirthDeathRangeProcess::restoreSpecialization(const DagNo
 
     ranges = stored_ranges;
 
+    if ( resampled )
+    {
+        ranges[stored_range].first = stored_first;
+        ranges[stored_range].last  = stored_last;
+    }
+
     if ( switched )
     {
         ranges[switched_range].survived = stored_survived;
@@ -1060,6 +1128,7 @@ void AbstractFossilizedBirthDeathRangeProcess::restoreSpecialization(const DagNo
 
     dirty_taxa = std::vector<bool>(taxa.size(), false);
 
+    resampled = false;
     switched = false;
     touched = false;
     weld_origin = true;
