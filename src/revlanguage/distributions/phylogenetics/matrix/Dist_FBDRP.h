@@ -39,6 +39,11 @@ namespace RevLanguage {
         // Distribution functions you have to override
         RevBayesCore::FossilizedBirthDeathRangeProcess*         createDistribution(void) const;
 
+    protected:
+        void                                                    setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var);
+
+        RevPtr<const RevVariable>                               complete;                                                                               //!< Are all lineages sampled?
+
     };
     
 }

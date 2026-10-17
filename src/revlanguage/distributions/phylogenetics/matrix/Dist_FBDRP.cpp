@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "FossilizedBirthDeathRangeProcess.h"
+#include "CompleteFossilizedBirthDeathRangeProcess.h"
 
 #include "ArgumentRule.h"
 #include "ArgumentRules.h"
@@ -28,6 +29,7 @@
 #include "MatrixReal.h"
 #include "ModelObject.h"
 #include "RbBoolean.h"
+#include "RlBoolean.h"
 #include "RbVector.h"
 #include "RevNullObject.h"
 #include "RevObject.h"
@@ -116,9 +118,12 @@ RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_FBDRP::createDistribution( 
 
     double pres = static_cast<const RealPos &>( present->getRevObject() ).getValue();
 
-    RevBayesCore::FossilizedBirthDeathRangeProcess* d = new RevBayesCore::FossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, oa, pres);
+    if ( static_cast<const RlBoolean &>( complete->getRevObject() ).getValue() == true )
+    {
+        return new RevBayesCore::CompleteFossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, oa, pres);
+    }
 
-    return d;
+    return new RevBayesCore::FossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, oa, pres);
 }
 
 
@@ -199,6 +204,8 @@ const MemberRules& Dist_FBDRP::getParameterRules(void) const
         // add the rules from the base class, without the reporting args
         const MemberRules &parentRules = FossilizedBirthDeathRangeProcess<MatrixReal>::getCoreParameterRules();
         dist_member_rules.insert(dist_member_rules.end(), parentRules.begin(), parentRules.end());
+
+        dist_member_rules.push_back( new ArgumentRule( "complete", RlBoolean::getClassTypeSpec(), "Are all lineages sampled? TRUE is the complete fossilized birth-death range process, the BDS model of Silvestro et al. (2019).", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean( false ) ) );
         
         rules_set = true;
     }
@@ -221,3 +228,15 @@ const TypeSpec& Dist_FBDRP::getTypeSpec( void ) const
 }
 
 
+/** Set a member variable. */
+void Dist_FBDRP::setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var)
+{
+    if ( name == "complete" )
+    {
+        complete = var;
+    }
+    else
+    {
+        FossilizedBirthDeathRangeProcess<MatrixReal>::setConstParameter(name, var);
+    }
+}
