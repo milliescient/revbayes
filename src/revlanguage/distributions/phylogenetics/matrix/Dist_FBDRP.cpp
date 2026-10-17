@@ -10,6 +10,11 @@
 
 #include "ArgumentRule.h"
 #include "ArgumentRules.h"
+#include "MethodTable.h"
+#include "StochasticNode.h"
+#include "RlStochasticNode.h"
+#include "DistributionMemberFunction.h"
+#include "RlDistributionMemberFunction.h"
 #include "ModelVector.h"
 #include "Natural.h"
 #include "OptionRule.h"
@@ -28,11 +33,11 @@
 #include "RevObject.h"
 #include "RevPtr.h"
 #include "RevVariable.h"
-#include "RlBoolean.h"
 #include "RlDagMemberFunction.h"
 #include "RlDeterministicNode.h"
 #include "RlMatrixReal.h"
 #include "RlStochasticNode.h"
+#include "RlDistribution.h"
 #include "RlTypedDistribution.h"
 #include "RlTypedFunction.h"
 #include "StochasticNode.h"
@@ -81,8 +86,6 @@ Dist_FBDRP* Dist_FBDRP::clone( void ) const
  */
 RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_FBDRP::createDistribution( void ) const
 {
-    throw RbException("FBD range process currently disabled due to invalid calculations.");
-
     // get the parameters
     
     // sampling condition
@@ -108,11 +111,13 @@ RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_FBDRP::createDistribution( 
         rt = static_cast<const ModelVector<RealPos> &>( timeline->getRevObject() ).getDagNode();
     }
 
-    bool c  = static_cast<const RlBoolean &>( complete->getRevObject() ).getValue();
-    bool use_bds = static_cast<const RlBoolean &>( bds->getRevObject() ).getValue();
+    // optional process start, which the oldest birth follows
+    RevBayesCore::TypedDagNode<double>* oa = createOrigin();
 
-    RevBayesCore::FossilizedBirthDeathRangeProcess* d = new RevBayesCore::FossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, c, false, use_bds);
-    
+    double pres = static_cast<const RealPos &>( present->getRevObject() ).getValue();
+
+    RevBayesCore::FossilizedBirthDeathRangeProcess* d = new RevBayesCore::FossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, oa, pres);
+
     return d;
 }
 
@@ -179,12 +184,6 @@ std::string Dist_FBDRP::getDistributionFunctionName( void ) const
 /**
  * Get the member rules used to create the constructor of this object.
  *
- * The member rules of the fossilized birth-death process are:
- * (1) the speciation rate lambda which must be a positive real.
- * (2) the extinction rate mu that must be a positive real.
- * (3) the fossil sampling rate psi that must be a positive real.
- * (4) the extant sampling rate rho that must be a positive real.
- *
  * \return The member rules.
  */
 const MemberRules& Dist_FBDRP::getParameterRules(void) const
@@ -195,10 +194,10 @@ const MemberRules& Dist_FBDRP::getParameterRules(void) const
     
     if ( !rules_set )
     {
-        dist_member_rules.push_back( new ArgumentRule( "BDS", RlBoolean::getClassTypeSpec(), "Assume complete lineage sampling? (BDS model of Silvestro et al. 2019)", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean( false ) ) );
+        dist_member_rules.push_back( originRule() );
 
-        // add the rules from the base class
-        const MemberRules &parentRules = FossilizedBirthDeathRangeProcess<MatrixReal>::getParameterRules();
+        // add the rules from the base class, without the reporting args
+        const MemberRules &parentRules = FossilizedBirthDeathRangeProcess<MatrixReal>::getCoreParameterRules();
         dist_member_rules.insert(dist_member_rules.end(), parentRules.begin(), parentRules.end());
         
         rules_set = true;
@@ -222,26 +221,3 @@ const TypeSpec& Dist_FBDRP::getTypeSpec( void ) const
 }
 
 
-/**
- * Set a member variable.
- *
- * Sets a member variable with the given name and store the pointer to the variable.
- * The value of the variable might still change but this function needs to be called again if the pointer to
- * the variable changes. The current values will be used to create the distribution object.
- *
- * \param[in]    name     Name of the member variable.
- * \param[in]    var      Pointer to the variable.
- */
-void Dist_FBDRP::setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var)
-{
-
-    if ( name == "BDS" )
-    {
-        bds = var;
-    }
-    else
-    {
-       FossilizedBirthDeathRangeProcess<MatrixReal>::setConstParameter(name,var);
-    }
-
-}

@@ -1,6 +1,8 @@
 #ifndef FossilizedBirthDeathRangeProcess_H
 #define FossilizedBirthDeathRangeProcess_H
 
+#include <set>
+#include <utility>
 #include "AbstractFossilizedBirthDeathRangeProcess.h"
 
 #include "MatrixReal.h"
@@ -38,23 +40,29 @@ namespace RevBayesCore {
 										  const TypedDagNode<RbVector<double> > *times,
 										  const std::string &condition,
 										  const std::vector<Taxon> &taxa,
-										  bool complete,
-										  bool resampling,
-                                          bool bds);                                                                        //!< Constructor
+										  bool complete_record,
+                                          const TypedDagNode<double>* origin = NULL,
+                                            double present = 0.0);
         
         // public member functions
+        void                                            setMcmcMode(bool tf) override;
+
         FossilizedBirthDeathRangeProcess*               clone(void) const override;                                         //!< Create an independent clone
 
+        void                                            setValue(MatrixReal *v, bool force = false) override;
+
     protected:
-        void                                            updateStartEndTimes();
+        void                                            updateRanges() override;
 
         // Parameter management functions
-        double                                          computeLnProbability(void);                                         //!< Compute the log-transformed probability of the current value.
-        double                                          computeLnProbabilityBDS(void);                                      //!< Compute the log probability assuming complete lineage sampling.
+        double                                          computeLnProbability(void) override;                                //!< Compute the log-transformed probability of the current value.
 
         // Parameter management functions
         void                                            swapParameterInternal(const DagNode *oldP, const DagNode *newP) override;  //!< Swap a parameter
 
+        std::vector<std::pair<size_t,double> >          stored_repairs;                                                     //!< Elements the repair wrote that no move stored, undone on restore.
+        void                                            repairRanges(void) override;                                        //!< Hold tau_K equal to tau_1 below two occurrences.
+        void                                            repairRanges(const std::set<size_t> &touched);                      //!< Follow whichever of the two columns the move wrote.
         void                                            keepSpecialization(const DagNode *toucher) override;
         void                                            restoreSpecialization(const DagNode *toucher) override;
         void                                            touchSpecialization(const DagNode *toucher, bool touchAll) override;
@@ -63,9 +71,8 @@ namespace RevBayesCore {
         
         // helper functions
         void                                            updateGamma(bool force = false);                                    //!< Number of species alive at time t.
-        void                                            redrawValue(void);
+        void                                            redrawValue(void) override;
 
-        bool                                            bds;                //!< Indicates whether to assume complete lineage sampling (BDS model)
         std::vector<size_t>                             gamma_i;            //!< The number of coexisting lineages at each taxon birth time
         std::vector<std::vector<bool> >                 gamma_links;        //!< A boolean matrix indicating which taxa are coexiting at each birth time
         std::vector<bool>                               dirty_gamma;        //!< Indicates whether gamma needs updating

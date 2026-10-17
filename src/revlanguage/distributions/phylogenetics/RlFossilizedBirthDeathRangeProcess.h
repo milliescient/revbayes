@@ -1,8 +1,16 @@
 #ifndef RlFossilizedBirthDeathRangeProcess_H
 #define RlFossilizedBirthDeathRangeProcess_H
 
+#include "StochasticNode.h"
+#include "TypedDistribution.h"
+#include "DistributionMemberFunction.h"
 #include "ModelVector.h"
+#include "RealPos.h"
+#include "RlDistributionMemberFunction.h"
 #include "OptionRule.h"
+#include "RlDistribution.h"
+#include "RevNullObject.h"
+#include "RlBoolean.h"
 #include "RlString.h"
 #include "RlTaxon.h"
 #include "RlTypedDistribution.h"
@@ -28,6 +36,7 @@ namespace RevLanguage {
 
         // Basic utility functions you may want to overwrite
         const MemberRules&                                  getParameterRules(void) const;                                                      //!< Get member rules (const)
+        MethodTable                                         getDistributionMethods(void) const;                                                 //!< The range times and appearances
         
         // Basic utility functions
         static const std::string&                           getClassType(void);                                                                 //!< Get Rev type
@@ -35,6 +44,11 @@ namespace RevLanguage {
 
     protected:
         FossilizedBirthDeathRangeProcess( void );
+
+        const MemberRules&                                  getCoreParameterRules(void) const;                                              //!< Get member rules (const)
+        static void                                         appendParameterRules(MemberRules &rules);                                           //!< Build the member rules
+        static ArgumentRule*                                originRule(void);                                                                   //!< The optional origin argument, for the processes that take one
+        RevBayesCore::TypedDagNode<double>*                 createOrigin(void) const;                                                           //!< The given origin node, or NULL if none was given
         
         void                                                setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var);   //!< Set member variable
     
@@ -44,10 +58,10 @@ namespace RevLanguage {
         RevPtr<const RevVariable>                           psi;                                                                                //!< The fossilization rate(s)
         RevPtr<const RevVariable>                           rho;                                                                                //!< The extant sampling proportion
         RevPtr<const RevVariable>                           timeline;                                                                           //!< The interval times
+        RevPtr<const RevVariable>                           present;                                                                            //!< Where the process stops
         RevPtr<const RevVariable>                           taxa;                                                                               //!< The taxa
         RevPtr<const RevVariable>                           condition;                                                                          //!< The condition of the process
-        RevPtr<const RevVariable>                           complete;
-        RevPtr<const RevVariable>                           resample;
+        RevPtr<const RevVariable>                           origin;                                                                             //!< Optional process start, which the oldest birth follows
 
     };
     
@@ -87,7 +101,7 @@ template <typename rlType>
 const std::string& RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::getClassType(void)
 {
 
-    static std::string rev_type = "FossilizedBirthDeathRangeProcess";
+    static std::string rev_type = "FossilizedBirthDeathRange";
 
     return rev_type;
 }
@@ -107,6 +121,56 @@ const TypeSpec& RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::getClassT
     return rev_type_spec;
 }
 
+
+
+/**
+ * Build the member rules of the range process.
+ *
+ * \param[out]   rules              The rule list to append to.
+ */
+template <typename rlType>
+void RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::appendParameterRules(MemberRules &rules)
+{
+    std::vector<TypeSpec> paramTypes;
+    paramTypes.push_back( RealPos::getClassTypeSpec() );
+    paramTypes.push_back( ModelVector<RealPos>::getClassTypeSpec() );
+    rules.push_back( new ArgumentRule( "lambda",  paramTypes, "The speciation rate(s).", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY ) );
+    rules.push_back( new ArgumentRule( "mu",      paramTypes, "The extinction rate(s).", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, new RealPos(0.0) ) );
+    rules.push_back( new ArgumentRule( "psi",     paramTypes, "The fossil sampling rate(s).", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, new RealPos(0.0) ) );
+    rules.push_back( new ArgumentRule( "rho",     Probability::getClassTypeSpec(), "The extant sampling fraction.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, new RealPos(1.0) ) );
+
+    rules.push_back( new ArgumentRule( "timeline",   ModelVector<RealPos>::getClassTypeSpec(), "The rate interval change times of the piecewise constant process.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
+    rules.push_back( new ArgumentRule( "present",    RealPos::getClassTypeSpec(), "The time defining the present. Minimum age of the process.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, new RealPos(0.0) ) );
+
+    std::vector<std::string> optionsCondition;
+    optionsCondition.push_back( "time" );
+    optionsCondition.push_back( "sampling" );
+    optionsCondition.push_back( "survival" );
+    optionsCondition.push_back( "nTaxa" );
+    rules.push_back( new OptionRule( "condition", new RlString("time"), optionsCondition, "The condition of the process." ) );
+    rules.push_back( new ArgumentRule( "taxa"  , ModelVector<Taxon>::getClassTypeSpec(), "The taxa with fossil occurrence information.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY ) );
+
+}
+
+
+/** The optional origin, which the oldest birth follows. */
+template <typename rlType>
+ArgumentRule* RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::originRule(void)
+{
+    return new ArgumentRule( "origin", RealPos::getClassTypeSpec(), "The start of the process. Left out, it is the oldest birth and carries no prior.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL );
+}
+
+
+template <typename rlType>
+RevBayesCore::TypedDagNode<double>* RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::createOrigin(void) const
+{
+    if ( origin == NULL || origin->getRevObject() == RevNullObject::getInstance() )
+    {
+        return NULL;
+    }
+
+    return static_cast<const RealPos &>( origin->getRevObject() ).getDagNode();
+}
 
 
 /**
@@ -133,26 +197,30 @@ const MemberRules& RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::getPar
 
     if ( !rules_set )
     {
-        std::vector<TypeSpec> paramTypes;
-        paramTypes.push_back( RealPos::getClassTypeSpec() );
-        paramTypes.push_back( ModelVector<RealPos>::getClassTypeSpec() );
-        memberRules.push_back( new ArgumentRule( "lambda",  paramTypes, "The speciation rate(s).", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY ) );
-        memberRules.push_back( new ArgumentRule( "mu",      paramTypes, "The extinction rate(s).", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, new RealPos(0.0) ) );
-        memberRules.push_back( new ArgumentRule( "psi",     paramTypes, "The fossil sampling rate(s).", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, new RealPos(0.0) ) );
-        memberRules.push_back( new ArgumentRule( "rho",     Probability::getClassTypeSpec(), "The extant sampling fraction.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, new RealPos(1.0) ) );
+        appendParameterRules( memberRules );
 
-        memberRules.push_back( new ArgumentRule( "timeline",   ModelVector<RealPos>::getClassTypeSpec(), "The rate interval change times of the piecewise constant process.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
+        rules_set = true;
+    }
 
-        std::vector<std::string> optionsCondition;
-        optionsCondition.push_back( "time" );
-        optionsCondition.push_back( "sampling" );
-        optionsCondition.push_back( "survival" );
-        memberRules.push_back( new OptionRule( "condition", new RlString("time"), optionsCondition, "The condition of the process." ) );
-        memberRules.push_back( new ArgumentRule( "taxa"  , ModelVector<Taxon>::getClassTypeSpec(), "The taxa with fossil occurrence information.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY ) );
+    return memberRules;
+}
 
-        memberRules.push_back( new ArgumentRule( "complete", RlBoolean::getClassTypeSpec(), "Assume complete fossil sampling?", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean( false ) ) );
 
-        //memberRules.push_back( new ArgumentRule( "resample", RlBoolean::getClassTypeSpec(), "Resample augmented ages?", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean(true) ) );
+/**
+ * Get the member rules of the range process.
+ *
+ * \return The member rules.
+ */
+template <typename rlType>
+const MemberRules& RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::getCoreParameterRules(void) const
+{
+
+    static MemberRules memberRules;
+    static bool rules_set = false;
+
+    if ( !rules_set )
+    {
+        appendParameterRules( memberRules );
 
         rules_set = true;
     }
@@ -191,6 +259,10 @@ void RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::setConstParameter(co
     {
         rho = var;
     }
+    else if ( name == "present" )
+    {
+        present = var;
+    }
     else if ( name == "timeline" )
     {
         timeline = var;
@@ -203,19 +275,40 @@ void RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::setConstParameter(co
     {
         condition = var;
     }
-    else if ( name == "complete" )
+    else if ( name == "origin" )
     {
-        complete = var;
-    }
-    else if ( name == "resample" )
-    {
-        resample = var;
+        origin = var;
     }
     else
     {
         TypedDistribution<rlType>::setConstParameter(name,var);
     }
 
+}
+
+
+/** The range times and appearances. */
+template <typename rlType>
+RevLanguage::MethodTable RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::getDistributionMethods( void ) const
+{
+    MethodTable methods = TypedDistribution<rlType>::getDistributionMethods();
+
+    ArgumentRules* first_app_arg_rules = new ArgumentRules();
+    methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, ModelVector<RealPos> >( "getFirstAppearances", this->variable, first_app_arg_rules, true ) );
+
+    ArgumentRules* last_app_arg_rules = new ArgumentRules();
+    methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, ModelVector<RealPos> >( "getLastAppearances", this->variable, last_app_arg_rules, true ) );
+
+    ArgumentRules* origin_arg_rules = new ArgumentRules();
+    methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, RealPos >( "getOrigin", this->variable, origin_arg_rules, true ) );
+
+    ArgumentRules* origination_arg_rules = new ArgumentRules();
+    methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, ModelVector<RealPos> >( "getOriginationTimes", this->variable, origination_arg_rules, true ) );
+
+    ArgumentRules* extinction_arg_rules = new ArgumentRules();
+    methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, ModelVector<RealPos> >( "getExtinctionTimes", this->variable, extinction_arg_rules, true ) );
+
+    return methods;
 }
 
 #endif

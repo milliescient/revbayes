@@ -14,10 +14,12 @@ namespace RevLanguage {
      * The RevLanguage wrapper of the fossilized-birth-death range matrix process connects
      * the variables/parameters of the process and creates the internal FossilizedBirthDeathRangeMatrixProcess object.
      *
+     * The fossil-record term and the reporting model belong to a separate dnFossilRecord node.
+     *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (Sebastian Hoehna)
      * @since 2014-01-26, version 1.0
-     *c
+     *
      */
     class Dist_FBDRP : public FossilizedBirthDeathRangeProcess<MatrixReal> {
         
@@ -37,11 +39,6 @@ namespace RevLanguage {
         // Distribution functions you have to override
         RevBayesCore::FossilizedBirthDeathRangeProcess*         createDistribution(void) const;
 
-    protected:
-
-        void                                                    setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var);       //!< Set member variable
-    
-        RevPtr<const RevVariable>                               bds;
     };
     
 }
