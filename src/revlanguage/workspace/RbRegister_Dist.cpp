@@ -184,6 +184,8 @@
 #include "Dist_WeightedConstrainedNodeOrder.h"
 #include "Dist_DuplicationLoss.h"
 #include "Dist_FBDRP.h"
+#include "Dist_FossilRecord.h"
+#include "RlTaxon.h"
 #include "Dist_GLHBDSP.h"
 #include "Dist_constPopMultispCoal.h"
 #include "Dist_divDepYuleProcess.h"
@@ -374,8 +376,9 @@ void RevLanguage::Workspace::initializeDistGlobalWorkspace(void)
         AddDistribution< TimeTree                   >( new Dist_TimeVaryingStateDependentSpeciationExtinctionProcess() );
         AddDistribution< TimeTree                   >( new Dist_GLHBDSP() );
 
-        // fossilized-birth-death range processes
+        // fossilized-birth-death range processes and their fossil-record term
         AddDistribution< MatrixReal                 >( new Dist_FBDRP());
+        AddDistribution< ModelVector<Taxon>         >( new Dist_FossilRecord());
 
         // birth-death-sampling-treatment processes and submodels
         AddDistribution< TimeTree                   >( new Dist_BDSTP());
