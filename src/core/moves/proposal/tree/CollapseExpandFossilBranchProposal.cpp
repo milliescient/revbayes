@@ -13,9 +13,9 @@
 #include "StochasticNode.h"
 #include "Taxon.h"
 #include "TimeInterval.h"
+#include "TreeDistributionProperties.h"
 #include "TopologyNode.h"
 #include "Tree.h"
-#include "TreeDistributionProperties.h"
 
 namespace RevBayesCore { class DagNode; }
 
@@ -108,7 +108,8 @@ double CollapseExpandFossilBranchProposal::doProposal( void )
     {
         TopologyNode* node = &t.getNode(i);
 
-        if ( node->isFossil() == true )
+        // a lone lineage is its own root, with no branch to collapse
+        if ( node->isFossil() == true && node->isRoot() == false )
         {
             fossils.push_back(node);
         }
@@ -117,8 +118,9 @@ double CollapseExpandFossilBranchProposal::doProposal( void )
 
     if ( fossils.empty() )
     {
+        // reject rather than return 0, or a move that could not act counts as accepted
         failed = true;
-        return 0;
+        return RbConstants::Double::neginf;
     }
 
     // pick a random fossil node
@@ -164,8 +166,7 @@ double CollapseExpandFossilBranchProposal::collapseBranch(TopologyNode &n)
         sibling = &parent.getChild( 1 );
     }
     
-    // determine lower and upper bound of backward move. The window has to contain the
-    // parent's current age, or expand cannot undo collapse; the age range maximum need not.
+    // the backward move's window has to contain the parent's current age
     double min_age = n.getAge();
     double max_age = parent.getAge();
     if ( parent.isRoot() )
@@ -228,8 +229,7 @@ double CollapseExpandFossilBranchProposal::expandBranch(TopologyNode &n)
         sibling = &parent.getChild( 1 );
     }
     
-    // determine lower and upper bound of backward move. The window has to contain the
-    // parent's current age, or expand cannot undo collapse; the age range maximum need not.
+    // the backward move's window has to contain the parent's current age
     double min_age = n.getAge();
     double max_age = parent.getAge();
     if ( parent.isRoot() )

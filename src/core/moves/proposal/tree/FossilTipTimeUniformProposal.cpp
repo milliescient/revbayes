@@ -5,12 +5,14 @@
 
 #include "DistributionUniform.h"
 #include "FossilTipTimeUniformProposal.h"
+#include "RbConstants.h"
 #include "RandomNumberFactory.h"
 #include "RandomNumberGenerator.h"
 #include "RbException.h"
 #include "TypedDagNode.h"
 #include "Proposal.h"
 #include "StochasticNode.h"
+#include "TreeDistributionProperties.h"
 #include "TopologyNode.h"
 #include "Tree.h"
 
@@ -28,7 +30,10 @@ FossilTipTimeUniformProposal::FossilTipTimeUniformProposal( StochasticNode<Tree>
     origin( o ),
     max( ma ),
     min( mi ),
-    tip_taxon( t )
+    tip_taxon( t ),
+    node_index( 0 ),
+    stored_age( 0.0 ),
+    failed( false )
 {
     // tell the base class to add the node
     addNode( tree );
@@ -110,7 +115,12 @@ double FossilTipTimeUniformProposal::doProposal( void )
     RandomNumberGenerator* rng     = GLOBAL_RNG;
     
     Tree& tau = tree->getValue();
-    
+
+    const TreeDistributionProperties *props = dynamic_cast<const TreeDistributionProperties *>( &tree->getDistribution() );
+    bool extended = ( props != NULL && props->isExtended() );
+
+    failed = false;
+
     if ( use_index )
     {
         // Always recompute node_index
@@ -122,7 +132,8 @@ double FossilTipTimeUniformProposal::doProposal( void )
         for (size_t i = 0; i < tau.getNumberOfTips(); ++i)
         {
             TopologyNode* node = &tau.getNode(i);
-            if ( node->isFossil() )
+            // an extinct tip may already sit at the present, where isFossil() would miss it
+            if ( extended == true ? node->getTaxon().isExtinct() : node->isFossil() )
             {
                 tips.push_back(i);
             }
@@ -131,8 +142,9 @@ double FossilTipTimeUniformProposal::doProposal( void )
 
         if ( tips.empty() )
         {
+            // reject rather than return 0, or a move that could not act counts as accepted
             failed = true;
-            return 0;
+            return RbConstants::Double::neginf;
         }
 
         // pick a random fossil node
@@ -141,10 +153,15 @@ double FossilTipTimeUniformProposal::doProposal( void )
     }
 
     TopologyNode& node = tau.getNode(node_index);
-    TopologyNode& parent = node.getParent();
 
-    // we need to work with the times
-    double parent_age   = parent.getAge();
+    // an extended tip is bounded by its own occurrences, so it needs no origin
+    if ( node.isRoot() == true && origin == NULL && extended == false )
+    {
+        throw RbException("Attempting to move a root tip, but no origin time provided.");
+    }
+
+    // a lone lineage is its own root, so the origin bounds it instead of a parent
+    double parent_age   = node.isRoot() ? ( origin != NULL ? origin->getValue() : RbConstants::Double::inf ) : node.getParent().getAge();
     double my_age       = node.getAge();
     double min_age      = 0;
     double max_age;
@@ -177,6 +194,8 @@ double FossilTipTimeUniformProposal::doProposal( void )
 
     if ( node.isSampledAncestorTip() == true )
     {
+        TopologyNode& parent = node.getParent();
+
         TopologyNode *sibling = &parent.getChild( 0 );
         if ( sibling == &node )
         {
@@ -210,7 +229,22 @@ double FossilTipTimeUniformProposal::doProposal( void )
     } else {
         max_age = fmin(max_age, parent_age);
     }
-    
+
+    if ( extended == true )
+    {
+        // an extinction is bounded by the present and the youngest occurrence, not the parent
+        const std::vector<std::pair<TimeInterval, size_t> >& occurrences = node.getTaxon().getOccurrences();
+
+        min_age = 0.0;
+        max_age = node.getTaxon().getMaxAge();
+
+        // a death lies at or below every occurrence, so the binding bound is the youngest maximum
+        for (std::vector<std::pair<TimeInterval, size_t> >::const_iterator it = occurrences.begin(); it != occurrences.end(); ++it)
+        {
+            max_age = fmin(max_age, it->first.getMax());
+        }
+    }
+
     // Abort the move if we don't have a valid interval
     if (not (min_age < max_age))
         throw RbException(RbException::SKIP_PROPOSAL);
@@ -263,6 +297,9 @@ void FossilTipTimeUniformProposal::printParameterSummary(std::ostream &o, bool n
 void FossilTipTimeUniformProposal::undoProposal( void )
 {
     
+    // a proposal that found no movable tip never picked a node, so there is nothing to restore
+    if ( failed == true ) return;
+
     // undo the proposal
     Tree& tau = tree->getValue();
     TopologyNode* node = &tau.getNode(node_index);
