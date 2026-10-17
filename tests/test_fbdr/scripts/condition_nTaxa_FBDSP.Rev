@@ -1,0 +1,92 @@
+# condition="nTaxa" on dnFBDSP. The conditioning acts on the count at the present, so it pays the
+# same closed-form factor as dnFBDRP, whatever tree hangs on the ranges:
+#
+#   alpha = mu (1 - e^-(lambda-mu)x) / (lambda - mu e^-(lambda-mu)x)
+#   beta  = lambda (1 - e^-(lambda-mu)x) / (lambda - mu e^-(lambda-mu)x)
+#
+# so P(0) = alpha, P(n) = (1 - alpha)(1 - beta) beta^(n-1), and the conditioning pays -log P(n).
+# A tree does not carry the appearance ages, so each node draws its own. The fossils here have
+# exact ages, which leaves nothing to draw, so two nodes on one tree differ only by their
+# conditioning. Six taxa, three of them extant. Every line printed must be TRUE.
+seed(1)
+taxa <- readTaxonData("data/fbdsp_condition.tsv")
+
+lambda ~ dnExponential(1); lambda.setValue(0.4)
+mu     ~ dnExponential(1); mu.setValue(0.1)
+psi    ~ dnExponential(1); psi.setValue(0.5)
+origin ~ dnUniform(8, 30);  origin.setValue(20)
+
+out = "output/condition_nTaxa_FBDSP.txt"
+
+d <- lambda - mu
+
+# extended trees: the tips are extinction times
+ext_t ~ dnFBDSP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+                condition="time", origin=origin, extended=TRUE)
+rec_ext_t ~ dnFossilRecord(ranges=ext_t, reporting="complete")
+rec_ext_t.clamp(taxa)
+
+# one tree throughout, so the nodes differ only by their conditioning
+ext_config <- ext_t
+ori <- ext_t.getOrigin()
+
+ext_c ~ dnFBDSP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+                condition="nTaxa", origin=origin, extended=TRUE)
+ext_c.setValue(ext_config)
+rec_ext_c ~ dnFossilRecord(ranges=ext_c, reporting="complete")
+rec_ext_c.clamp(taxa)
+
+ex <- exp(-d * ori)
+alpha <- mu * (1 - ex) / (lambda - mu * ex)
+beta <- lambda * (1 - ex) / (lambda - mu * ex)
+expected <- -( ln(1 - alpha) + ln(1 - beta) + 2 * ln(beta) )
+
+print(filename=out, "extended: both nodes carry the same appearances:\n")
+fa_t <- ext_t.getFirstAppearances()
+fa_c <- ext_c.getFirstAppearances()
+same <- TRUE
+for (i in 1:fa_t.size()) { if (fa_t[i] != fa_c[i]) same <- FALSE }
+print(filename=out, append=TRUE, same, "\n")
+print(filename=out, append=TRUE, "extended: the factor matches its closed form at the record's own count of 3:\n")
+print(filename=out, append=TRUE, abs((ext_c.lnProbability() - ext_t.lnProbability()) - expected) < 1E-8, "\n")
+
+# intervals that share a rate must not move the factor: the composition check
+timeline <- v(1.0, 2.0, 3.0, 4.0)
+lv := v(lambda, lambda, lambda, lambda, lambda)
+mv := v(mu, mu, mu, mu, mu)
+pv := v(psi, psi, psi, psi, psi)
+
+ext_s ~ dnFBDSP(taxa=taxa, lambda=lv, mu=mv, psi=pv, rho=1.0, present=0.0, timeline=timeline,
+                condition="nTaxa", origin=origin, extended=TRUE)
+ext_s.setValue(ext_config)
+rec_ext_s ~ dnFossilRecord(ranges=ext_s, reporting="complete")
+rec_ext_s.clamp(taxa)
+
+print(filename=out, append=TRUE, "extended: five intervals of one rate match one interval:\n")
+print(filename=out, append=TRUE, abs(ext_s.lnProbability() - ext_c.lnProbability()) < 1E-8, "\n")
+
+# non-extended trees: the extinction times are marginalized out
+mar_t ~ dnFBDSP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+                condition="time", origin=origin, extended=FALSE)
+rec_mar_t ~ dnFossilRecord(ranges=mar_t, reporting="complete")
+rec_mar_t.clamp(taxa)
+
+mar_config <- mar_t
+mar_ori <- mar_t.getOrigin()
+
+mar_c ~ dnFBDSP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+                condition="nTaxa", origin=origin, extended=FALSE)
+mar_c.setValue(mar_config)
+rec_mar_c ~ dnFossilRecord(ranges=mar_c, reporting="complete")
+rec_mar_c.clamp(taxa)
+
+ex2 <- exp(-d * mar_ori)
+a2 <- mu * (1 - ex2) / (lambda - mu * ex2)
+b2 <- lambda * (1 - ex2) / (lambda - mu * ex2)
+
+print(filename=out, append=TRUE, "non-extended: the factor matches its closed form:\n")
+print(filename=out, append=TRUE,
+      abs((mar_c.lnProbability() - mar_t.lnProbability())
+          - -( ln(1 - a2) + ln(1 - b2) + 2 * ln(b2) )) < 1E-8, "\n")
+
+q()
