@@ -1,0 +1,13 @@
+psiMixtureRates
+time: one component is the plain process:
+TRUE	
+time: equal rates differ only by the component weights:
+TRUE	
+time: and leave the fossil record unchanged:
+TRUE	
+sampling: one component is the plain process:
+TRUE	
+sampling: equal rates differ only by the component weights:
+TRUE	
+sampling: and leave the fossil record unchanged:
+TRUE	
