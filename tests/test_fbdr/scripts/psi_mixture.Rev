@@ -1,0 +1,40 @@
+# psiMixtureRates. With every component at the same rate the mixture leaves the no-sample
+# probabilities unchanged, so each taxon differs from the plain process only by the weight of
+# its component. That holds under a skyline and under sampling conditioning, and it checks the
+# linear system for the mixed no-sample probabilities against the closed form. Every line
+# printed must be TRUE.
+taxa <- readTaxonData("data/fbdr_condition.tsv")
+
+out = "output/psi_mixture.txt"
+print(filename=out, "psiMixtureRates\n")
+
+for (cond in v("time", "sampling")) {
+    plain ~ dnFBDRP(taxa=taxa, lambda=v(0.4, 0.6), mu=v(0.1, 0.2), psi=v(0.5, 0.3),
+                    timeline=v(2.0), rho=0.5, condition=cond)
+    rec_plain ~ dnFossilRecord(ranges=plain, reporting="firstlast")
+    rec_plain.clamp(taxa)
+
+    one ~ dnFBDRP(taxa=taxa, lambda=v(0.4, 0.6), mu=v(0.1, 0.2), psi=v(0.5, 0.3),
+                  timeline=v(2.0), rho=0.5, condition=cond, psiMixtureRates=v(1.0))
+    one.setValue(plain)
+
+    mix ~ dnFBDRP(taxa=taxa, lambda=v(0.4, 0.6), mu=v(0.1, 0.2), psi=v(0.5, 0.3),
+                  timeline=v(2.0), rho=0.5, condition=cond, psiMixtureRates=v(1, 1, 1, 1),
+                  psiMixtureWeights=simplex(0.1, 0.2, 0.3, 0.4))
+    mix.setValue(plain)
+    rec_mix ~ dnFossilRecord(ranges=mix, reporting="firstlast")
+    rec_mix.clamp(taxa)
+
+    w <- 0
+    k <- mix.getPsiMixtureComponents()
+    for (i in 1:k.size()) w <- w + ln( v(0.1, 0.2, 0.3, 0.4)[k[i]] )
+
+    print(filename=out, append=TRUE, cond + ": one component is the plain process:\n")
+    print(filename=out, append=TRUE, one.lnProbability() == plain.lnProbability(), "\n")
+    print(filename=out, append=TRUE, cond + ": equal rates differ only by the component weights:\n")
+    print(filename=out, append=TRUE, abs(mix.lnProbability() - plain.lnProbability() - w) < 1E-10, "\n")
+    print(filename=out, append=TRUE, cond + ": and leave the fossil record unchanged:\n")
+    print(filename=out, append=TRUE, abs(rec_mix.lnProbability() - rec_plain.lnProbability()) < 1E-12, "\n")
+}
+
+q()
