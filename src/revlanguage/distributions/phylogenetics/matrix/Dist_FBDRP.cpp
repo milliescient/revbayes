@@ -21,6 +21,8 @@
 #include "Probability.h"
 #include "RealPos.h"
 #include "RlString.h"
+#include "RbException.h"
+#include "RlSimplex.h"
 #include "RlTaxon.h"
 #include "DagMemberFunction.h"
 #include "DeterministicNode.h"
@@ -116,7 +118,20 @@ RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_FBDRP::createDistribution( 
 
     double pres = static_cast<const RealPos &>( present->getRevObject() ).getValue();
 
-    RevBayesCore::FossilizedBirthDeathRangeProcess* d = new RevBayesCore::FossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, oa, pres);
+    // relative fossil sampling rates, one component drawn by each species at birth
+    RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> >* mr = NULL;
+    if ( psi_mixture_rates->getRevObject() != RevNullObject::getInstance() )
+    {
+        mr = static_cast<const ModelVector<RealPos> &>( psi_mixture_rates->getRevObject() ).getDagNode();
+    }
+    RevBayesCore::TypedDagNode<RevBayesCore::Simplex>* mw = NULL;
+    if ( psi_mixture_weights->getRevObject() != RevNullObject::getInstance() )
+    {
+        if ( mr == NULL ) throw RbException("psiMixtureWeights needs psiMixtureRates.");
+        mw = static_cast<const Simplex &>( psi_mixture_weights->getRevObject() ).getDagNode();
+    }
+
+    RevBayesCore::FossilizedBirthDeathRangeProcess* d = new RevBayesCore::FossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, oa, pres, mr, mw);
 
     return d;
 }
@@ -199,6 +214,9 @@ const MemberRules& Dist_FBDRP::getParameterRules(void) const
         // add the rules from the base class, without the reporting args
         const MemberRules &parentRules = FossilizedBirthDeathRangeProcess<MatrixReal>::getCoreParameterRules();
         dist_member_rules.insert(dist_member_rules.end(), parentRules.begin(), parentRules.end());
+
+        dist_member_rules.push_back( new ArgumentRule( "psiMixtureRates", ModelVector<RealPos>::getClassTypeSpec(), "The relative fossil sampling rate of each mixture component, which multiplies psi. Each species draws its component at birth. Left out, there is one component.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
+        dist_member_rules.push_back( new ArgumentRule( "psiMixtureWeights", Simplex::getClassTypeSpec(), "The probability of each mixture component. Left out, the weights are equal.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
         
         rules_set = true;
     }
@@ -221,3 +239,19 @@ const TypeSpec& Dist_FBDRP::getTypeSpec( void ) const
 }
 
 
+/** Set a member variable. */
+void Dist_FBDRP::setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var)
+{
+    if ( name == "psiMixtureRates" )
+    {
+        psi_mixture_rates = var;
+    }
+    else if ( name == "psiMixtureWeights" )
+    {
+        psi_mixture_weights = var;
+    }
+    else
+    {
+        FossilizedBirthDeathRangeProcess<MatrixReal>::setConstParameter(name, var);
+    }
+}

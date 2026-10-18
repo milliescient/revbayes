@@ -17,6 +17,7 @@
 #include "RbMathLogic.h"
 #include "RandomNumberFactory.h"
 #include "RandomNumberGenerator.h"
+#include "RbException.h"
 #include "StochasticNode.h"
 #include "TypedDistribution.h"
 #include "RbVector.h"
@@ -53,9 +54,11 @@ FossilizedBirthDeathRangeProcess::FossilizedBirthDeathRangeProcess(const DagNode
                                                                      const std::vector<Taxon> &intaxa,
                                                                      bool complete_record,
                                                                      const TypedDagNode<double> *inorigin,
-                                                                     double inpresent) :
+                                                                     double inpresent,
+                                                                     const TypedDagNode<RbVector<double> > *inrates,
+                                                                     const TypedDagNode<Simplex> *inweights) :
     TypedDistribution<MatrixReal>(new MatrixReal(intaxa.size(), 4)),
-    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, complete_record, inorigin, inpresent)
+    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, complete_record, inorigin, inpresent, inrates, inweights)
 {
 
     dirty_gamma = std::vector<bool>(taxa.size(), true);
@@ -141,6 +144,7 @@ void FossilizedBirthDeathRangeProcess::setValue(MatrixReal *v, bool force)
 }
 
 
+/** The statuses and, with more than one, the psi mixture components are in no value, so they ride with the ranges. */
 std::string FossilizedBirthDeathRangeProcess::getHiddenStateString( void ) const
 {
     json j;
@@ -152,6 +156,12 @@ std::string FossilizedBirthDeathRangeProcess::getHiddenStateString( void ) const
     {
         j["singleton"].push_back( ranges[i].singleton );
         j["survived"].push_back( ranges[i].survived );
+    }
+
+    if ( getNumberOfPsiMixtureComponents() > 1 )
+    {
+        j["component"] = json::array();
+        for (size_t i = 0; i < taxa.size(); ++i) j["component"].push_back( getPsiMixtureComponent( i ) );
     }
 
     return j.dump();
@@ -171,6 +181,18 @@ void FossilizedBirthDeathRangeProcess::setHiddenStateFromString( const std::stri
     setValue( m );
 
     for (size_t i = 0; i < taxa.size(); ++i) ranges[i].survived = j["survived"][i].get<bool>();
+
+    if ( getNumberOfPsiMixtureComponents() > 1 )
+    {
+        if ( j.contains("component") == false ) throw RbException("dnFBDRP: the checkpoint holds no psi mixture components.");
+
+        for (size_t i = 0; i < taxa.size(); ++i)
+        {
+            size_t k = j["component"][i].get<size_t>();
+            if ( k >= getNumberOfPsiMixtureComponents() ) throw RbException("dnFBDRP: a psi mixture component in the checkpoint is out of range.");
+            ranges[i].component = k;
+        }
+    }
 }
 
 

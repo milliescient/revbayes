@@ -47,12 +47,17 @@ AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProce
                                                                          const std::vector<Taxon> &intaxa,
                                                                          bool comp,
                                                                          const TypedDagNode<double> *inorigin,
-                                                                         double inpresent) :
+                                                                         double inpresent,
+                                                                         const TypedDagNode<RbVector<double> > *inrates,
+                                                                         const TypedDagNode<Simplex> *inweights) :
     taxa(intaxa),
     condition(incondition),
     homogeneous_rho(inrho),
     timeline( intimes ),
     origin_age( inorigin ),
+    psi_mixture_rates( inrates ),
+    psi_mixture_weights( inweights ),
+    num_components( inrates == NULL ? 1 : inrates->getValue().size() ),
     origin(0.0),
     max_birth(0),
     resampled(false),
@@ -85,6 +90,8 @@ AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProce
     range_parameters.push_back( heterogeneous_mu );
     range_parameters.push_back( homogeneous_psi );
     range_parameters.push_back( heterogeneous_psi );
+    range_parameters.push_back( psi_mixture_rates );
+    range_parameters.push_back( psi_mixture_weights );
 
     // setup the timeline
     if ( timeline == NULL )
@@ -153,7 +160,36 @@ AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProce
         throw(RbException(ss.str()));
     }
 
+    if ( num_components == 0 )
+    {
+        throw RbException("psiMixtureRates must have at least one component.");
+    }
+    if ( psi_mixture_weights != NULL && psi_mixture_weights->getValue().size() != num_components )
+    {
+        throw RbException("psiMixtureWeights must have one weight per psiMixtureRates component.");
+    }
+
     ranges = std::vector<RangeEntry>(taxa.size());
+
+    // start every species in the component nearest the mean rate
+    size_t start = 0;
+    if ( num_components > 1 )
+    {
+        const std::vector<double> &rates = psi_mixture_rates->getValue();
+        for (size_t h = 1; h < num_components; h++)
+        {
+            if ( fabs( log( rates[h] ) ) < fabs( log( rates[start] ) ) ) start = h;
+        }
+    }
+    for (size_t i = 0; i < taxa.size(); i++)
+    {
+        ranges[i].component = start;
+    }
+
+    mixture_p_i       = std::vector<std::vector<double> >(num_intervals);
+    lambda_pbar_i     = std::vector<double>(num_intervals, 0.0);
+    mixture_q_i       = std::vector<std::vector<double> >(num_intervals);
+    mixture_q_scale_i = std::vector<std::vector<double> >(num_intervals);
 
     p_i         = std::vector<double>(num_intervals, 1.0);
     pS_i        = std::vector<double>(num_intervals, 1.0);
@@ -372,6 +408,14 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnProbabilityRanges( boo
 /** Birth-death density of range i. */
 double AbstractFossilizedBirthDeathRangeProcess::rangeLnProb( size_t i )
 {
+    if ( num_components > 1 )
+    {
+        std::vector<double> ln_probs;
+        mixtureRangeLnProbs( i, ln_probs, ranges[i].component );
+
+        return ln_probs[ ranges[i].component ];
+    }
+
     double b = ranges[i].divergence;
     double d = ranges[i].death;
     double o = ranges[i].first;
@@ -543,6 +587,17 @@ double AbstractFossilizedBirthDeathRangeProcess::conditionLnProb( void ) const
 {
     size_t ori = findIndex(origin);
 
+    if ( condition == "sampling" && num_components > 1 )
+    {
+        std::vector<double> p;
+        double lambda_pbar = 0.0;
+        mixtureAt( origin, p, lambda_pbar );
+
+        double pbar = 0.0;
+        for (size_t h = 0; h < num_components; h++) pbar += mixture_weights[h] * p[h];
+
+        return -log( 1.0 - pbar );
+    }
     if ( condition == "sampling" )
     {
         return -log( 1.0 - p(ori, origin, false) );
@@ -612,7 +667,17 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilTotal()
 /** Fossil-occurrence log-term for taxon i. */
 double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i ) const
 {
-    if ( record_reporting == PRESENCE ) return lnPresenceRecord(i);
+    return computeLnFossilRecord( i, num_components > 1 ? mixture_rates[ ranges[i].component ] : 1.0 );
+}
+
+
+/** Fossil-occurrence log-term for taxon i, with psi scaled by a mixture rate. */
+double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i, double mixture_rate ) const
+{
+    // a component that never samples cannot carry a fossil, and the terms below would give NaN
+    if ( mixture_rate == 0.0 ) return RbConstants::Double::neginf;
+
+    if ( record_reporting == PRESENCE ) return lnPresenceRecord( i, mixture_rate );
 
     double d = ranges[i].death;
     double o = ranges[i].first;                             // oldest appearance
@@ -652,7 +717,7 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i
             double int_hi = std::min(max_age, t_0);
             double int_lo = std::max(min_age, times[j]);
             double dti = int_hi - int_lo;
-            if ( dti > 0.0 ) Lambda += fossil[j]*dti;
+            if ( dti > 0.0 ) Lambda += mixture_rate*fossil[j]*dti;
 
             size_t k = 0;
             // increase running psi total for each observation
@@ -669,13 +734,13 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i
                         dt = std::min(Fi->first.getMax(), int_hi) - std::max(Fi->first.getMin(), int_lo);
                     }
 
-                    psi[k] += fossil[j] * dt;
+                    psi[k] += mixture_rate*fossil[j] * dt;
                 }
             }
         }
 
          // instantaneous rate of the oldest specimen at tau1
-        result = log(fossil[oi]);
+        result = log(mixture_rate*fossil[oi]);
 
         size_t count = 0;
         for ( std::map<TimeInterval, size_t>::const_iterator Fi = ages.begin(); Fi != ages.end(); Fi++ ) count += Fi->second;
@@ -722,7 +787,7 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i
                 return RbConstants::Double::neginf;
             }
             // excluding the diagonal, where a single occurrence supplies both extremes
-            result += log(fossil[yi]) + log(recip_young - diag/recip_old);
+            result += log(mixture_rate*fossil[yi]) + log(recip_young - diag/recip_old);
 
             // the first/last rule leaves the interior count unreported, so it is marginalized
             if ( record_reporting == FIRSTLAST )
@@ -742,7 +807,7 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i
     else
     {
         // include instantaneous sampling density
-        result = ages.begin()->second * log(fossil[oi]);
+        result = ages.begin()->second * log(mixture_rate*fossil[oi]);
     }
 
     return result;
@@ -806,7 +871,7 @@ namespace {
  * is a density, as under the complete rule. tau_1 and tau_K are occurrences, each taken from an
  * interval holding it, and a singleton is one occurrence that is both.
  */
-double AbstractFossilizedBirthDeathRangeProcess::lnPresenceRecord( size_t i ) const
+double AbstractFossilizedBirthDeathRangeProcess::lnPresenceRecord( size_t i, double mixture_rate ) const
 {
     bool single = ranges[i].singleton;
     double o = ranges[i].first;
@@ -826,7 +891,7 @@ double AbstractFossilizedBirthDeathRangeProcess::lnPresenceRecord( size_t i ) co
 
         if ( point && lo > hi ) return RbConstants::Double::neginf;
 
-        exposure.push_back( point ? fossil[findIndex(lo)] : ( hi > lo ? samplingExposure(lo, hi) : 0.0 ) );
+        exposure.push_back( mixture_rate * ( point ? fossil[findIndex(lo)] : ( hi > lo ? samplingExposure(lo, hi) : 0.0 ) ) );
         need.push_back( long(F.second) );
         exact.push_back( point );
         holds_first.push_back( F.first.getMin() <= o && o <= F.first.getMax() );
@@ -857,8 +922,8 @@ double AbstractFossilizedBirthDeathRangeProcess::lnPresenceRecord( size_t i ) co
 
     if ( terms.empty() ) return RbConstants::Double::neginf;
 
-    double result = log( fossil[findIndex(o)] ) + RbMath::log_sum_exp( terms );
-    if ( single == false ) result += log( fossil[findIndex(y)] );
+    double result = log( mixture_rate * fossil[findIndex(o)] ) + RbMath::log_sum_exp( terms );
+    if ( single == false ) result += log( mixture_rate * fossil[findIndex(y)] );
 
     return result;
 }
@@ -1128,6 +1193,14 @@ void AbstractFossilizedBirthDeathRangeProcess::executeMethod(const std::string &
         for (size_t i = 0; i < ranges.size(); i++)
         {
             rv.push_back( mean ? meanOrigination(i) : drawOrigination(i) );
+        }
+    }
+    else if ( n == "getPsiMixtureComponents" )
+    {
+        rv.clear();
+        for (size_t i = 0; i < ranges.size(); i++)
+        {
+            rv.push_back( ranges[i].component + 1 );
         }
     }
     else
@@ -1472,6 +1545,7 @@ void AbstractFossilizedBirthDeathRangeProcess::keepSpecialization(const DagNode 
 
     resampled = false;
     switched = false;
+    reallocated = false;
     touched = false;
     weld_origin = true;
 }
@@ -1494,11 +1568,16 @@ void AbstractFossilizedBirthDeathRangeProcess::restoreSpecialization(const DagNo
         ranges[switched_range].survived  = stored_survived;
         ranges[switched_range].singleton = stored_singleton;
     }
+    if ( reallocated )
+    {
+        ranges[reallocated_range].component = stored_component;
+    }
 
     dirty_taxa = std::vector<bool>(taxa.size(), false);
 
     resampled = false;
     switched = false;
+    reallocated = false;
     touched = false;
     weld_origin = true;
 }
@@ -1616,6 +1695,343 @@ void AbstractFossilizedBirthDeathRangeProcess::prepareProbComputation( void ) co
             }
         }
     }
+
+    if ( num_components > 1 )
+    {
+        size_t H = num_components;
+
+        mixture_rates = psi_mixture_rates->getValue();
+        if ( mixture_rates.size() != H )
+        {
+            throw RbException("psiMixtureRates cannot change its number of components.");
+        }
+        mixture_weights = ( psi_mixture_weights != NULL ) ? std::vector<double>( psi_mixture_weights->getValue() ) : std::vector<double>(H, 1.0 / H);
+
+        mixture_p_i[0]   = std::vector<double>(H, 1.0 - homogeneous_rho->getValue());
+        lambda_pbar_i[0] = 0.0;
+
+        for (size_t i = 0; i + 1 < num_intervals; i++)
+        {
+            std::vector<double> p = mixture_p_i[i];
+            std::vector<double> Q(H*H, 0.0), Q_scale(H, 0.0);
+            for (size_t c = 0; c < H; c++) Q[c*H + c] = 1.0;
+
+            double lambda_pbar = lambda_pbar_i[i];
+            propagateMixture( i, p, times[i+1] - times[i], lambda_pbar, &Q, &Q_scale );
+
+            mixture_p_i[i+1]     = p;
+            lambda_pbar_i[i+1]   = lambda_pbar;
+            mixture_q_i[i]       = Q;
+            mixture_q_scale_i[i] = Q_scale;
+        }
+    }
+}
+
+
+/**
+ * Carry p of each component, int lambda pbar and the columns of Q a time dt up interval j.
+ * With p = y / z, y' = mu z - (lambda + mu + nu_h psi) y and z' = -lambda sum_h w_h y_h are linear,
+ * and Q = dp(t)/dp(s). Q holds columns of length H, each scaled by exp(Q_scale).
+ */
+void AbstractFossilizedBirthDeathRangeProcess::propagateMixture( size_t j, std::vector<double> &p, double dt, double &lambda_pbar, std::vector<double> *Q, std::vector<double> *Q_scale ) const
+{
+    if ( dt <= 0.0 ) return;
+
+    size_t H = num_components;
+    size_t N = H + 1;
+
+    double b = birth[j];
+    double d = death[j];
+    double f = fossil[j];
+
+    double min_rate = *std::min_element( mixture_rates.begin(), mixture_rates.end() );
+
+    // the two slowest eigenvalues lie within lambda + mu + min_rate psi of each other, which bounds
+    // the cancellation in each step's Q; faster components only decay within a step
+    size_t n = std::max( size_t(1), size_t( ceil( dt * (b + 2.0*d + min_rate*f) ) ) );
+    double dt_step = dt / n;
+
+    // the generator of (y, z) over one step, with z last: diagonal on y, a column mu and a row -lambda w
+    std::vector<double> diag(H, 0.0), row(H, 0.0);
+    double norm = 0.0, row_norm = 0.0;
+    for (size_t h = 0; h < H; h++)
+    {
+        diag[h] = -(b + d + mixture_rates[h]*f) * dt_step;
+        row[h]  = -b * mixture_weights[h] * dt_step;
+        norm = std::max( norm, fabs(diag[h]) + d * dt_step );
+        row_norm += fabs(row[h]);
+    }
+    norm = std::max( norm, row_norm );
+    double column = d * dt_step;
+
+    // scale the generator to norm at most 1/2, so the series converges fast, and square back after
+    int squarings = ( norm > 0.5 ) ? int( ceil( log2( norm / 0.5 ) ) ) : 0;
+    double scale = ldexp( 1.0, -squarings );
+    for (size_t h = 0; h < H; h++)
+    {
+        diag[h] *= scale;
+        row[h]  *= scale;
+    }
+    column *= scale;
+
+    // its exponential by the Taylor series, row-major, each term costing O(H^2) by the sparsity
+    std::vector<double> E(N*N, 0.0), term(N*N, 0.0), next(N*N, 0.0);
+    for (size_t a = 0; a < N; a++)
+    {
+        E[a*N + a]    = 1.0;
+        term[a*N + a] = 1.0;
+    }
+    for (size_t m = 1; m < 30; m++)
+    {
+        double largest = 0.0;
+        for (size_t a = 0; a < N; a++)
+        {
+            const double *ta = &term[a*N];
+            double to_z = 0.0;
+            for (size_t c = 0; c < H; c++)
+            {
+                double x = ( ta[c] * diag[c] + ta[H] * row[c] ) / m;
+                next[a*N + c] = x;
+                to_z += ta[c];
+                largest = std::max( largest, fabs(x) );
+            }
+            next[a*N + H] = to_z * column / m;
+            largest = std::max( largest, fabs(next[a*N + H]) );
+        }
+        term.swap(next);
+        for (size_t a = 0; a < N*N; a++) E[a] += term[a];
+        if ( largest < 1E-18 ) break;
+    }
+    for (int k = 0; k < squarings; k++)
+    {
+        for (size_t a = 0; a < N; a++)
+        {
+            for (size_t c = 0; c < N; c++)
+            {
+                double x = 0.0;
+                for (size_t e = 0; e < N; e++) x += E[a*N + e] * E[e*N + c];
+                next[a*N + c] = x;
+            }
+        }
+        E.swap(next);
+    }
+
+    size_t num_columns = ( Q == NULL ) ? 0 : Q->size() / H;
+
+    std::vector<double> v(N, 0.0), S(H*H, 0.0), col(H, 0.0);
+
+    for (size_t step = 0; step < n; step++)
+    {
+        for (size_t a = 0; a < N; a++)
+        {
+            double x = E[a*N + H];
+            for (size_t e = 0; e < H; e++) x += E[a*N + e] * p[e];
+            v[a] = x;
+        }
+
+        double z = v[H];
+        lambda_pbar -= log(z);
+        for (size_t a = 0; a < H; a++) p[a] = v[a] / z;
+
+        if ( num_columns == 0 ) continue;
+
+        for (size_t a = 0; a < H; a++)
+        {
+            for (size_t e = 0; e < H; e++)
+            {
+                // Q is nonnegative, so a negative entry is rounding in a fast component's column
+                S[a*H + e] = std::max( 0.0, ( E[a*N + e] - p[a] * E[H*N + e] ) / z );
+            }
+        }
+
+        for (size_t c = 0; c < num_columns; c++)
+        {
+            double *Qc = &(*Q)[c*H];
+            double largest = 0.0;
+            for (size_t a = 0; a < H; a++)
+            {
+                double x = 0.0;
+                for (size_t e = 0; e < H; e++) x += S[a*H + e] * Qc[e];
+                col[a] = x;
+                largest = std::max( largest, fabs(x) );
+            }
+            if ( largest > 0.0 )
+            {
+                for (size_t a = 0; a < H; a++) Qc[a] = col[a] / largest;
+                (*Q_scale)[c] += log(largest);
+            }
+            else
+            {
+                std::fill( Qc, Qc + H, 0.0 );
+            }
+        }
+    }
+}
+
+
+/** p of each component and int lambda pbar from the present up to t. */
+void AbstractFossilizedBirthDeathRangeProcess::mixtureAt( double t, std::vector<double> &p, double &lambda_pbar ) const
+{
+    size_t j = findIndex(t);
+
+    p           = mixture_p_i[j];
+    lambda_pbar = lambda_pbar_i[j];
+
+    propagateMixture( j, p, t - times[j], lambda_pbar, NULL, NULL );
+}
+
+
+/**
+ * Birth-death density of range i given its component h, for every h or for h = only.
+ * Between b_i and tau_1 the lineage may pass through unsampled species of any component, so Q
+ * enters as sum_e w_e Q[e][h]. Below tau_1, Q_tilde = exp( -(lambda + mu + nu_h psi) t + int lambda pbar ).
+ */
+void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, std::vector<double> &ln_probs, size_t only ) const
+{
+    size_t H = num_components;
+
+    double b = ranges[i].divergence;
+    double d = ranges[i].death;
+    double o = ranges[i].first;
+
+    size_t bi = findIndex(b);
+    size_t oi = findIndex(o);
+    size_t di = findIndex(d);
+
+    std::vector<size_t> columns;
+    for (size_t h = 0; h < H; h++)
+    {
+        if ( only >= H || h == only ) columns.push_back(h);
+    }
+    size_t num_columns = columns.size();
+
+    std::vector<double> p;
+    double lambda_pbar_o = 0.0;
+    mixtureAt( o, p, lambda_pbar_o );
+
+    std::vector<double> Q(H*num_columns, 0.0), Q_scale(num_columns, 0.0);
+    for (size_t c = 0; c < num_columns; c++) Q[c*H + columns[c]] = 1.0;
+
+    double lambda_pbar = 0.0;
+    if ( oi == bi )
+    {
+        propagateMixture( oi, p, b - o, lambda_pbar, &Q, &Q_scale );
+    }
+    else
+    {
+        propagateMixture( oi, p, times[oi+1] - o, lambda_pbar, &Q, &Q_scale );
+
+        // whole intervals, whose columns carry their own scales
+        std::vector<double> col(H, 0.0);
+        for (size_t j = oi+1; j < bi; j++)
+        {
+            const std::vector<double> &Qj = mixture_q_i[j];
+            const std::vector<double> &sj = mixture_q_scale_i[j];
+
+            for (size_t c = 0; c < num_columns; c++)
+            {
+                double *Qc = &Q[c*H];
+
+                double top = RbConstants::Double::neginf;
+                for (size_t e = 0; e < H; e++)
+                {
+                    if ( Qc[e] != 0.0 ) top = std::max( top, sj[e] );
+                }
+                if ( top == RbConstants::Double::neginf ) continue;
+
+                std::fill( col.begin(), col.end(), 0.0 );
+                for (size_t e = 0; e < H; e++)
+                {
+                    if ( Qc[e] == 0.0 ) continue;
+                    double x = Qc[e] * exp( sj[e] - top );
+                    for (size_t a = 0; a < H; a++) col[a] += Qj[e*H + a] * x;
+                }
+
+                double largest = 0.0;
+                for (size_t a = 0; a < H; a++) largest = std::max( largest, fabs(col[a]) );
+                if ( largest == 0.0 )
+                {
+                    std::fill( Qc, Qc + H, 0.0 );
+                    continue;
+                }
+                for (size_t a = 0; a < H; a++) Qc[a] = col[a] / largest;
+                Q_scale[c] += top + log(largest);
+            }
+        }
+
+        p = mixture_p_i[bi];
+        propagateMixture( bi, p, b - times[bi], lambda_pbar, &Q, &Q_scale );
+    }
+
+    ln_probs = std::vector<double>(H, RbConstants::Double::neginf);
+
+    for (size_t c = 0; c < num_columns; c++)
+    {
+        double s = 0.0;
+        for (size_t e = 0; e < H; e++) s += mixture_weights[e] * Q[c*H + e];
+
+        ln_probs[ columns[c] ] = log( birth[bi] ) + log(s) + Q_scale[c];
+    }
+
+    // extant taxa with no fossil samples end at their oldest appearance, the present
+    if ( taxa[i].getMaxAge() == times.front() ) return;
+
+    double lambda_pbar_d = 0.0;
+    mixtureAt( d, p, lambda_pbar_d );
+
+    // the exposure from d_i up to tau_1, without and with psi
+    double birth_death = 0.0, sampling = 0.0;
+    for (size_t j = di; j <= oi; j++)
+    {
+        double lo = std::max( d, times[j] );
+        double hi = ( j + 1 < num_intervals ) ? std::min( o, times[j+1] ) : o;
+        if ( hi <= lo ) continue;
+
+        birth_death += ( birth[j] + death[j] ) * (hi - lo);
+        sampling    += fossil[j] * (hi - lo);
+    }
+
+    for (size_t c = 0; c < num_columns; c++)
+    {
+        size_t h = columns[c];
+
+        ln_probs[h] += -( birth_death + mixture_rates[h]*sampling ) + ( lambda_pbar_o - lambda_pbar_d );
+
+        if ( ranges[i].survived == false ) ln_probs[h] += log( death[di] );
+    }
+}
+
+
+/** Taxon i's log-density under each component: its range, and its record where one is scored. */
+std::vector<double> AbstractFossilizedBirthDeathRangeProcess::psiMixtureComponentLnProbs( size_t i ) const
+{
+    prepareProbComputation();
+
+    std::vector<double> ln_probs;
+    mixtureRangeLnProbs( i, ln_probs, num_components );
+
+    if ( has_reporting_node == true && taxa[i].getMaxAge() != times.front() )
+    {
+        for (size_t h = 0; h < num_components; h++)
+        {
+            ln_probs[h] += computeLnFossilRecord( i, mixture_rates[h] );
+        }
+    }
+
+    return ln_probs;
+}
+
+
+/** Move taxon i to component h. The caller touches the node. */
+void AbstractFossilizedBirthDeathRangeProcess::setPsiMixtureComponent( size_t i, size_t h )
+{
+    reallocated_range = i;
+    stored_component  = ranges[i].component;
+    reallocated       = true;
+
+    ranges[i].component = h;
+
+    dirty_taxa[i] = true;   // the component is in no value
 }
 
 
@@ -1662,5 +2078,13 @@ void AbstractFossilizedBirthDeathRangeProcess::swapParameterInternal(const DagNo
     else if (oldP == origin_age)
     {
         origin_age = static_cast<const TypedDagNode<double>* >( newP );
+    }
+    else if (oldP == psi_mixture_rates)
+    {
+        psi_mixture_rates = static_cast<const TypedDagNode< RbVector<double> >* >( newP );
+    }
+    else if (oldP == psi_mixture_weights)
+    {
+        psi_mixture_weights = static_cast<const TypedDagNode<Simplex>* >( newP );
     }
 }
