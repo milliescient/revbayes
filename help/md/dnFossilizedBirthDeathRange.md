@@ -13,11 +13,15 @@ Fossil species are represented by a collection of fossil occurrences with uncert
 
 The process exposes its latent ages as member methods. `getDivergenceTimes` gives the time each range attaches to the nearest range the record samples, which is not the same as where the species itself began, because ancestors that left no occurrence were never named and a chain of them may stand in between. `getOriginationTimes` gives the species' own origination, drawn from its exact conditional, so two calls on one state return two different draws; pass `mean=TRUE` to integrate that conditional instead and get its mean without simulation noise. `getExtantStatus` and `getExtinctionTimes` report the state as it stands, so the first is an indicator you average over the posterior to get a probability rather than a probability itself.
 
+Fossil sampling rates can also vary among species. With `psiMixtureRates`, each species draws a mixture component at birth, independently of its parent, and samples fossils at that component's rate times `psi`. `psiMixtureWeights` gives the probability of each component and defaults to equal weights. `psi` is then the mean sampling rate when the rates average one under the weights, as `fnDiscretizeGamma(alpha, alpha, K)` does. Each species carries its component as a latent variable, which `mvPsiMixtureAllocation` samples and `getPsiMixtureComponents()` reports. The probability that a lineage leaves no sampled descendant accounts for the mixture, because unsampled descendants draw their own components.
+
 ## authors
 June Walker
 ## see_also
 dnFossilRecord
 mvStratigraphicRange
+mvPsiMixtureAllocation
+fnDiscretizeGamma
 ## example
 lambda ~ dnExp(10)
 mu ~ dnExp(10)
@@ -31,6 +35,12 @@ rec.clamp(taxa)
 
 moves.append( mvMatrixElementScale(bd, weight=taxa.size()) )
 moves.append( mvMatrixElementSlide(bd, weight=taxa.size()) )
+
+# fossil sampling rates that vary among species, as a discretized gamma
+alpha ~ dnExp(1)
+bd_mix ~ dnFBDRP(lambda=lambda, mu=mu, psi=psi, rho=1, taxa=taxa,
+                 psiMixtureRates=fnDiscretizeGamma(alpha, alpha, 4))
+moves.append( mvPsiMixtureAllocation(bd_mix, weight=taxa.size()) )
 ## references
 	- citation: The fossilized birth-death model for the analysis of stratigraphic range data under different speciation modes. Stadler, Tanja et al. Journal of theoretical biology, 447:41-55.
 	  doi: doi.org/10.1016/j.jtbi.2018.03.005
