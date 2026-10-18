@@ -181,6 +181,7 @@
 #include "Move_CharacterHistory.h"
 
 #include "Move_ExtinctionReversibleJump.h"
+#include "Move_PsiMixtureAllocation.h"
 
 #include "Move_BirthDeathEventContinuous.h"
 #include "Move_BirthDeathEventDiscrete.h"
@@ -491,6 +492,7 @@ void RevLanguage::Workspace::initializeMoveGlobalWorkspace(void)
         addType( new Move_IndependentPriorSampler<Tree>( ) );
 
         addType( new Move_ExtinctionReversibleJump()               );
+        addType( new Move_PsiMixtureAllocation()                   );
     }
     catch(RbException& rbException)
     {
