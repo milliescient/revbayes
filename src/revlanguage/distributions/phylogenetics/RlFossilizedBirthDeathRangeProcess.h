@@ -308,6 +308,9 @@ RevLanguage::MethodTable RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::
     ArgumentRules* extinction_arg_rules = new ArgumentRules();
     methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, ModelVector<RealPos> >( "getExtinctionTimes", this->variable, extinction_arg_rules, true ) );
 
+    ArgumentRules* component_arg_rules = new ArgumentRules();
+    methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, ModelVector<RealPos> >( "getPsiMixtureComponents", this->variable, component_arg_rules, true ) );
+
     return methods;
 }
 

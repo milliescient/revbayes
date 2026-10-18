@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <iosfwd>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -17,7 +18,9 @@
 #include "RbMathLogic.h"
 #include "RandomNumberFactory.h"
 #include "RandomNumberGenerator.h"
+#include "RbException.h"
 #include "StochasticNode.h"
+#include "StringUtilities.h"
 #include "TypedDistribution.h"
 #include "RbVector.h"
 #include "RbVectorImpl.h"
@@ -53,9 +56,11 @@ FossilizedBirthDeathRangeProcess::FossilizedBirthDeathRangeProcess(const DagNode
                                                                      const std::vector<Taxon> &intaxa,
                                                                      bool complete_record,
                                                                      const TypedDagNode<double> *inorigin,
-                                                                     double inpresent) :
+                                                                     double inpresent,
+                                                                     const TypedDagNode<RbVector<double> > *inrates,
+                                                                     const TypedDagNode<Simplex> *inweights) :
     TypedDistribution<MatrixReal>(new MatrixReal(intaxa.size(), 4)),
-    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, complete_record, inorigin, inpresent)
+    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, complete_record, inorigin, inpresent, inrates, inweights)
 {
 
     dirty_gamma = std::vector<bool>(taxa.size(), true);
@@ -95,6 +100,42 @@ FossilizedBirthDeathRangeProcess* FossilizedBirthDeathRangeProcess::clone( void 
 
 
 /** Set the matrix value, clipping any appearance the new ranges leave out of support. */
+/**
+ * A psi mixture's components are in no value, so with more than one the checkpoint carries them after the
+ * ranges, as JSON then '|' then one component per taxon. Without a mixture the plain value suffices.
+ */
+std::string FossilizedBirthDeathRangeProcess::getHiddenStateString( void ) const
+{
+    if ( getNumberOfPsiMixtureComponents() <= 1 ) return "";
+
+    std::stringstream ss;
+    ss << this->value->toJSON().dump() << "|";
+    for (size_t i = 0; i < taxa.size(); i++) ss << ( i == 0 ? "" : "," ) << getPsiMixtureComponent( i );
+    return ss.str();
+}
+
+
+void FossilizedBirthDeathRangeProcess::setHiddenStateFromString( const std::string &s )
+{
+    size_t bar = s.rfind( '|' );
+    if ( bar == std::string::npos ) throw RbException("dnFBDRP: the checkpoint holds no psi mixture components.");
+
+    MatrixReal *m = this->value->clone();
+    m->initFromString( s.substr( 0, bar ) );
+    setValue( m );
+
+    std::vector<std::string> h;
+    StringUtilities::stringSplit( s.substr( bar + 1 ), ",", h );
+    if ( h.size() != taxa.size() ) throw RbException("dnFBDRP: the checkpoint does not hold one psi mixture component per taxon.");
+    for (size_t i = 0; i < taxa.size(); i++)
+    {
+        size_t k = std::stoul( h[i] );
+        if ( k >= getNumberOfPsiMixtureComponents() ) throw RbException("dnFBDRP: a psi mixture component in the checkpoint is out of range.");
+        ranges[i].component = k;
+    }
+}
+
+
 void FossilizedBirthDeathRangeProcess::setValue(MatrixReal *v, bool force)
 {
     TypedDistribution<MatrixReal>::setValue(v, force);
