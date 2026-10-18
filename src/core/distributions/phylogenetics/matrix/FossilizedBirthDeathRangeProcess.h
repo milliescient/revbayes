@@ -42,7 +42,9 @@ namespace RevBayesCore {
 										  const std::vector<Taxon> &taxa,
 										  bool complete_record,
                                           const TypedDagNode<double>* origin = NULL,
-                                            double present = 0.0);
+                                            double present = 0.0,
+                                          const TypedDagNode<RbVector<double> >* psi_mixture_rates = NULL,
+                                          const TypedDagNode<Simplex>* psi_mixture_weights = NULL);
         
         // public member functions
         void                                            setMcmcMode(bool tf) override;

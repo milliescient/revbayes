@@ -53,9 +53,11 @@ FossilizedBirthDeathRangeProcess::FossilizedBirthDeathRangeProcess(const DagNode
                                                                      const std::vector<Taxon> &intaxa,
                                                                      bool complete_record,
                                                                      const TypedDagNode<double> *inorigin,
-                                                                     double inpresent) :
+                                                                     double inpresent,
+                                                                     const TypedDagNode<RbVector<double> > *inrates,
+                                                                     const TypedDagNode<Simplex> *inweights) :
     TypedDistribution<MatrixReal>(new MatrixReal(intaxa.size(), 4)),
-    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, complete_record, inorigin, inpresent)
+    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, complete_record, inorigin, inpresent, inrates, inweights)
 {
 
     dirty_gamma = std::vector<bool>(taxa.size(), true);
