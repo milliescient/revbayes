@@ -100,13 +100,26 @@ bool PhyloMorphospeciationProcess::prepare( void )
     const Tree &t = tree->getValue();
     double n = double( num_states.size() );
     stem = std::vector<double>( t.getNumberOfNodes(), 0.0 );
+    std::vector<size_t> at;
+    std::vector<std::pair<double,double> > spans;
+    kept_child.assign( t.getNumberOfNodes(), 0 );
+    budded.assign( t.getNumberOfNodes(), -1 );
     for (const TopologyNode *node : t.getNodes())
     {
         if ( node->isTip() == false )
         {
+            if ( node->getNumberOfChildren() != 2 ) return false;
             size_t continuing = 0;
-            for (size_t c = 0; c < node->getNumberOfChildren(); c++) continuing += node->getChild(c).continuesParentSpecies();
+            for (size_t c = 0; c < 2; c++)
+            {
+                if ( node->getChild(c).continuesParentSpecies() )
+                {
+                    continuing++;
+                    kept_child[ node->getIndex() ] = c;
+                }
+            }
             if ( continuing != 1 ) return false;
+            budded[ node->getIndex() ] = speciesOf( node->getChild( 1 - kept_child[ node->getIndex() ] ) );
         }
         if ( node->isRoot() ) continue;
         long s = speciesOf( *node );
@@ -115,108 +128,110 @@ bool PhyloMorphospeciationProcess::prepare( void )
         // the species' sampled range carries no change, so only the part above tau_1 counts
         double lo = std::max( node->getAge(), first[s] );
         double hi = node->getParent().getAge();
-        stem[node->getIndex()] = ( hi > lo && n > 0 ) ? process->hiddenSpeciationIntegral( lo, hi ) / n : 0.0;
+        if ( hi > lo && n > 0 )
+        {
+            at.push_back( node->getIndex() );
+            spans.push_back( std::make_pair( lo, hi ) );
+        }
     }
+    std::vector<double> b = process->hiddenSpeciationIntegrals( spans );
+    for (size_t k = 0; k < at.size(); k++) stem[ at[k] ] = b[k] / n;
     return true;
 }
 
 
-void PhyloMorphospeciationProcess::tipVectors( const TopologyNode &tip, std::vector< std::vector<double> > &v ) const
+/** The observed states of every tip, laid out flat, rebuilt only when the data change. */
+void PhyloMorphospeciationProcess::buildTipPartials( void )
 {
-    const AbstractDiscreteTaxonData &td = this->value->getTaxonData( tip.getName() );
-    for (size_t c = 0; c < num_states.size(); c++)
+    size_t N = num_states.size();
+    offset.assign( N, 0 );
+    total_states = 0;
+    for (size_t c = 0; c < N; c++)
     {
-        size_t K = num_states[c];
-        const DiscreteCharacterState &x = td.getCharacter( c );
-        if ( x.isGapState() || x.isMissingState() )
+        offset[c] = total_states;
+        total_states += num_states[c];
+    }
+
+    const Tree &t = tree->getValue();
+    tip_partials.assign( t.getNumberOfTips(), std::vector<double>( total_states, 1.0 ) );
+    for (size_t i = 0; i < t.getNumberOfTips(); i++)
+    {
+        const TopologyNode &tip = t.getTipNode( i );
+        const AbstractDiscreteTaxonData &td = this->value->getTaxonData( tip.getName() );
+        std::vector<double> &v = tip_partials[ tip.getIndex() ];
+        for (size_t c = 0; c < N; c++)
         {
-            v[c].assign( K, 1.0 );
-            continue;
-        }
-        RbBitSet bits = x.getState();
-        v[c].assign( K, 0.0 );
-        for (size_t k = 0; k < bits.size(); k++)
-        {
-            if ( bits.test(k) == false ) continue;
-            if ( k >= K ) throw RbException() << "dnPhyloMorphospeciation: " << tip.getName() << " has state " << k
-                                              << " at character " << c + 1 << ", which has " << K << " states.";
-            v[c][k] = 1.0;
+            const DiscreteCharacterState &x = td.getCharacter( c );
+            if ( x.isGapState() || x.isMissingState() ) continue;
+            RbBitSet bits = x.getState();
+            for (size_t k = 0; k < num_states[c]; k++) v[ offset[c] + k ] = 0.0;
+            for (size_t k = 0; k < bits.size(); k++)
+            {
+                if ( bits.test(k) == false ) continue;
+                if ( k >= num_states[c] ) throw RbException() << "dnPhyloMorphospeciation: " << tip.getName() << " has state " << k
+                                                              << " at character " << c + 1 << ", which has " << num_states[c] << " states.";
+                v[ offset[c] + k ] = 1.0;
+            }
         }
     }
+    tips_stale = false;
 }
 
 
 /** Carry each character along a Mk chain of the given length: P = e I + (1 - e) 11'/K. */
-void PhyloMorphospeciationProcess::carry( std::vector< std::vector<double> > &v, double length ) const
+void PhyloMorphospeciationProcess::carry( std::vector<double> &v, double length ) const
 {
     if ( length <= 0.0 ) return;
-    for (size_t c = 0; c < v.size(); c++)
+    for (size_t c = 0; c < num_states.size(); c++)
     {
         double K = double( num_states[c] );
         double e = std::exp( -length * K / (K - 1.0) );
+        double *x = &v[ offset[c] ];
         double mean = 0.0;
-        for (double x : v[c]) mean += x;
-        mean /= K;
-        for (double &x : v[c]) x = e * x + (1.0 - e) * mean;
+        for (size_t k = 0; k < num_states[c]; k++) mean += x[k];
+        mean *= (1.0 - e) / K;
+        for (size_t k = 0; k < num_states[c]; k++) x[k] = e * x[k] + mean;
     }
 }
 
 
-void PhyloMorphospeciationProcess::partial( const TopologyNode &node, std::vector< std::vector<double> > &v, std::vector<double> &ln_scale, long forced_taxon, Forcing forcing )
+void PhyloMorphospeciationProcess::partial( const TopologyNode &node, std::vector<double> &ln_scale, long forced_taxon, Forcing forcing )
 {
-    size_t N = num_states.size();
+    size_t idx = node.getIndex();
+    std::vector<double> &v = buffer[idx];
     if ( node.isTip() )
     {
-        v.assign( N, std::vector<double>() );
-        tipVectors( node, v );
+        v = tip_partials[idx];
         return;
     }
 
-    std::vector< std::vector<double> > kept, budded;
-    const TopologyNode *new_child = NULL;
-    bool have_kept = false;
-    for (size_t i = 0; i < node.getNumberOfChildren(); i++)
-    {
-        const TopologyNode &child = node.getChild(i);
-        std::vector< std::vector<double> > w;
-        partial( child, w, ln_scale, forced_taxon, forcing );
-        carry( w, stem[child.getIndex()] );
-        if ( child.continuesParentSpecies() && have_kept == false )
-        {
-            kept.swap( w );
-            have_kept = true;
-        }
-        else
-        {
-            budded.swap( w );
-            new_child = &child;
-        }
-    }
-    if ( have_kept == false || new_child == NULL )
-    {
-        throw RbException("dnPhyloMorphospeciation: every speciation must keep the parent species on one child.");
-    }
+    const TopologyNode &kc = node.getChild( kept_child[idx] );
+    const TopologyNode &bc = node.getChild( 1 - kept_child[idx] );
+    partial( kc, ln_scale, forced_taxon, forcing );
+    partial( bc, ln_scale, forced_taxon, forcing );
+    carry( buffer[ kc.getIndex() ], stem[ kc.getIndex() ] );
+    carry( buffer[ bc.getIndex() ], stem[ bc.getIndex() ] );
+    const std::vector<double> &a = buffer[ kc.getIndex() ];
+    const std::vector<double> &b = buffer[ bc.getIndex() ];
 
-    long j = speciesOf( *new_child );
-    v.swap( kept );
-    for (size_t c = 0; c < N; c++)
+    long j = budded[idx];
+    for (size_t c = 0; c < num_states.size(); c++)
     {
         bool here = ( j == forced_taxon ) ? forcing == CHANGED : changed[j] == c;
-        std::vector<double> &b = budded[c];
-        double K = double( num_states[c] );
+        size_t o = offset[c], K = num_states[c];
         double total = 0.0;
-        if ( here ) for (double x : b) total += x;
+        if ( here ) for (size_t k = 0; k < K; k++) total += b[o+k];
 
         double largest = 0.0;
-        for (size_t k = 0; k < v[c].size(); k++)
+        for (size_t k = 0; k < K; k++)
         {
             // the new species differs at this character: the Mk kernel, uniform over the other states
-            v[c][k] *= here ? ( total - b[k] ) / (K - 1.0) : b[k];
-            largest = std::max( largest, v[c][k] );
+            v[o+k] = a[o+k] * ( here ? ( total - b[o+k] ) / double(K - 1) : b[o+k] );
+            largest = std::max( largest, v[o+k] );
         }
         if ( largest > 0.0 )
         {
-            for (double &x : v[c]) x /= largest;
+            for (size_t k = 0; k < K; k++) v[o+k] /= largest;
             ln_scale[c] += std::log( largest );
         }
     }
@@ -226,16 +241,24 @@ void PhyloMorphospeciationProcess::partial( const TopologyNode &node, std::vecto
 std::vector<double> PhyloMorphospeciationProcess::lnLikelihoodByCharacter( long forced_taxon, Forcing forcing )
 {
     size_t N = num_states.size();
-    std::vector< std::vector<double> > v;
+    const Tree &t = tree->getValue();
+    if ( tips_stale ) buildTipPartials();
+    if ( buffer.size() != t.getNumberOfNodes() || buffer[0].size() != total_states )
+    {
+        buffer.assign( t.getNumberOfNodes(), std::vector<double>( total_states, 0.0 ) );
+    }
+
     std::vector<double> ln_scale( N, 0.0 );
-    partial( tree->getValue().getRoot(), v, ln_scale, forced_taxon, forcing );
+    const TopologyNode &root = t.getRoot();
+    partial( root, ln_scale, forced_taxon, forcing );
+    const std::vector<double> &v = buffer[ root.getIndex() ];
 
     // the root starts from the stationary distribution, uniform for Mk, so its stem drops out
     std::vector<double> out( N );
     for (size_t c = 0; c < N; c++)
     {
         double total = 0.0;
-        for (double x : v[c]) total += x;
+        for (size_t k = 0; k < num_states[c]; k++) total += v[ offset[c] + k ];
         out[c] = std::log( total / double( num_states[c] ) ) + ln_scale[c];
     }
     return out;
@@ -298,6 +321,7 @@ void PhyloMorphospeciationProcess::restoreSpecialization( const DagNode *restore
 void PhyloMorphospeciationProcess::setValue( AbstractHomologousDiscreteCharacterData *v, bool force )
 {
     TypedDistribution<AbstractHomologousDiscreteCharacterData>::setValue( v, force );
+    tips_stale = true;
 
     if ( states_given )
     {
@@ -393,6 +417,7 @@ void PhyloMorphospeciationProcess::redrawValue( void )
 
     delete this->value;
     this->value = data;
+    tips_stale = true;
 }
 
 

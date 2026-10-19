@@ -662,18 +662,31 @@ bool FossilizedBirthDeathSpeciationProcess::hasSymmetricSpeciation( void ) const
  */
 double FossilizedBirthDeathSpeciationProcess::hiddenSpeciationIntegral(double t0, double t1) const
 {
+    return hiddenSpeciationIntegrals( std::vector<std::pair<double,double> >( 1, std::make_pair( t0, t1 ) ) )[0];
+}
+
+
+std::vector<double> FossilizedBirthDeathSpeciationProcess::hiddenSpeciationIntegrals(const std::vector<std::pair<double,double> > &spans) const
+{
     prepareProbComputation();
 
-    double total = 0.0;
-    for (size_t i = findIndex(t0); t0 < t1; i++)
+    std::vector<double> out;
+    out.reserve( spans.size() );
+    for (const std::pair<double,double> &span : spans)
     {
-        double end = ( i + 1 < num_intervals ) ? std::min( t1, times[i+1] ) : t1;
-        double dt  = end - t0;
-        total += 0.5 * ( q(i, end) - q(i, t0) + (birth[i] + death[i] + fossil[i]) * dt ) + anagenetic[i] * dt;
-        t0 = end;
+        double t0 = span.first, t1 = span.second;
+        double total = 0.0;
+        for (size_t i = findIndex(t0); t0 < t1; i++)
+        {
+            double end = ( i + 1 < num_intervals ) ? std::min( t1, times[i+1] ) : t1;
+            double dt  = end - t0;
+            total += 0.5 * ( q(i, end) - q(i, t0) + (birth[i] + death[i] + fossil[i]) * dt ) + anagenetic[i] * dt;
+            t0 = end;
+        }
+        out.push_back( total );
     }
 
-    return total;
+    return out;
 }
 
 
