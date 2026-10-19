@@ -83,8 +83,31 @@ bool PhyloMorphospeciationProcess::hasSpeciationEvent( size_t taxon ) const
 }
 
 
-/** tau_1 of every taxon, and the Markov chain length of every branch. False unless every node keeps
-    the parent species on exactly one child, since anything else has probability zero under the model. */
+/** The species of each node, from its continuing child. -1 unless every node below keeps the parent
+    species on exactly one of two children, since anything else has probability zero under the model. */
+long PhyloMorphospeciationProcess::assignSpecies( const TopologyNode &node )
+{
+    size_t idx = node.getIndex();
+    if ( node.isTip() ) return species[idx] = long( idx );
+    if ( node.getNumberOfChildren() != 2 ) return -1;
+
+    size_t continuing = 0;
+    for (size_t c = 0; c < 2; c++)
+    {
+        if ( assignSpecies( node.getChild(c) ) < 0 ) return -1;
+        if ( node.getChild(c).continuesParentSpecies() )
+        {
+            continuing++;
+            kept_child[idx] = c;
+        }
+    }
+    if ( continuing != 1 ) return -1;
+    budded[idx] = species[ node.getChild( 1 - kept_child[idx] ).getIndex() ];
+    return species[idx] = species[ node.getChild( kept_child[idx] ).getIndex() ];
+}
+
+
+/** tau_1 of every taxon, the species of every node, and the Markov chain length of every branch. */
 bool PhyloMorphospeciationProcess::prepare( void )
 {
     if ( process->hasSymmetricSpeciation() )
@@ -98,35 +121,22 @@ bool PhyloMorphospeciationProcess::prepare( void )
     for (size_t i = 0; i < f.size(); i++) first[i] = f[i];
 
     const Tree &t = tree->getValue();
+    size_t nodes = t.getNumberOfNodes();
+    species.assign( nodes, -1 );
+    kept_child.assign( nodes, 0 );
+    budded.assign( nodes, -1 );
+    if ( assignSpecies( t.getRoot() ) < 0 ) return false;
+
     double n = double( num_states.size() );
-    stem = std::vector<double>( t.getNumberOfNodes(), 0.0 );
+    stem.assign( nodes, 0.0 );
     std::vector<size_t> at;
     std::vector<std::pair<double,double> > spans;
-    kept_child.assign( t.getNumberOfNodes(), 0 );
-    budded.assign( t.getNumberOfNodes(), -1 );
     for (const TopologyNode *node : t.getNodes())
     {
-        if ( node->isTip() == false )
-        {
-            if ( node->getNumberOfChildren() != 2 ) return false;
-            size_t continuing = 0;
-            for (size_t c = 0; c < 2; c++)
-            {
-                if ( node->getChild(c).continuesParentSpecies() )
-                {
-                    continuing++;
-                    kept_child[ node->getIndex() ] = c;
-                }
-            }
-            if ( continuing != 1 ) return false;
-            budded[ node->getIndex() ] = speciesOf( node->getChild( 1 - kept_child[ node->getIndex() ] ) );
-        }
         if ( node->isRoot() ) continue;
-        long s = speciesOf( *node );
-        if ( s < 0 ) return false;
 
         // the species' sampled range carries no change, so only the part above tau_1 counts
-        double lo = std::max( node->getAge(), first[s] );
+        double lo = std::max( node->getAge(), first[ species[ node->getIndex() ] ] );
         double hi = node->getParent().getAge();
         if ( hi > lo && n > 0 )
         {
@@ -175,6 +185,7 @@ void PhyloMorphospeciationProcess::buildTipPartials( void )
         }
     }
     tips_stale = false;
+    epoch++;
 }
 
 
@@ -195,73 +206,147 @@ void PhyloMorphospeciationProcess::carry( std::vector<double> &v, double length 
 }
 
 
-void PhyloMorphospeciationProcess::partial( const TopologyNode &node, std::vector<double> &ln_scale, long forced_taxon, Forcing forcing )
+void PhyloMorphospeciationProcess::prepareCache( void )
 {
-    size_t idx = node.getIndex();
-    std::vector<double> &v = buffer[idx];
-    if ( node.isTip() )
+    if ( tips_stale ) buildTipPartials();
+    size_t nodes = tree->getValue().getNumberOfNodes();
+    if ( cache.size() != nodes )
     {
-        v = tip_partials[idx];
-        return;
+        cache.assign( nodes, std::vector<Slot>( 2 ) );
+        current.assign( nodes, 0 );
     }
+}
 
-    const TopologyNode &kc = node.getChild( kept_child[idx] );
-    const TopologyNode &bc = node.getChild( 1 - kept_child[idx] );
-    partial( kc, ln_scale, forced_taxon, forcing );
-    partial( bc, ln_scale, forced_taxon, forcing );
-    carry( buffer[ kc.getIndex() ], stem[ kc.getIndex() ] );
-    carry( buffer[ bc.getIndex() ], stem[ bc.getIndex() ] );
-    const std::vector<double> &a = buffer[ kc.getIndex() ];
-    const std::vector<double> &b = buffer[ bc.getIndex() ];
 
-    long j = budded[idx];
+/** The partial at node j's parent from its continuing child a and budding child b, scaled per character. */
+void PhyloMorphospeciationProcess::combine( const Slot &a, const Slot &b, long j, Forcing forcing, Slot &out ) const
+{
+    out.v.resize( total_states );
+    out.ln_scale.resize( num_states.size() );
     for (size_t c = 0; c < num_states.size(); c++)
     {
-        bool here = ( j == forced_taxon ) ? forcing == CHANGED : changed[j] == c;
+        bool here = ( forcing == NONE ) ? changed[j] == c : forcing == CHANGED;
         size_t o = offset[c], K = num_states[c];
         double total = 0.0;
-        if ( here ) for (size_t k = 0; k < K; k++) total += b[o+k];
+        if ( here ) for (size_t k = 0; k < K; k++) total += b.v[o+k];
 
         double largest = 0.0;
         for (size_t k = 0; k < K; k++)
         {
             // the new species differs at this character: the Mk kernel, uniform over the other states
-            v[o+k] = a[o+k] * ( here ? ( total - b[o+k] ) / double(K - 1) : b[o+k] );
-            largest = std::max( largest, v[o+k] );
+            out.v[o+k] = a.v[o+k] * ( here ? ( total - b.v[o+k] ) / double(K - 1) : b.v[o+k] );
+            largest = std::max( largest, out.v[o+k] );
         }
+        out.ln_scale[c] = a.ln_scale[c] + b.ln_scale[c];
         if ( largest > 0.0 )
         {
-            for (size_t k = 0; k < K; k++) v[o+k] /= largest;
-            ln_scale[c] += std::log( largest );
+            for (size_t k = 0; k < K; k++) out.v[o+k] /= largest;
+            out.ln_scale[c] += std::log( largest );
         }
     }
 }
 
 
-std::vector<double> PhyloMorphospeciationProcess::lnLikelihoodByCharacter( long forced_taxon, Forcing forcing )
+/** A node's partial at the top of its branch, recomputed only when something it depends on differs from both cached slots. */
+const PhyloMorphospeciationProcess::Slot& PhyloMorphospeciationProcess::evaluate( const TopologyNode &node )
 {
-    size_t N = num_states.size();
-    const Tree &t = tree->getValue();
-    if ( tips_stale ) buildTipPartials();
-    if ( buffer.size() != t.getNumberOfNodes() || buffer[0].size() != total_states )
+    size_t idx = node.getIndex();
+    Slot sig;
+    sig.epoch  = epoch;
+    sig.length = stem[idx];
+    if ( node.isTip() == false )
     {
-        buffer.assign( t.getNumberOfNodes(), std::vector<double>( total_states, 0.0 ) );
+        sig.kept   = kept_child[idx];
+        sig.budded = budded[idx];
+        sig.xi     = changed[ budded[idx] ];
+        for (size_t c = 0; c < 2; c++) sig.child_version[c] = evaluate( node.getChild(c) ).version;
     }
 
-    std::vector<double> ln_scale( N, 0.0 );
-    const TopologyNode &root = t.getRoot();
-    partial( root, ln_scale, forced_taxon, forcing );
-    const std::vector<double> &v = buffer[ root.getIndex() ];
+    std::vector<Slot> &slots = cache[idx];
+    for (size_t s = 0; s < 2; s++)
+    {
+        const Slot &x = slots[s];
+        if ( x.version != 0 && x.epoch == sig.epoch && x.length == sig.length && x.kept == sig.kept && x.budded == sig.budded &&
+             x.xi == sig.xi && x.child_version[0] == sig.child_version[0] && x.child_version[1] == sig.child_version[1] )
+        {
+            current[idx] = s;
+            return x;
+        }
+    }
 
+    // overwrite the slot not used last, which keeps the last state for a rejection to return to
+    size_t s = 1 - current[idx];
+    Slot &out = slots[s];
+    if ( node.isTip() )
+    {
+        out.v = tip_partials[idx];
+        out.ln_scale.assign( num_states.size(), 0.0 );
+    }
+    else
+    {
+        const Slot &a = cache[ node.getChild( sig.kept ).getIndex() ][ current[ node.getChild( sig.kept ).getIndex() ] ];
+        const Slot &b = cache[ node.getChild( 1 - sig.kept ).getIndex() ][ current[ node.getChild( 1 - sig.kept ).getIndex() ] ];
+        combine( a, b, sig.budded, NONE, out );
+    }
+    carry( out.v, sig.length );
+
+    out.epoch = sig.epoch;
+    out.length = sig.length;
+    out.kept = sig.kept;
+    out.budded = sig.budded;
+    out.xi = sig.xi;
+    out.child_version[0] = sig.child_version[0];
+    out.child_version[1] = sig.child_version[1];
+    out.version = next_version++;
+    current[idx] = s;
+    return out;
+}
+
+
+std::vector<double> PhyloMorphospeciationProcess::rootLnLikelihoods( const Slot &root ) const
+{
     // the root starts from the stationary distribution, uniform for Mk, so its stem drops out
-    std::vector<double> out( N );
-    for (size_t c = 0; c < N; c++)
+    std::vector<double> out( num_states.size() );
+    for (size_t c = 0; c < num_states.size(); c++)
     {
         double total = 0.0;
-        for (size_t k = 0; k < num_states[c]; k++) total += v[ offset[c] + k ];
-        out[c] = std::log( total / double( num_states[c] ) ) + ln_scale[c];
+        for (size_t k = 0; k < num_states[c]; k++) total += root.v[ offset[c] + k ];
+        out[c] = std::log( total / double( num_states[c] ) ) + root.ln_scale[c];
     }
     return out;
+}
+
+
+/** log L per character with one species' change forced. Only the path from its speciation to the root differs from the cache. */
+std::vector<double> PhyloMorphospeciationProcess::forcedLnLikelihoods( size_t taxon, Forcing forcing )
+{
+    const Tree &t = tree->getValue();
+    const TopologyNode *node = NULL;
+    for (const TopologyNode *n : t.getNodes())
+    {
+        if ( n->isTip() == false && budded[ n->getIndex() ] == long( taxon ) ) node = n;
+    }
+    if ( node == NULL ) return rootLnLikelihoods( cache[ t.getRoot().getIndex() ][ current[ t.getRoot().getIndex() ] ] );
+
+    Slot below, here;
+    const Slot *from = NULL;                                // the path's partial at the child just below
+    size_t from_idx = 0;
+    for ( ; node != NULL; node = node->isRoot() ? NULL : &node->getParent() )
+    {
+        size_t idx = node->getIndex();
+        size_t k = kept_child[idx];
+        const Slot *a = &cache[ node->getChild(k).getIndex() ][ current[ node->getChild(k).getIndex() ] ];
+        const Slot *b = &cache[ node->getChild(1-k).getIndex() ][ current[ node->getChild(1-k).getIndex() ] ];
+        if ( from != NULL && node->getChild(k).getIndex() == from_idx ) a = from;
+        if ( from != NULL && node->getChild(1-k).getIndex() == from_idx ) b = from;
+
+        combine( *a, *b, budded[idx], from == NULL ? forcing : NONE, here );
+        carry( here.v, stem[idx] );
+        std::swap( below, here );
+        from = &below;
+        from_idx = idx;
+    }
+    return rootLnLikelihoods( below );
 }
 
 
@@ -269,13 +354,14 @@ double PhyloMorphospeciationProcess::computeLnProbability( void )
 {
     if ( num_states.empty() ) return 0.0;
     if ( prepare() == false ) return RbConstants::Double::neginf;
+    prepareCache();
 
+    const Tree &t = tree->getValue();
     double lnProb = 0.0;
-    for (double x : lnLikelihoodByCharacter( -1, NONE )) lnProb += x;
+    for (double x : rootLnLikelihoods( evaluate( t.getRoot() ) )) lnProb += x;
 
-    // each speciation's character is drawn uniformly
-    size_t m = 0;
-    for (size_t i = 0; i < changed.size(); i++) m += hasSpeciationEvent( i );
+    // each speciation's character is drawn uniformly, and every interior node is one speciation
+    size_t m = t.getNumberOfNodes() - t.getNumberOfTips();
     return lnProb - double( m ) * std::log( double( num_states.size() ) );
 }
 
@@ -284,8 +370,11 @@ double PhyloMorphospeciationProcess::computeLnProbability( void )
 std::vector<double> PhyloMorphospeciationProcess::changedCharacterLnProbs( size_t taxon )
 {
     if ( prepare() == false ) return std::vector<double>( num_states.size(), RbConstants::Double::neginf );
-    std::vector<double> yes = lnLikelihoodByCharacter( long( taxon ), CHANGED );
-    std::vector<double> no  = lnLikelihoodByCharacter( long( taxon ), UNCHANGED );
+    prepareCache();
+    evaluate( tree->getValue().getRoot() );
+
+    std::vector<double> yes = forcedLnLikelihoods( taxon, CHANGED );
+    std::vector<double> no  = forcedLnLikelihoods( taxon, UNCHANGED );
 
     double none = 0.0;
     for (double x : no) none += x;
