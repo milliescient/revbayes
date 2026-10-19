@@ -1,0 +1,6 @@
+all states missing: the density is the prior on the changed characters:
+TRUE	
+one species: the stationary frequencies alone:
+TRUE	
+no species changes at the origin:
+TRUE	
