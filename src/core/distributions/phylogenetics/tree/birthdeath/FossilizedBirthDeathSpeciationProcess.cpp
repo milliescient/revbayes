@@ -656,6 +656,38 @@ bool FossilizedBirthDeathSpeciationProcess::hasSymmetricSpeciation( void ) const
 }
 
 
+/**
+ * int_{t0}^{t1} ( lambda p(t) + lambda_a ) dt for ages t0 <= t1: the rate at which hidden speciation
+ * replaces the species on an observed lineage. Within an interval, int lambda p = (ln q + (lambda + mu + psi) t) / 2.
+ */
+double FossilizedBirthDeathSpeciationProcess::hiddenSpeciationIntegral(double t0, double t1) const
+{
+    prepareProbComputation();
+
+    double total = 0.0;
+    for (size_t i = findIndex(t0); t0 < t1; i++)
+    {
+        double end = ( i + 1 < num_intervals ) ? std::min( t1, times[i+1] ) : t1;
+        double dt  = end - t0;
+        total += 0.5 * ( q(i, end) - q(i, t0) + (birth[i] + death[i] + fossil[i]) * dt ) + anagenetic[i] * dt;
+        t0 = end;
+    }
+
+    return total;
+}
+
+
+/** The range parameters, with the anagenetic and symmetric rates the base class does not hold. */
+std::vector<const DagNode*> FossilizedBirthDeathSpeciationProcess::getRateParameters( void ) const
+{
+    std::vector<const DagNode*> out;
+    for (const DagNode *n : range_parameters) if ( n != NULL ) out.push_back( n );
+    for (const DagNode *n : { (const DagNode*) homogeneous_lambda_a, (const DagNode*) heterogeneous_lambda_a,
+                              (const DagNode*) homogeneous_beta, (const DagNode*) heterogeneous_beta }) if ( n != NULL ) out.push_back( n );
+    return out;
+}
+
+
 bool FossilizedBirthDeathSpeciationProcess::hasAnagenesis( void ) const
 {
     if ( homogeneous_lambda_a != NULL )

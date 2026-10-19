@@ -74,6 +74,8 @@ namespace RevBayesCore {
         bool                                            hasSymmetricSpeciation(void) const;                                 //!< True when any interval's symmetric speciation probability is positive.
         void                                            simulateClade(std::vector<TopologyNode *> &n, double age, double present, bool alwaysReturn) override;
         bool                                            allowsSampledAncestors(void) const override { return true; }        //!< The density rejects them where lambda_a = 0.
+        double                                          hiddenSpeciationIntegral(double t0, double t1) const;               //!< int (lambda p + lambda_a) dt from age t0 up to t1.
+        std::vector<const DagNode*>                     getRateParameters(void) const;                                      //!< Every node the rates and p(t) depend on.
 
     protected:
         bool                                            marginalizesExtinction(void) const override { return extended == false; }
