@@ -78,6 +78,9 @@ double MorphospeciationAllocationProposal::doProposal( void )
     RandomNumberGenerator* rng = GLOBAL_RNG;
     size_t j = eligible[ std::min( eligible.size() - 1, size_t( rng->uniform01() * eligible.size() ) ) ];
 
+    // with epsilon, the whole set of changed characters is drawn at once
+    if ( p.allowsMultipleChanges() ) return p.resampleChangedSet( j );
+
     std::vector<double> ln_probs = p.changedCharacterLnProbs( j );
     size_t N = ln_probs.size();
     for (double &x : ln_probs) if ( std::isnan(x) ) x = RbConstants::Double::neginf;
