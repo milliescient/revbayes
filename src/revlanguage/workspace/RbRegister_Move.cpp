@@ -182,6 +182,7 @@
 
 #include "Move_ExtinctionReversibleJump.h"
 #include "Move_MorphospeciationAllocation.h"
+#include "Move_MorphospeciationEvents.h"
 #include "Move_StratigraphicRange.h"
 #include "Move_SingletonReversibleJump.h"
 #include "Move_PsiMixtureAllocation.h"
@@ -500,6 +501,7 @@ void RevLanguage::Workspace::initializeMoveGlobalWorkspace(void)
 
         addType( new Move_ExtinctionReversibleJump()               );
         addType( new Move_MorphospeciationAllocation()             );
+        addType( new Move_MorphospeciationEvents()                 );
         addType( new Move_StratigraphicRange()                     );
         addType( new Move_SingletonReversibleJump()                );
         addType( new Move_PsiMixtureAllocation()                   );
