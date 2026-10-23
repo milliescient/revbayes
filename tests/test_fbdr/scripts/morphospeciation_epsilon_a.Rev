@@ -1,0 +1,25 @@
+# dnPhyloMorphospeciation with epsilon_a, anagenesis's own change probability. Exact identities:
+#   - buddings change with probability epsilon and anagenetic speciations with epsilon_a;
+#   - epsilon_a equal to epsilon gives the same density as leaving it out.
+# Every line printed must be TRUE.
+seed(1)
+out = "output/morphospeciation_epsilon_a.txt"
+
+taxa <- readTaxonData("data/fbdsp_condition.tsv")
+bd ~ dnFBDSP(taxa=taxa, lambda=0.4, mu=0.1, psi=0.5, rho=1.0, lambda_a=0.3, origin=20.0, condition="time")
+data <- readDiscreteCharacterData("data/morpho_missing.nex")
+
+morph ~ dnPhyloMorphospeciation(tree=bd, nStates=v(2, 3, 2, 4), epsilon=0.3, epsilon_a=0.1)
+morph.clamp(data)
+p = morph.getChangeProbabilities()
+print(filename=out, "each kind of speciation's change probability:\n")
+print(filename=out, append=TRUE, p[1] == 0.3 && p[2] == 0.1, "\n")
+
+same ~ dnPhyloMorphospeciation(tree=bd, nStates=v(2, 3, 2, 4), epsilon=0.3, epsilon_a=0.3)
+without ~ dnPhyloMorphospeciation(tree=bd, nStates=v(2, 3, 2, 4), epsilon=0.3)
+same.clamp(data)
+without.clamp(data)
+print(filename=out, append=TRUE, "epsilon_a = epsilon, the same density as without it:\n")
+print(filename=out, append=TRUE, abs(same.lnProbability() - without.lnProbability()) < 1E-12, "\n")
+
+q()
