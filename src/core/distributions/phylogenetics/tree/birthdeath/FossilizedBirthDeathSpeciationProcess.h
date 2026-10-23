@@ -76,6 +76,7 @@ namespace RevBayesCore {
         bool                                            allowsSampledAncestors(void) const override { return true; }        //!< The density rejects them where lambda_a = 0.
         double                                          hiddenSpeciationIntegral(double t0, double t1) const;               //!< int (lambda p + lambda_a) dt from age t0 up to t1.
         std::vector<double>                             hiddenSpeciationIntegrals(const std::vector<std::pair<double,double> > &spans) const;  //!< The same over many spans, preparing the rates once.
+        std::vector<double>                             anageneticIntegrals(const std::vector<std::pair<double,double> > &spans) const;        //!< int lambda_a dt over each span, the anagenetic part of the above.
         std::vector<const DagNode*>                     getRateParameters(void) const;                                      //!< Every node the rates and p(t) depend on.
 
     protected:
