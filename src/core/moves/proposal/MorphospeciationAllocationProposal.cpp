@@ -67,6 +67,9 @@ double MorphospeciationAllocationProposal::doProposal( void )
     PhyloMorphospeciationProcess &p = process();
     if ( p.getNumberOfCharacters() == 0 ) return 0.0;
 
+    // with epsilon, the distribution chooses the species after preparing the tree once, and draws its whole set
+    if ( p.allowsMultipleChanges() ) return p.resampleChangedSet();
+
     // which species have a speciation event depends on the topology, so it is read each time
     std::vector<size_t> eligible;
     for (size_t i = 0; i < p.getNumberOfTaxa(); i++)
@@ -77,9 +80,6 @@ double MorphospeciationAllocationProposal::doProposal( void )
 
     RandomNumberGenerator* rng = GLOBAL_RNG;
     size_t j = eligible[ std::min( eligible.size() - 1, size_t( rng->uniform01() * eligible.size() ) ) ];
-
-    // with epsilon, the whole set of changed characters is drawn at once
-    if ( p.allowsMultipleChanges() ) return p.resampleChangedSet( j );
 
     std::vector<double> ln_probs = p.changedCharacterLnProbs( j );
     size_t N = ln_probs.size();

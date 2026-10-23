@@ -71,14 +71,8 @@ double MorphospeciationEventsProposal::doProposal( void )
     PhyloMorphospeciationProcess &p = process();
     if ( p.getNumberOfCharacters() == 0 ) return 0.0;
 
-    // which branches can hold events depends on the tree, so they are read each time
-    std::vector<size_t> eligible = p.eventBranches();
-    if ( eligible.empty() ) return 0.0;
-
-    RandomNumberGenerator* rng = GLOBAL_RNG;
-    size_t node = eligible[ std::min( eligible.size() - 1, size_t( rng->uniform01() * eligible.size() ) ) ];
-
-    return p.resampleEvents( node );
+    // which branches can hold events depends on the tree, so the distribution chooses one after preparing it
+    return p.resampleEvents();
 }
 
 

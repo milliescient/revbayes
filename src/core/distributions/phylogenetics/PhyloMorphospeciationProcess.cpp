@@ -150,11 +150,8 @@ bool PhyloMorphospeciationProcess::changeProbabilities( double &e_budding, doubl
 
 
 /** int lambda p dt and int lambda_a dt over the part of each node's branch above its species' tau_1, by node index. */
-void PhyloMorphospeciationProcess::hiddenIntegrals( const std::vector<long> &sp, std::vector<double> &budding, std::vector<double> &anagenetic ) const
+void PhyloMorphospeciationProcess::hiddenIntegrals( const std::vector<long> &sp, const std::vector<double> &tau, std::vector<double> &budding, std::vector<double> &anagenetic ) const
 {
-    RbVector<double> f;
-    process->executeMethod( "getFirstAppearances", std::vector<const DagNode*>(), f );
-
     const Tree &t = tree->getValue();
     budding.assign( t.getNumberOfNodes(), 0.0 );
     anagenetic.assign( t.getNumberOfNodes(), 0.0 );
@@ -167,7 +164,7 @@ void PhyloMorphospeciationProcess::hiddenIntegrals( const std::vector<long> &sp,
         if ( s < 0 ) continue;
 
         // the species' sampled range carries no change, so only the part above tau_1 counts
-        double lo = std::max( node->getAge(), double( f[s] ) );
+        double lo = std::max( node->getAge(), tau[s] );
         double hi = node->getParent().getAge();
         if ( hi > lo )
         {
@@ -224,7 +221,7 @@ bool PhyloMorphospeciationProcess::prepare( void )
     }
 
     double n = double( num_states.size() );
-    hiddenIntegrals( species, mean_events[BUDDING], mean_events[ANAGENESIS] );
+    hiddenIntegrals( species, first, mean_events[BUDDING], mean_events[ANAGENESIS] );
     stem.assign( nodes, 0.0 );
     for (size_t i = 0; i < nodes; i++)
     {
@@ -244,6 +241,8 @@ void PhyloMorphospeciationProcess::initializeLatents( void )
     const Tree &t = tree->getValue();
     size_t T = t.getNumberOfTips();
     changed_set.assign( T, std::vector<char>( num_states.size(), 0 ) );
+    set_version.assign( T, 0 );
+    for (size_t &v : set_version) v = next_set_version++;
 
     for (int m = 0; m < 2; m++)
     {
@@ -295,6 +294,8 @@ void PhyloMorphospeciationProcess::buildTipPartials( void )
     }
     tips_stale = false;
     epoch++;
+    max_states = 2;
+    for (size_t K : num_states) max_states = std::max( max_states, K );
 }
 
 
@@ -348,9 +349,18 @@ void PhyloMorphospeciationProcess::carry( std::vector<double> &v, size_t node, B
     if ( key >= events[BUDDING].size() ) return;
     long nb = events[BUDDING][key], na = events[ANAGENESIS][key];
     if ( nb == 0 && na == 0 ) return;
+    // the decay depends on a character only through its number of states
+    std::vector<double> by_K( max_states + 1, 0.0 );
+    std::vector<char> done( max_states + 1, 0 );
     for (size_t c = 0; c < num_states.size(); c++)
     {
-        mix( v, c, std::pow( decay( c, change_prob[BUDDING] ), double( nb ) ) * std::pow( decay( c, change_prob[ANAGENESIS] ), double( na ) ) );
+        size_t K = num_states[c];
+        if ( done[K] == 0 )
+        {
+            by_K[K] = std::pow( decay( c, change_prob[BUDDING] ), double( nb ) ) * std::pow( decay( c, change_prob[ANAGENESIS] ), double( na ) );
+            done[K] = 1;
+        }
+        mix( v, c, by_K[K] );
     }
 }
 
@@ -421,8 +431,7 @@ void PhyloMorphospeciationProcess::signature( const TopologyNode &node, Slot &si
     {
         sig.kept   = kept_child[idx];
         sig.budded = budded[idx];
-        if ( epsilon == NULL ) sig.xi = changed[ budded[idx] ];
-        else sig.set = changed_set[ budded[idx] ];
+        sig.xi = ( epsilon == NULL ) ? changed[ budded[idx] ] : set_version[ budded[idx] ];
     }
 }
 
@@ -443,7 +452,7 @@ const PhyloMorphospeciationProcess::Slot& PhyloMorphospeciationProcess::evaluate
     {
         const Slot &x = slots[s];
         if ( x.version != 0 && x.epoch == sig.epoch && x.length == sig.length && x.kept == sig.kept && x.budded == sig.budded &&
-             x.xi == sig.xi && x.set == sig.set && x.events[0] == sig.events[0] && x.events[1] == sig.events[1] &&
+             x.xi == sig.xi && x.events[0] == sig.events[0] && x.events[1] == sig.events[1] &&
              x.change_prob[0] == sig.change_prob[0] && x.change_prob[1] == sig.change_prob[1] &&
              x.child_version[0] == sig.child_version[0] && x.child_version[1] == sig.child_version[1] )
         {
@@ -477,7 +486,6 @@ const PhyloMorphospeciationProcess::Slot& PhyloMorphospeciationProcess::evaluate
     out.kept = sig.kept;
     out.budded = sig.budded;
     out.xi = sig.xi;
-    out.set = sig.set;
     out.child_version[0] = sig.child_version[0];
     out.child_version[1] = sig.child_version[1];
     out.version = next_version++;
@@ -551,23 +559,25 @@ std::vector<double> PhyloMorphospeciationProcess::forcedLnLikelihoods( const For
 /** The probability of a set of changed characters, each in independently with probability e. */
 double PhyloMorphospeciationProcess::lnSetProbability( const std::vector<char> &set, double e ) const
 {
-    double ln_p = 0.0;
-    for (char in : set)
-    {
-        if ( in ) ln_p += ( e > 0.0 ) ? std::log( e ) : RbConstants::Double::neginf;
-        else      ln_p += ( e < 1.0 ) ? std::log1p( -e ) : RbConstants::Double::neginf;
-    }
-    return ln_p;
+    double s = double( std::count( set.begin(), set.end(), 1 ) ), n = double( set.size() );
+    if ( ( s > 0.0 && e <= 0.0 ) || ( s < n && e >= 1.0 ) ) return RbConstants::Double::neginf;
+    return ( s > 0.0 ? s * std::log( e ) : 0.0 ) + ( s < n ? ( n - s ) * std::log1p( -e ) : 0.0 );
 }
 
 
 double PhyloMorphospeciationProcess::computeLnProbability( void )
 {
     if ( num_states.empty() ) return 0.0;
-    if ( epsilon != NULL && changeProbabilities( change_prob[BUDDING], change_prob[ANAGENESIS] ) == false ) return RbConstants::Double::neginf;
-    if ( prepare() == false ) return RbConstants::Double::neginf;
-    if ( epsilon != NULL && latents_ready == false ) initializeLatents();
-    prepareCache();
+
+    // a Gibbs draw just prepared everything, and only its own latent variable has changed since
+    if ( fresh == false )
+    {
+        if ( epsilon != NULL && changeProbabilities( change_prob[BUDDING], change_prob[ANAGENESIS] ) == false ) return RbConstants::Double::neginf;
+        if ( prepare() == false ) return RbConstants::Double::neginf;
+        if ( epsilon != NULL && latents_ready == false ) initializeLatents();
+        prepareCache();
+    }
+    fresh = false;
 
     const Tree &t = tree->getValue();
     double lnProb = 0.0;
@@ -646,14 +656,57 @@ std::vector<double> PhyloMorphospeciationProcess::changedCharacterLnProbs( size_
  *
  * \return The hastings ratio, which cancels the posterior ratio.
  */
-double PhyloMorphospeciationProcess::resampleChangedSet( size_t taxon )
+bool PhyloMorphospeciationProcess::ready( void )
 {
-    if ( changeProbabilities( change_prob[BUDDING], change_prob[ANAGENESIS] ) == false ) return RbConstants::Double::neginf;
-    if ( prepare() == false ) return RbConstants::Double::neginf;
+    if ( changeProbabilities( change_prob[BUDDING], change_prob[ANAGENESIS] ) == false ) return false;
+    if ( prepare() == false ) return false;
     if ( latents_ready == false ) initializeLatents();
     prepareCache();
     evaluate( tree->getValue().getRoot() );
+    return true;
+}
 
+
+/** Gibbs draw of the changed set of one species with a speciation, chosen uniformly. */
+double PhyloMorphospeciationProcess::resampleChangedSet( void )
+{
+    if ( ready() == false ) return RbConstants::Double::neginf;
+
+    // every species but the one at the origin has a speciation
+    const Tree &t = tree->getValue();
+    long origin_species = species[ t.getRoot().getIndex() ];
+    std::vector<size_t> eligible;
+    for (size_t i = 0; i < t.getNumberOfTips(); i++) if ( long( i ) != origin_species ) eligible.push_back( i );
+    if ( eligible.empty() ) return 0.0;
+
+    RandomNumberGenerator *rng = GLOBAL_RNG;
+    size_t j = eligible[ std::min( eligible.size() - 1, size_t( rng->uniform01() * eligible.size() ) ) ];
+    return drawChangedSet( j );
+}
+
+
+/** Gibbs draw of one kind of hidden event on one branch that can hold events, chosen uniformly. */
+double PhyloMorphospeciationProcess::resampleEvents( void )
+{
+    if ( ready() == false ) return RbConstants::Double::neginf;
+
+    std::vector<size_t> eligible;
+    for (const TopologyNode *node : tree->getValue().getNodes())
+    {
+        size_t i = node->getIndex();
+        if ( node->isRoot() == false && ( mean_events[BUDDING][i] > 0.0 || mean_events[ANAGENESIS][i] > 0.0 ) ) eligible.push_back( i );
+    }
+    if ( eligible.empty() ) return 0.0;
+
+    RandomNumberGenerator *rng = GLOBAL_RNG;
+    size_t node = eligible[ std::min( eligible.size() - 1, size_t( rng->uniform01() * eligible.size() ) ) ];
+    return drawEvents( node );
+}
+
+
+/** The draw itself, for a state that ready() has prepared. */
+double PhyloMorphospeciationProcess::drawChangedSet( size_t taxon )
+{
     Forced yes_f, no_f;
     yes_f.taxon = no_f.taxon = long( taxon );
     yes_f.forcing = CHANGED;
@@ -681,27 +734,16 @@ double PhyloMorphospeciationProcess::resampleChangedSet( size_t taxon )
         ln_new += s[c] ? ln_yes : ln_no;
     }
 
-    undo       = UNDO_SET;
-    undo_index = taxon;
-    undo_set   = changed_set[taxon];
+    undo         = UNDO_SET;
+    undo_index   = taxon;
+    undo_set     = changed_set[taxon];
+    undo_version = set_version[taxon];
     changed_set[taxon] = s;
+    set_version[taxon] = next_set_version++;
+    fresh = true;
 
     // leaving a state of probability zero is always accepted
     return RbMath::isFinite( ln_old ) ? ln_old - ln_new : 0.0;
-}
-
-
-std::vector<size_t> PhyloMorphospeciationProcess::eventBranches( void )
-{
-    std::vector<size_t> out;
-    if ( prepare() == false ) return out;
-    if ( latents_ready == false ) initializeLatents();
-    for (const TopologyNode *node : tree->getValue().getNodes())
-    {
-        size_t i = node->getIndex();
-        if ( node->isRoot() == false && ( mean_events[BUDDING][i] > 0.0 || mean_events[ANAGENESIS][i] > 0.0 ) ) out.push_back( i );
-    }
-    return out;
 }
 
 
@@ -717,12 +759,8 @@ std::vector<size_t> PhyloMorphospeciationProcess::eventBranches( void )
  *
  * \return The hastings ratio, which cancels the posterior ratio.
  */
-double PhyloMorphospeciationProcess::resampleEvents( size_t node )
+double PhyloMorphospeciationProcess::drawEvents( size_t node )
 {
-    if ( changeProbabilities( change_prob[BUDDING], change_prob[ANAGENESIS] ) == false ) return RbConstants::Double::neginf;
-    if ( prepare() == false ) return RbConstants::Double::neginf;
-    if ( latents_ready == false ) initializeLatents();
-
     const TopologyNode &nd = tree->getValue().getNode( node );
     if ( nd.isRoot() ) return 0.0;
 
@@ -736,9 +774,6 @@ double PhyloMorphospeciationProcess::resampleEvents( size_t node )
 
     double mean = mean_events[m][node];
     size_t key = key_of[node];
-
-    prepareCache();
-    evaluate( tree->getValue().getRoot() );
 
     Forced one, zero;
     one.node = zero.node = long( node );
@@ -806,6 +841,7 @@ double PhyloMorphospeciationProcess::resampleEvents( size_t node )
     undo_index  = key;
     undo_events = N_old;
     events[m][key] = N_new;
+    fresh = true;
 
     // leaving a state of probability zero is always accepted
     return RbMath::isFinite( w[N_old] ) ? w[N_old] - w[N_new] : 0.0;
@@ -825,6 +861,14 @@ void PhyloMorphospeciationProcess::keepSpecialization( const DagNode *affecter )
 {
     reallocated = false;
     undo = UNDO_NONE;
+    fresh = false;
+}
+
+
+/** Anything but this node's own touch, after a Gibbs draw, can change what the draw prepared. */
+void PhyloMorphospeciationProcess::touchSpecialization( const DagNode *toucher, bool touchAll )
+{
+    if ( toucher != this->dag_node ) fresh = false;
 }
 
 
@@ -832,8 +876,13 @@ void PhyloMorphospeciationProcess::restoreSpecialization( const DagNode *restore
 {
     if ( reallocated ) changed[stored_taxon] = stored_character;
     reallocated = false;
+    fresh = false;
 
-    if ( undo == UNDO_SET )    changed_set[undo_index] = undo_set;
+    if ( undo == UNDO_SET )
+    {
+        changed_set[undo_index] = undo_set;
+        set_version[undo_index] = undo_version;
+    }
     if ( undo == UNDO_EVENTS ) events[undo_mode][undo_index] = undo_events;
     undo = UNDO_NONE;
 }
@@ -956,6 +1005,8 @@ void PhyloMorphospeciationProcess::redrawValue( void )
             double e = change_prob[ anagenetic_species[i] ? ANAGENESIS : BUDDING ];
             for (size_t c = 0; c < N; c++) changed_set[i][c] = ( rng->uniform01() < e );
         }
+        set_version.assign( changed_set.size(), 0 );
+        for (size_t &v : set_version) v = next_set_version++;
 
         for (int m = 0; m < 2; m++)
         {
@@ -1054,7 +1105,11 @@ void PhyloMorphospeciationProcess::executeMethod( const std::string &n, const st
         {
             std::vector<long> sp( t.getNumberOfNodes() );
             for (size_t i = 0; i < sp.size(); i++) sp[i] = speciesOf( t.getNode( i ) );
-            hiddenIntegrals( sp, b, a );
+            RbVector<double> f;
+            process->executeMethod( "getFirstAppearances", std::vector<const DagNode*>(), f );
+            std::vector<double> tau( f.size() );
+            for (size_t i = 0; i < f.size(); i++) tau[i] = f[i];
+            hiddenIntegrals( sp, tau, b, a );
         }
         for (size_t i = 0; i < t.getNumberOfNodes(); i++)
         {
@@ -1138,10 +1193,12 @@ void PhyloMorphospeciationProcess::setHiddenStateFromString( const std::string &
     std::vector<std::string> sets = ( fields.size() == 4 && fields[0] == "multi" ) ? split( fields[1] ) : std::vector<std::string>();
     if ( sets.size() != T ) throw RbException("dnPhyloMorphospeciation: the checkpoint does not hold a changed set per species.");
     changed_set.assign( T, std::vector<char>( n, 0 ) );
+    set_version.assign( T, 0 );
     for (size_t i = 0; i < T; i++)
     {
         if ( sets[i].size() != n ) throw RbException("dnPhyloMorphospeciation: a changed set in the checkpoint does not cover every character.");
         for (size_t c = 0; c < n; c++) changed_set[i][c] = ( sets[i][c] == '1' );
+        set_version[i] = next_set_version++;
     }
     for (int m = 0; m < 2; m++)
     {
@@ -1151,6 +1208,7 @@ void PhyloMorphospeciationProcess::setHiddenStateFromString( const std::string &
         for (size_t k = 0; k < 2 * T; k++) events[m][k] = std::stol( counts[k] );
     }
     latents_ready = true;
+    fresh = false;
 }
 
 

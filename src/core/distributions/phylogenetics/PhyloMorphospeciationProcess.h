@@ -60,14 +60,14 @@ namespace RevBayesCore {
         std::vector<double>             changedCharacterLnProbs(size_t taxon);                  //!< log L for each character changing at this species' speciation.
 
         // with epsilon: Gibbs draws of the latent variables, each returning its hastings ratio and arming the undo
-        double                          resampleChangedSet(size_t taxon);                       //!< The characters that changed at this species' speciation.
-        std::vector<size_t>             eventBranches(void);                                    //!< The nodes whose branches can hold hidden events.
-        double                          resampleEvents(size_t node);                            //!< One kind of hidden event on this node's branch, chosen at random.
+        double                          resampleChangedSet(void);                               //!< The characters that changed at one species' speciation, chosen uniformly.
+        double                          resampleEvents(void);                                   //!< One kind of hidden event on one branch, both chosen uniformly.
 
     protected:
         void                            keepSpecialization(const DagNode *toucher) override;
         void                            restoreSpecialization(const DagNode *toucher) override;
         void                            swapParameterInternal(const DagNode *oldP, const DagNode *newP) override;
+        void                            touchSpecialization(const DagNode *toucher, bool touchAll) override;
 
     private:
         enum Forcing { NONE, CHANGED, UNCHANGED };
@@ -83,8 +83,7 @@ namespace RevBayesCore {
             double                      change_prob[2] = {0.0, 0.0};
             size_t                      kept = 0;
             long                        budded = -1;
-            size_t                      xi = 0;
-            std::vector<char>           set;
+            size_t                      xi = 0;                                                 //!< The changed character, or with epsilon the changed set's version.
             size_t                      child_version[2] = {0, 0};
             std::vector<double>         v;
             std::vector<double>         ln_scale;                                               //!< Per character, summed over the subtree.
@@ -100,11 +99,14 @@ namespace RevBayesCore {
 
         void                            resolveProcess(void);
         bool                            prepare(void);
-        void                            hiddenIntegrals(const std::vector<long> &sp, std::vector<double> &budding, std::vector<double> &anagenetic) const;  //!< int lambda p and int lambda_a above tau_1 on each node's branch.
+        void                            hiddenIntegrals(const std::vector<long> &sp, const std::vector<double> &tau, std::vector<double> &budding, std::vector<double> &anagenetic) const;  //!< int lambda p and int lambda_a above tau_1 on each node's branch.
         bool                            changeProbabilities(double &e_budding, double &e_anagenesis) const;                     //!< False outside [0, 1].
         size_t                          branchKey(const TopologyNode &node) const;
         long                            assignSpecies(const TopologyNode &node);
         void                            initializeLatents(void);
+        bool                            ready(void);                                            //!< Rates, tree, latent variables and cache brought up to date. False if impossible.
+        double                          drawChangedSet(size_t taxon);
+        double                          drawEvents(size_t node);
         double                          lnSetProbability(const std::vector<char> &set, double e) const;
         void                            prepareCache(void);
         void                            signature(const TopologyNode &node, Slot &sig) const;
@@ -140,6 +142,10 @@ namespace RevBayesCore {
         size_t                          undo_index = 0;
         Mode                            undo_mode = BUDDING;
         std::vector<char>               undo_set;
+        size_t                          undo_version = 0;
+        std::vector<size_t>             set_version;                                            //!< With epsilon: bumped whenever a species' changed set changes, for the cache.
+        size_t                          next_set_version = 1;
+        bool                            fresh = false;                                          //!< Prepared by a Gibbs draw, with nothing since but the node's own touch.
         long                            undo_events = 0;
 
         double                          change_prob[2] = { 0.0, 0.0 };                          //!< With epsilon: each character's chance to change at a budding and at an anagenesis.
@@ -155,6 +161,7 @@ namespace RevBayesCore {
         // every character's states laid end to end, character c at offset[c]
         std::vector<size_t>             offset;
         size_t                          total_states = 0;
+        size_t                          max_states = 2;
         std::vector< std::vector<double> > tip_partials;                                        //!< The observed states, by tip index.
         bool                            tips_stale = true;
 
