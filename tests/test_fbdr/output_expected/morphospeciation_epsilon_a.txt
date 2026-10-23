@@ -1,0 +1,4 @@
+each kind of speciation's change probability:
+TRUE	
+epsilon_a = epsilon, the same density as without it:
+TRUE	
