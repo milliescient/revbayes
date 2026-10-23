@@ -690,6 +690,30 @@ std::vector<double> FossilizedBirthDeathSpeciationProcess::hiddenSpeciationInteg
 }
 
 
+/** int_{t0}^{t1} lambda_a dt for each span of ages t0 <= t1. */
+std::vector<double> FossilizedBirthDeathSpeciationProcess::anageneticIntegrals(const std::vector<std::pair<double,double> > &spans) const
+{
+    prepareProbComputation();
+
+    std::vector<double> out;
+    out.reserve( spans.size() );
+    for (const std::pair<double,double> &span : spans)
+    {
+        double t0 = span.first, t1 = span.second;
+        double total = 0.0;
+        for (size_t i = findIndex(t0); t0 < t1; i++)
+        {
+            double end = ( i + 1 < num_intervals ) ? std::min( t1, times[i+1] ) : t1;
+            total += anagenetic[i] * (end - t0);
+            t0 = end;
+        }
+        out.push_back( total );
+    }
+
+    return out;
+}
+
+
 /** The range parameters, with the anagenetic and symmetric rates the base class does not hold. */
 std::vector<const DagNode*> FossilizedBirthDeathSpeciationProcess::getRateParameters( void ) const
 {
