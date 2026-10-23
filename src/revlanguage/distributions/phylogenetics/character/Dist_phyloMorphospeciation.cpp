@@ -6,6 +6,7 @@
 #include "MethodTable.h"
 #include "ModelVector.h"
 #include "Natural.h"
+#include "Probability.h"
 #include "RealPos.h"
 #include "RevNullObject.h"
 #include "RlDistributionMemberFunction.h"
@@ -36,7 +37,19 @@ RevBayesCore::PhyloMorphospeciationProcess* Dist_phyloMorphospeciation::createDi
         for (long x : static_cast<const ModelVector<Natural> &>( num_states->getRevObject() ).getValue()) k.push_back( size_t( x ) );
     }
 
-    return new RevBayesCore::PhyloMorphospeciationProcess( t, k );
+    RevBayesCore::TypedDagNode<double>* eps = NULL;
+    if ( epsilon->getRevObject() != RevNullObject::getInstance() )
+    {
+        eps = static_cast<const Probability &>( epsilon->getRevObject() ).getDagNode();
+    }
+
+    RevBayesCore::TypedDagNode<double>* eps_a = NULL;
+    if ( epsilon_a->getRevObject() != RevNullObject::getInstance() )
+    {
+        eps_a = static_cast<const Probability &>( epsilon_a->getRevObject() ).getDagNode();
+    }
+
+    return new RevBayesCore::PhyloMorphospeciationProcess( t, k, eps, eps_a );
 }
 
 
@@ -67,6 +80,21 @@ MethodTable Dist_phyloMorphospeciation::getDistributionMethods( void ) const
     ArgumentRules* changed_rules = new ArgumentRules();
     methods.addFunction( new DistributionMemberFunction<Dist_phyloMorphospeciation, ModelVector<RealPos> >( "getChangedCharacters", variable, changed_rules, true ) );
 
+    ArgumentRules* count_rules = new ArgumentRules();
+    methods.addFunction( new DistributionMemberFunction<Dist_phyloMorphospeciation, ModelVector<RealPos> >( "getNumberOfChanges", variable, count_rules, true ) );
+
+    ArgumentRules* events_rules = new ArgumentRules();
+    methods.addFunction( new DistributionMemberFunction<Dist_phyloMorphospeciation, ModelVector<RealPos> >( "getHiddenEventCounts", variable, events_rules, true ) );
+
+    ArgumentRules* modes_rules = new ArgumentRules();
+    methods.addFunction( new DistributionMemberFunction<Dist_phyloMorphospeciation, ModelVector<RealPos> >( "getSpeciationModes", variable, modes_rules, true ) );
+
+    ArgumentRules* probs_rules = new ArgumentRules();
+    methods.addFunction( new DistributionMemberFunction<Dist_phyloMorphospeciation, ModelVector<RealPos> >( "getChangeProbabilities", variable, probs_rules, true ) );
+
+    ArgumentRules* means_rules = new ArgumentRules();
+    methods.addFunction( new DistributionMemberFunction<Dist_phyloMorphospeciation, ModelVector<RealPos> >( "getHiddenEventMeans", variable, means_rules, true ) );
+
     return methods;
 }
 
@@ -80,6 +108,8 @@ const MemberRules& Dist_phyloMorphospeciation::getParameterRules(void) const
     {
         dist_member_rules.push_back( new ArgumentRule( "tree", TimeTree::getClassTypeSpec(), "A tree drawn from dnFBDSP, whose speciation events the characters carry.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::STOCHASTIC ) );
         dist_member_rules.push_back( new ArgumentRule( "nStates", ModelVector<Natural>::getClassTypeSpec(), "The number of states of each character. Left out, each character has as many as its largest observed state, and at least two.", ArgumentRule::BY_VALUE, ArgumentRule::ANY, NULL ) );
+        dist_member_rules.push_back( new ArgumentRule( "epsilon", Probability::getClassTypeSpec(), "The probability that a speciation changes each character, independently, so that it may change several or none. Left out, every speciation changes exactly one character.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
+        dist_member_rules.push_back( new ArgumentRule( "epsilon_a", Probability::getClassTypeSpec(), "The probability that an anagenetic speciation changes each character. Needs epsilon, which then applies to budding alone. Left out, anagenesis changes with probability epsilon too.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
 
         rules_set = true;
     }
@@ -104,6 +134,14 @@ void Dist_phyloMorphospeciation::setConstParameter(const std::string& name, cons
     else if ( name == "nStates" )
     {
         num_states = var;
+    }
+    else if ( name == "epsilon" )
+    {
+        epsilon = var;
+    }
+    else if ( name == "epsilon_a" )
+    {
+        epsilon_a = var;
     }
     else
     {
