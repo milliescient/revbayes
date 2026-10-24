@@ -12,6 +12,7 @@
 #include "RandomNumberFactory.h"
 #include "RandomNumberGenerator.h"
 #include "RbConstants.h"
+#include "RbBoolean.h"
 #include "RbMathCombinatorialFunctions.h"
 #include "RbMathLogic.h"
 #include "RbException.h"
@@ -45,10 +46,12 @@ AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProce
                                                                          const std::string &incondition,
                                                                          const std::vector<Taxon> &intaxa,
                                                                          bool comp,
+                                                                         bool coexist,
                                                                          const TypedDagNode<double> *inorigin,
                                                                          double inpresent) :
     taxa(intaxa),
     condition(incondition),
+    coexistence(coexist),
     homogeneous_rho(inrho),
     timeline( intimes ),
     origin_age( inorigin ),
@@ -727,6 +730,135 @@ double AbstractFossilizedBirthDeathRangeProcess::lnQTildeFromPresent( size_t i, 
 }
 
 
+/** log q from the present up to t. */
+double AbstractFossilizedBirthDeathRangeProcess::lnQFromPresent( size_t i, double t ) const
+{
+    double s = q( i, t );
+
+    for ( size_t j = 0; j < i; ++j ) s += q_i[j];
+
+    return s;
+}
+
+
+/**
+ * log P(species i originated above t), for t between its oldest appearance and its birth.
+ *
+ * A range's birth time is where it attaches to the nearest range the record samples, not where
+ * the species itself began: ancestors that left no occurrence were never named, so a chain of
+ * them may stand in between. The stretch holding that chain is the regime in which either
+ * daughter of a budding event may carry the species identity, and below the species' own
+ * origination the identity is pinned. Those two regimes are q and q_tilde, so the ratio of
+ * their segment terms is the survival function
+ *
+ *     S(t) = q(o) q_tilde(t) / ( q_tilde(o) q(t) ),
+ *
+ * falling from one at the oldest appearance o. The remainder S(b) is the atom on the
+ * attachment itself, where no unnamed ancestor intervenes.
+ *
+ * Symmetric speciation and anagenesis reach an unnamed ancestor by routes this does not count,
+ * so a process admitting either must override it. So must one under complete lineage sampling,
+ * where nothing collapses and the origination is the birth time itself.
+ */
+double AbstractFossilizedBirthDeathRangeProcess::lnOriginationSurvival( size_t i, double t ) const
+{
+    double o = ranges[i].first;
+
+    size_t oi = findIndex(o);
+    size_t ti = findIndex(t);
+
+    return lnQFromPresent(oi, o) - lnQFromPresent(ti, t)
+           + lnQTildeFromPresent(ti, t) - lnQTildeFromPresent(oi, o);
+}
+
+
+/**
+ * Draw species i's own origination time.
+ *
+ * Nothing else in the model conditions on it: the occurrences all sit at or below the
+ * oldest appearance, and gamma attaches to the birth time. So this is the exact full
+ * conditional and the draw always stands, rather than a proposal needing a Hastings
+ * ratio. Inverting the survival function needs no quadrature, as it is a ratio of
+ * kernels the process already computes.
+ */
+double AbstractFossilizedBirthDeathRangeProcess::drawOrigination( size_t i ) const
+{
+    double o = ranges[i].first;
+    double b = ranges[i].divergence;
+
+    double ln_u = log( GLOBAL_RNG->uniform01() );
+
+    // the atom at the attachment, where the sampled ancestor is the parent
+    if ( ln_u <= lnOriginationSurvival(i, b) ) return b;
+
+    // S decreases over (o, b), so bisect it
+    double lo = o;
+    double hi = b;
+
+    for (size_t n = 0; n < 200 && hi - lo > 1E-12*(1.0 + b); ++n)
+    {
+        double mid = 0.5 * (lo + hi);
+
+        if ( lnOriginationSurvival(i, mid) > ln_u ) lo = mid; else hi = mid;
+    }
+
+    return 0.5 * (lo + hi);
+}
+
+
+/** P(no unnamed ancestor stands between range i and its attachment). */
+double AbstractFossilizedBirthDeathRangeProcess::sampledOriginationProbability( size_t i ) const
+{
+    return exp( lnOriginationSurvival( i, ranges[i].divergence ) );
+}
+
+
+/**
+ * The conditional mean of species i's origination time.
+ *
+ * The origination is confined to the oldest appearance and the divergence, so its mean is
+ * the oldest appearance plus the integral of the survival function across them. That
+ * carries none of the simulation noise drawOrigination does, and the atom needs no term of
+ * its own because the survival function already holds it.
+ *
+ * The kernels are smooth within a rate interval and kinked only at its boundaries, so the
+ * quadrature runs interval by interval. It inherits any override of the survival function.
+ */
+double AbstractFossilizedBirthDeathRangeProcess::meanOrigination( size_t i ) const
+{
+    double o = ranges[i].first;
+    double b = ranges[i].divergence;
+
+    size_t oi = findIndex(o);
+    size_t bi = findIndex(b);
+
+    double integral = 0.0;
+
+    for ( size_t j = oi; j <= bi; ++j )
+    {
+        double lo = ( j == oi ) ? o : times[j];
+        double hi = ( j == bi ) ? b : times[j+1];
+
+        if ( hi <= lo ) continue;
+
+        // composite Simpson over the piece
+        size_t steps = 64;
+        double h = (hi - lo) / steps;
+
+        double sum = exp( lnOriginationSurvival(i, lo) ) + exp( lnOriginationSurvival(i, hi) );
+
+        for ( size_t k = 1; k < steps; ++k )
+        {
+            sum += ( k % 2 == 1 ? 4.0 : 2.0 ) * exp( lnOriginationSurvival(i, lo + k*h) );
+        }
+
+        integral += sum * h / 3.0;
+    }
+
+    return o + integral;
+}
+
+
 /** p_i(t) */
 double AbstractFossilizedBirthDeathRangeProcess::p( size_t i, double t, bool survival ) const
 {
@@ -811,6 +943,90 @@ void AbstractFossilizedBirthDeathRangeProcess::executeMethod(const std::string &
             rv.push_back( n == "getFirstAppearances" ? ranges[i].first :
                         ( n == "getLastAppearances"  ? ranges[i].last  :
                         ( n == "getDivergenceTimes"   ? ranges[i].divergence : ranges[i].death ) ) );
+        }
+    }
+    else if ( n == "getExtantStatus" )
+    {
+        AbstractFossilizedBirthDeathRangeProcess *self = const_cast<AbstractFossilizedBirthDeathRangeProcess *>( this );
+        self->updateRanges();
+
+        // one indicator per sample, so it is the posterior mean that gives a taxon's
+        // probability of having survived to the present without being sampled
+        rv.clear();
+        for (size_t i = 0; i < ranges.size(); i++)
+        {
+            rv.push_back( ranges[i].survived ? 1.0 : 0.0 );
+        }
+    }
+    else if ( n == "getOriginationTimes" )
+    {
+        AbstractFossilizedBirthDeathRangeProcess *self = const_cast<AbstractFossilizedBirthDeathRangeProcess *>( this );
+        self->updateRanges();
+        prepareProbComputation();
+
+        // mean=TRUE integrates the conditional rather than drawing from it, which costs a
+        // quadrature and returns the same quantity carrying none of the simulation noise
+        bool mean = args.size() > 0 && static_cast<const TypedDagNode<Boolean>* >( args[0] )->getValue();
+
+        rv.clear();
+        for (size_t i = 0; i < ranges.size(); i++)
+        {
+            rv.push_back( mean ? meanOrigination(i) : drawOrigination(i) );
+        }
+    }
+    else
+    {
+        throw RbException() << "The fossilized birth death range process does not have a member method called '" << n << "'.";
+    }
+}
+
+
+/**
+ * Row i gives the probability that each range parented range i, and its diagonal entry the
+ * probability that its parent was a species the record never sampled, which is what is left
+ * when the origination does not sit at the divergence. Rows sum to one.
+ *
+ * Where the topology is marginalized, the density does not depend on which coexisting range
+ * budded the daughter, so given the state every candidate is equally likely and the sampled
+ * share divides evenly among them. Where the topology is sampled there is one candidate, so
+ * the share lands on it. A range with no candidate at all is the origin, which has no parent,
+ * and its whole row sits on the diagonal.
+ *
+ * A single row carries little, being flat across a set. The ancestry appears only in the
+ * posterior average, as the divergences move and the candidate sets change with them.
+ */
+void AbstractFossilizedBirthDeathRangeProcess::executeMethod(const std::string &n, const std::vector<const DagNode *> &args, RbVector<RbVector<double> > &rv) const
+{
+    if ( n == "getParentProbabilities" )
+    {
+        AbstractFossilizedBirthDeathRangeProcess *self = const_cast<AbstractFossilizedBirthDeathRangeProcess *>( this );
+        self->updateRanges();
+        prepareProbComputation();
+
+        rv.clear();
+        for (size_t i = 0; i < ranges.size(); i++)
+        {
+            RbVector<double> row( ranges.size(), 0.0 );
+
+            size_t candidates = 0;
+            for (size_t j = 0; j < ranges.size(); j++)
+            {
+                if ( isCandidateParent(i, j) ) ++candidates;
+            }
+
+            double sampled = ( candidates > 0 ? sampledOriginationProbability(i) : 0.0 );
+
+            if ( candidates > 0 )
+            {
+                for (size_t j = 0; j < ranges.size(); j++)
+                {
+                    if ( isCandidateParent(i, j) ) row[j] = sampled / candidates;
+                }
+            }
+
+            row[i] = 1.0 - sampled;
+
+            rv.push_back( row );
         }
     }
     else

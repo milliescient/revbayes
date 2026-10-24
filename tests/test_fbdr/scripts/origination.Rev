@@ -1,0 +1,210 @@
+# A range attaches to the nearest range the record samples at its divergence time, and a chain
+# of ancestors that left no occurrence, and so were never named, may stand between that
+# attachment and the species' own origination. getDivergenceTimes reports the attachment and
+# getOriginationTimes draws the origination from its conditional, which is an atom on the
+# attachment plus a density below it, or integrates that conditional when given mean=TRUE.
+# getParentProbabilities spreads the atom over the candidate parents and leaves the rest on
+# the diagonal, where the parent was never sampled. Every line printed must be TRUE.
+seed(12345)
+
+taxa <- readTaxonData("data/fbdr_condition.tsv")
+
+lambda ~ dnExponential(1); lambda.setValue(0.4)
+mu     ~ dnExponential(1); mu.setValue(0.1)
+psi    ~ dnExponential(1); psi.setValue(0.5)
+origin ~ dnUniform(8, 30);  origin.setValue(20)
+
+# Set by hand, so the candidate counts below are read off it rather than recomputed by the rule
+# under test. Columns are extinction, youngest appearance, oldest appearance and divergence.
+config <- matrix( v( v(0.0, 0.0, 0.0, 10.0),
+                     v(0.0, 0.0, 0.0,  8.0),
+                     v(0.0, 0.0, 0.0,  6.0),
+                     v(1.0, 2.5, 2.5, 12.0),
+                     v(3.0, 4.5, 4.5, 14.0),
+                     v(5.0, 6.5, 6.5, 20.0) ) )
+
+# Reading the configuration: the ranges alive at each divergence number 3, 4, 5, 2, 1 and none.
+candidates <- v(3, 4, 5, 2, 1, 0)
+
+bd ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+             condition="time", origin=origin)
+bd.setValue(config)
+rec ~ dnFossilRecord(ranges=bd, reporting="complete")
+rec.clamp(taxa)
+
+n <- taxa.size()
+
+out = "output/origination.txt"
+
+first <- bd.getFirstAppearances()
+divergence <- bd.getDivergenceTimes()
+death <- bd.getExtinctionTimes()
+
+# the origination sits within the range, at or below the divergence and above the oldest
+# appearance, which is where the record pins the species' identity
+bounded <- TRUE
+for (rep in 1:20)
+{
+    s <- bd.getOriginationTimes()
+
+    for (i in 1:n)
+    {
+        if ( s[i] > divergence[i] + 1E-10 ) { bounded <- FALSE }
+        if ( s[i] < first[i] - 1E-10 ) { bounded <- FALSE }
+    }
+}
+
+print(filename=out, "every draw sits between the oldest appearance and the divergence:\n")
+print(filename=out, append=TRUE, bounded, "\n")
+
+# the integrated mean must sit inside the same support, and must agree with the average of
+# many draws, which checks the quadrature and the inverse-CDF sampler against each other
+mean_s <- bd.getOriginationTimes(mean=TRUE)
+
+reps <- 4000
+total <- rep(0.0, n)
+for (rep in 1:reps)
+{
+    s <- bd.getOriginationTimes()
+
+    for (i in 1:n)
+    {
+        total[i] <- total[i] + s[i]
+    }
+}
+
+matches <- TRUE
+for (i in 1:n)
+{
+    if ( mean_s[i] > divergence[i] + 1E-10 ) { matches <- FALSE }
+    if ( mean_s[i] < first[i] - 1E-10 ) { matches <- FALSE }
+
+    # tolerance is a fiftieth of the window the origination can fall in
+    if ( abs(total[i]/reps - mean_s[i]) > (divergence[i] - first[i])/50 ) { matches <- FALSE }
+}
+
+print(filename=out, append=TRUE, "the integrated mean agrees with the average of 4000 draws:\n")
+print(filename=out, append=TRUE, matches, "\n")
+
+# each row says who could have parented that range, so it is a distribution
+parent <- bd.getParentProbabilities()
+
+rows_ok <- TRUE
+for (i in 1:n)
+{
+    row_total <- 0.0
+    for (j in 1:n)
+    {
+        if ( parent[i][j] < 0.0 || parent[i][j] > 1.0 ) { rows_ok <- FALSE }
+        row_total <- row_total + parent[i][j]
+    }
+
+    if ( abs(row_total - 1.0) > 1E-10 ) { rows_ok <- FALSE }
+}
+
+print(filename=out, append=TRUE, "every row of the parent matrix is a distribution:\n")
+print(filename=out, append=TRUE, rows_ok, "\n")
+
+# As many ranges take weight as coexist at that divergence, and marginalizing the topology
+# leaves them equally likely, so each takes the same share. Counting the entries that carry
+# weight tests the rule rather than restating it.
+flat <- TRUE
+for (i in 1:n)
+{
+    carried <- 0
+    for (j in 1:n)
+    {
+        if ( i != j && parent[i][j] != 0.0 ) { carried <- carried + 1 }
+    }
+
+    if ( carried != candidates[i] ) { flat <- FALSE }
+
+    for (j in 1:n)
+    {
+        if ( i != j && parent[i][j] != 0.0 )
+        {
+            if ( abs(parent[i][j] - (1.0 - parent[i][i])/candidates[i]) > 1E-10 ) { flat <- FALSE }
+        }
+    }
+}
+
+print(filename=out, append=TRUE, "as many ranges take weight as coexist, and they share it evenly:\n")
+print(filename=out, append=TRUE, flat, "\n")
+
+# range 6 is the origin, which has no parent at all, so its row is all diagonal
+print(filename=out, append=TRUE, "the origin's row sits entirely on its own diagonal:\n")
+print(filename=out, append=TRUE, parent[6][6] == 1.0, "\n")
+
+# a denser record leaves less room for an ancestor to go unnamed, so the diagonal cannot rise
+psi_hi ~ dnExponential(1); psi_hi.setValue(5.0)
+
+bd_hi ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi_hi, rho=1.0, present=0.0,
+                condition="time", origin=origin)
+bd_hi.setValue(config)
+rec_hi ~ dnFossilRecord(ranges=bd_hi, reporting="complete")
+rec_hi.clamp(taxa)
+
+parent_hi <- bd_hi.getParentProbabilities()
+
+falls <- TRUE
+for (i in 1:n)
+{
+    if ( parent_hi[i][i] > parent[i][i] + 1E-10 ) { falls <- FALSE }
+}
+
+print(filename=out, append=TRUE, "raising psi does not raise the unsampled-parent diagonal:\n")
+print(filename=out, append=TRUE, falls, "\n")
+
+# intervals that share a rate must not move it: the composition check, which is what
+# exercises the accumulation of q and q_tilde across interval boundaries
+timeline <- v(1.0, 2.0, 3.0, 4.0)
+lv := v(lambda, lambda, lambda, lambda, lambda)
+mv := v(mu, mu, mu, mu, mu)
+pv := v(psi, psi, psi, psi, psi)
+
+bd_s ~ dnFBDRP(taxa=taxa, lambda=lv, mu=mv, psi=pv, rho=1.0, present=0.0, timeline=timeline,
+               condition="time", origin=origin)
+bd_s.setValue(config)
+rec_s ~ dnFossilRecord(ranges=bd_s, reporting="complete")
+rec_s.clamp(taxa)
+
+parent_s <- bd_s.getParentProbabilities()
+
+composes <- TRUE
+for (i in 1:n)
+{
+    for (j in 1:n)
+    {
+        if ( abs(parent_s[i][j] - parent[i][j]) > 1E-8 ) { composes <- FALSE }
+    }
+}
+
+print(filename=out, append=TRUE, "five intervals of one rate match one interval:\n")
+print(filename=out, append=TRUE, composes, "\n")
+
+# the extant status marks a species the record cannot distinguish from one that went
+# extinct after its youngest occurrence, so it is on exactly when extinction sits at the present
+alive <- bd.getExtantStatus()
+
+agrees <- TRUE
+for (i in 1:n)
+{
+    if ( alive[i] == 1.0 && death[i] != 0.0 ) { agrees <- FALSE }
+    if ( alive[i] == 0.0 && death[i] == 0.0 ) { agrees <- FALSE }
+}
+
+print(filename=out, append=TRUE, "the extant status is on exactly at an extinction time of zero:\n")
+print(filename=out, append=TRUE, agrees, "\n")
+
+# under rho = 1 every survivor is sampled, so the three taxa the record reports extant are
+# the three the indicator marks
+extant <- 0.0
+for (i in 1:n)
+{
+    extant <- extant + alive[i]
+}
+
+print(filename=out, append=TRUE, "rho = 1 marks the three reported extant taxa and no others:\n")
+print(filename=out, append=TRUE, extant == 3.0, "\n")
+
+q()
