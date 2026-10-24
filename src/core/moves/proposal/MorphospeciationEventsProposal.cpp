@@ -50,7 +50,7 @@ MorphospeciationEventsProposal* MorphospeciationEventsProposal::clone( void ) co
 
 const std::string& MorphospeciationEventsProposal::getProposalName( void ) const
 {
-    static std::string name = "MorphospeciationAllocation";
+    static std::string name = "MorphospeciationEvents";
     return name;
 }
 
