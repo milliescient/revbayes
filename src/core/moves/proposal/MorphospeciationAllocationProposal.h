@@ -10,7 +10,7 @@ namespace RevBayesCore {
     class PhyloMorphospeciationProcess;
 
     /**
-     * Gibbs draw of the character that changed at one species' speciation.
+     * Gibbs draw of the character, or with epsilon the characters, that changed at one speciation.
      *
      * The index is in no value, so this is the only move that reaches it.
      *

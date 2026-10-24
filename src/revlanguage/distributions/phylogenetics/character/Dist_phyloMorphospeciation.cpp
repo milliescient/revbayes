@@ -80,9 +80,6 @@ MethodTable Dist_phyloMorphospeciation::getDistributionMethods( void ) const
     ArgumentRules* changed_rules = new ArgumentRules();
     methods.addFunction( new DistributionMemberFunction<Dist_phyloMorphospeciation, ModelVector<RealPos> >( "getChangedCharacters", variable, changed_rules, true ) );
 
-    ArgumentRules* count_rules = new ArgumentRules();
-    methods.addFunction( new DistributionMemberFunction<Dist_phyloMorphospeciation, ModelVector<RealPos> >( "getNumberOfChanges", variable, count_rules, true ) );
-
     ArgumentRules* events_rules = new ArgumentRules();
     methods.addFunction( new DistributionMemberFunction<Dist_phyloMorphospeciation, ModelVector<RealPos> >( "getHiddenEventCounts", variable, events_rules, true ) );
 
