@@ -165,6 +165,19 @@ double FossilizedBirthDeathRangeProcess::computeLnProbability( void )
 
 
 /**
+ * Range j could have parented range i if i's divergence falls inside j's own range, which is
+ * the same test gamma counts. It reads the ranges rather than the cached links, so it does
+ * not depend on when gamma was last refreshed.
+ */
+bool FossilizedBirthDeathRangeProcess::isCandidateParent(size_t i, size_t j) const
+{
+    if ( i == j ) return false;
+
+    return ranges[i].divergence < ranges[j].divergence && ranges[i].divergence > ranges[j].death;
+}
+
+
+/**
  * Compute the number of ranges that intersect with range i
  *
  * \param[in]    i      index of range for which to compute gamma

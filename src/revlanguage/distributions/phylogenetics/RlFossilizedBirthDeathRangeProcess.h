@@ -308,6 +308,16 @@ RevLanguage::MethodTable RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::
     ArgumentRules* extinction_arg_rules = new ArgumentRules();
     methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, ModelVector<RealPos> >( "getExtinctionTimes", this->variable, extinction_arg_rules, true ) );
 
+    ArgumentRules* origination_arg_rules = new ArgumentRules();
+    origination_arg_rules->push_back( new ArgumentRule( "mean", RlBoolean::getClassTypeSpec(), "Integrate the conditional rather than drawing from it?", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean(false) ) );
+    methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, ModelVector<RealPos> >( "getOriginationTimes", this->variable, origination_arg_rules, true ) );
+
+    ArgumentRules* extant_arg_rules = new ArgumentRules();
+    methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, ModelVector<RealPos> >( "getExtantStatus", this->variable, extant_arg_rules, true ) );
+
+    ArgumentRules* parent_arg_rules = new ArgumentRules();
+    methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, ModelVector<ModelVector<RealPos> > >( "getParentProbabilities", this->variable, parent_arg_rules, true ) );
+
     return methods;
 }
 

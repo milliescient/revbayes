@@ -71,7 +71,7 @@ namespace RevBayesCore {
      * @since 2014-03-18, version 1.0
      *
      */
-    class AbstractFossilizedBirthDeathRangeProcess : public MemberObject< RbVector<double> >, public MemberObject<double> {
+    class AbstractFossilizedBirthDeathRangeProcess : public MemberObject< RbVector<double> >, public MemberObject<double>, public MemberObject< RbVector<RbVector<double> > > {
         
     public:
         AbstractFossilizedBirthDeathRangeProcess(const DagNode *speciation,
@@ -92,6 +92,7 @@ namespace RevBayesCore {
 
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const;   //!< Expose the appearances and the origination/extinction times.
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, double &rv) const;              //!< Expose the origin.
+        void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<RbVector<double> > &rv) const; //!< Expose the parent probabilities.
         double                                          getPresent() const { return times.front(); }               //!< The youngest interval boundary, which extinction times cannot precede.
         const std::vector<Taxon>&                       getTaxa() const { return taxa; }
         bool                                            hasSurvived(size_t i) const { return ranges[i].survived; }  //!< Taxon i's latent status: alive at the present.
@@ -115,6 +116,10 @@ namespace RevBayesCore {
         virtual void                                    repairRanges(void) {}                                       //!< Re-establish the invariants this process's own moves can break.
         virtual void                                    updateRanges() = 0;                                         //!< Pull the ranges from the value.
 
+        //!< Could range j have parented range i? Every candidate is equally likely where the
+        //!< topology is marginalized, and there is exactly one where it is sampled.
+        virtual bool                                    isCandidateParent(size_t i, size_t j) const = 0;
+
         virtual double                                  computeLnProbabilityRanges(bool force = false);
         double                                          computeLnFossilRecord(size_t i) const;                      //!< Fossil-record log-term for taxon i.
 
@@ -129,6 +134,12 @@ namespace RevBayesCore {
         double                                          lnProbNumTaxa(size_t n) const;                             //!< log P(n taxa at the present).
         virtual double                                  q(size_t i, double t, bool tilde = false) const;
         double                                          lnQTildeFromPresent(size_t i, double t) const;              //!< log q_tilde from the present up to t.
+        double                                          lnQFromPresent(size_t i, double t) const;                   //!< log q from the present up to t.
+
+        virtual double                                  lnOriginationSurvival(size_t i, double t) const;            //!< log P(species i originated above t).
+        double                                          drawOrigination(size_t i) const;                     //!< Draw species i's own origination from its conditional.
+        double                                          sampledOriginationProbability(size_t i) const;                    //!< P(range i's origination is sampled, so sits at its divergence).
+        double                                          meanOrigination(size_t i) const;                      //!< The conditional mean of species i's origination.
 
         virtual void                                    prepareProbComputation(void) const;
 
