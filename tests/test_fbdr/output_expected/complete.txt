@@ -1,0 +1,14 @@
+the density matches its closed form, conditioning included:
+TRUE	
+the origination is the birth time itself:
+TRUE	
+five intervals of one rate match one interval:
+TRUE	
+taking the ranges as complete drops exactly the conditioning:
+TRUE	
+the coexistence terms add exactly their counts:
+TRUE	
+the reconstructed process gives a different density:
+TRUE	
+the alias is the same distribution:
+TRUE	
