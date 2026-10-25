@@ -119,7 +119,15 @@ RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_FBDRP::createDistribution( 
 
     bool coexist = static_cast<const RlBoolean &>( coexistence->getRevObject() ).getValue();
 
-    return makeProcess(l, m, p, r, rt, cond, t, oa, pres, coexist);
+    // the support constraint is the other half of the same statement, so it follows the weight
+    // unless it was asked for separately
+    bool need_parent = coexist;
+    if ( require_parent != NULL && require_parent->getRevObject() != RevNullObject::getInstance() )
+    {
+        need_parent = static_cast<const RlBoolean &>( require_parent->getRevObject() ).getValue();
+    }
+
+    return makeProcess(l, m, p, r, rt, cond, t, oa, pres, coexist, need_parent);
 }
 
 
@@ -133,9 +141,10 @@ RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_FBDRP::makeProcess(RevBayes
                                                                        const std::vector<RevBayesCore::Taxon> &t,
                                                                        RevBayesCore::TypedDagNode<double> *oa,
                                                                        double pres,
-                                                                       bool coexist) const
+                                                                       bool coexist,
+                                                                       bool need_parent) const
 {
-    return new RevBayesCore::FossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, coexist, oa, pres);
+    return new RevBayesCore::FossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, coexist, need_parent, oa, pres);
 }
 
 
@@ -213,6 +222,7 @@ const MemberRules& Dist_FBDRP::getParameterRules(void) const
     {
         dist_member_rules.push_back( originRule() );
         dist_member_rules.push_back( coexistenceRule( true ) );
+        dist_member_rules.push_back( requireParentRule() );
 
         // add the rules from the base class, without the reporting args
         const MemberRules &parentRules = FossilizedBirthDeathRangeProcess<MatrixReal>::getCoreParameterRules();
@@ -242,7 +252,11 @@ const TypeSpec& Dist_FBDRP::getTypeSpec( void ) const
 /** Adopt the coexistence choice, and leave the rest to the base class. */
 void Dist_FBDRP::setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var)
 {
-    if ( name == "coexistence" )
+    if ( name == "requireParent" )
+    {
+        require_parent = var;
+    }
+    else if ( name == "coexistence" )
     {
         coexistence = var;
     }

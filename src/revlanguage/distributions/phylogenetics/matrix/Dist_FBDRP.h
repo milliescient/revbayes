@@ -51,9 +51,11 @@ namespace RevLanguage {
                                                                            const std::vector<RevBayesCore::Taxon> &t,
                                                                            RevBayesCore::TypedDagNode<double> *oa,
                                                                            double pres,
-                                                                           bool coexist) const;
+                                                                           bool coexist,
+                                                                           bool need_parent) const;
 
     private:
+        RevPtr<const RevVariable>                               require_parent;                                                                         //!< Reject a birth with none alive? Follows coexistence when left out.
         RevPtr<const RevVariable>                               coexistence;                                                                            //!< Weight each birth by how many lineages could have produced it?
 
     };

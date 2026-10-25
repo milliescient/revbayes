@@ -53,10 +53,11 @@ FossilizedBirthDeathRangeProcess::FossilizedBirthDeathRangeProcess(const DagNode
                                                                      const std::vector<Taxon> &intaxa,
                                                                      bool complete_record,
                                                                      bool coexistence,
+                                                                     bool require_parent,
                                                                      const TypedDagNode<double> *inorigin,
                                                                      double inpresent) :
     TypedDistribution<MatrixReal>(new MatrixReal(intaxa.size(), 4)),
-    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, complete_record, coexistence, inorigin, inpresent)
+    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, complete_record, coexistence, require_parent, inorigin, inpresent)
 {
 
     dirty_gamma = std::vector<bool>(taxa.size(), true);
@@ -147,7 +148,7 @@ double FossilizedBirthDeathRangeProcess::computeLnProbability( void )
 
     // without them, a birth carries no factor for how many lineages could have produced it,
     // which is exact only where the standing diversity does not vary
-    if ( coexistence == false ) return lnProb;
+    if ( coexistence == false && require_parent == false ) return lnProb;
 
     updateGamma();
 
@@ -158,11 +159,16 @@ double FossilizedBirthDeathRangeProcess::computeLnProbability( void )
             // only the origin buds from nothing
             if ( i == max_birth ) continue;
 
+            // Where ranges were left out, the lineage a birth came from may be one of them, so
+            // none alive among those kept is an observation rather than an impossibility. The
+            // weight still counts the attachments there are, and log(0) is not one of them.
+            if ( require_parent == false ) continue;
+
             return RbConstants::Double::neginf;
         }
 
         // multiply by the number of possible birth locations
-        lnProb += log( gamma_i[i] );
+        if ( coexistence == true ) lnProb += log( gamma_i[i] );
     }
 
     return lnProb;

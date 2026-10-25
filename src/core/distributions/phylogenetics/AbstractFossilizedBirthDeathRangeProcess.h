@@ -83,6 +83,7 @@ namespace RevBayesCore {
                                             const std::vector<Taxon> &taxa,
                                             bool complete_record,
                                             bool coexistence,
+                                            bool require_parent,
                                             const TypedDagNode<double>* origin = NULL,
                                             double present = 0.0);  //!< Constructor
 
@@ -153,7 +154,8 @@ namespace RevBayesCore {
         //!< Weight each birth by how many lineages were alive to produce it, which is the
         //!< per-capita structure at the event times. Dropping it is exact only where the
         //!< standing diversity does not vary over the span the birth times move in.
-        bool                                            coexistence;
+        bool                                            coexistence;                                            //!< Weight each birth by the lineages alive to produce it.
+        bool                                            require_parent;                                         //!< Reject a birth with none alive. Off only where ranges were left out.
         bool                                            record_complete;                                        //!< Every occurrence reported, or the first/last rule.
         double                                          max_present_age;                                        //!< Youngest occurrence maximum; the timeline may not start above it.
 

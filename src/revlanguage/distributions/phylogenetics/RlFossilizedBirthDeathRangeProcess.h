@@ -49,6 +49,7 @@ namespace RevLanguage {
         static void                                         appendParameterRules(MemberRules &rules);                                           //!< Build the member rules
         static ArgumentRule*                                originRule(void);                                                                   //!< The optional origin argument, for the processes that take one
         static ArgumentRule*                                coexistenceRule(bool on_by_default);                                                //!< The coexistence argument, whose default differs between the processes
+        static ArgumentRule*                                requireParentRule(void);                                                //!< The coexistence argument, whose default differs between the processes
         RevBayesCore::TypedDagNode<double>*                 createOrigin(void) const;                                                           //!< The given origin node, or NULL if none was given
         
         void                                                setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var);   //!< Set member variable
@@ -165,6 +166,16 @@ ArgumentRule* RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::coexistence
     return new ArgumentRule( "coexistence", RlBoolean::getClassTypeSpec(),
                              "Weight each birth by how many lineages were alive to produce it? Dropping it is exact only where the standing diversity does not vary.",
                              ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean( on_by_default ) );
+}
+
+
+/** The support constraint, which is the other half of what the coexistence terms do. */
+template <typename rlType>
+ArgumentRule* RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::requireParentRule(void)
+{
+    return new ArgumentRule( "requireParent", RlBoolean::getClassTypeSpec(),
+                             "Reject a birth with no lineage alive to have produced it? Left out, it follows coexistence. Turn it off where ranges were left out of the analysis, since the lineage a birth came from may be one of them.",
+                             ArgumentRule::BY_VALUE, ArgumentRule::ANY, NULL );
 }
 
 

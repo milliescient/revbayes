@@ -47,11 +47,13 @@ AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProce
                                                                          const std::vector<Taxon> &intaxa,
                                                                          bool comp,
                                                                          bool coexist,
+                                                                         bool need_parent,
                                                                          const TypedDagNode<double> *inorigin,
                                                                          double inpresent) :
     taxa(intaxa),
     condition(incondition),
     coexistence(coexist),
+    require_parent(need_parent),
     homogeneous_rho(inrho),
     timeline( intimes ),
     origin_age( inorigin ),

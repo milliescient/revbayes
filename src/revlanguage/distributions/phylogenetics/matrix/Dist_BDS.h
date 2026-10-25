@@ -45,7 +45,8 @@ namespace RevLanguage {
                                                                             const std::vector<RevBayesCore::Taxon> &t,
                                                                             RevBayesCore::TypedDagNode<double> *oa,
                                                                             double pres,
-                                                                            bool coexist) const override;
+                                                                            bool coexist,
+                                                                            bool need_parent) const override;
     };
 
 }
