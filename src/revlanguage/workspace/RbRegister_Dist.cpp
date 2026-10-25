@@ -183,6 +183,7 @@
 #include "Dist_ConstrainedNodeOrder.h"
 #include "Dist_WeightedConstrainedNodeOrder.h"
 #include "Dist_DuplicationLoss.h"
+#include "Dist_BDS.h"
 #include "Dist_FBDRP.h"
 #include "Dist_FossilRecord.h"
 #include "RlTaxon.h"
@@ -378,6 +379,7 @@ void RevLanguage::Workspace::initializeDistGlobalWorkspace(void)
 
         // fossilized-birth-death range processes and their fossil-record term
         AddDistribution< MatrixReal                 >( new Dist_FBDRP());
+        AddDistribution< MatrixReal                 >( new Dist_BDS());
         AddDistribution< ModelVector<Taxon>         >( new Dist_FossilRecord());
 
         // birth-death-sampling-treatment processes and submodels

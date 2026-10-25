@@ -35,6 +35,7 @@
 #include "RevVariable.h"
 #include "RlDagMemberFunction.h"
 #include "RlDeterministicNode.h"
+#include "RlBoolean.h"
 #include "RlMatrixReal.h"
 #include "RlStochasticNode.h"
 #include "RlDistribution.h"
@@ -116,9 +117,25 @@ RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_FBDRP::createDistribution( 
 
     double pres = static_cast<const RealPos &>( present->getRevObject() ).getValue();
 
-    RevBayesCore::FossilizedBirthDeathRangeProcess* d = new RevBayesCore::FossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, oa, pres);
+    bool coexist = static_cast<const RlBoolean &>( coexistence->getRevObject() ).getValue();
 
-    return d;
+    return makeProcess(l, m, p, r, rt, cond, t, oa, pres, coexist);
+}
+
+
+/** The reconstructed process, whose ranges share an ancestry. */
+RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_FBDRP::makeProcess(RevBayesCore::DagNode *l,
+                                                                       RevBayesCore::DagNode *m,
+                                                                       RevBayesCore::DagNode *p,
+                                                                       RevBayesCore::TypedDagNode<double> *r,
+                                                                       RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> > *rt,
+                                                                       const std::string &cond,
+                                                                       const std::vector<RevBayesCore::Taxon> &t,
+                                                                       RevBayesCore::TypedDagNode<double> *oa,
+                                                                       double pres,
+                                                                       bool coexist) const
+{
+    return new RevBayesCore::FossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, coexist, oa, pres);
 }
 
 
@@ -195,6 +212,7 @@ const MemberRules& Dist_FBDRP::getParameterRules(void) const
     if ( !rules_set )
     {
         dist_member_rules.push_back( originRule() );
+        dist_member_rules.push_back( coexistenceRule( true ) );
 
         // add the rules from the base class, without the reporting args
         const MemberRules &parentRules = FossilizedBirthDeathRangeProcess<MatrixReal>::getCoreParameterRules();
@@ -221,3 +239,15 @@ const TypeSpec& Dist_FBDRP::getTypeSpec( void ) const
 }
 
 
+/** Adopt the coexistence choice, and leave the rest to the base class. */
+void Dist_FBDRP::setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var)
+{
+    if ( name == "coexistence" )
+    {
+        coexistence = var;
+    }
+    else
+    {
+        FossilizedBirthDeathRangeProcess<MatrixReal>::setConstParameter(name, var);
+    }
+}

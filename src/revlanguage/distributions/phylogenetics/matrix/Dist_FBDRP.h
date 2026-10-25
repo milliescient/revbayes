@@ -34,10 +34,27 @@ namespace RevLanguage {
         std::string                                             getDistributionFunctionName(void) const;                                                //!< Get the Rev-name for this distribution.
         const TypeSpec&                                         getTypeSpec(void) const;                                                                //!< Get the type spec of the instance
         const MemberRules&                                      getParameterRules(void) const;                                                          //!< Get member rules (const)
+        void                                                    setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var);       //!< Set member variable
         
         
         // Distribution functions you have to override
         RevBayesCore::FossilizedBirthDeathRangeProcess*         createDistribution(void) const;
+
+    protected:
+        //!< Which process the arguments are handed to, so a variant need not unpack them again.
+        virtual RevBayesCore::FossilizedBirthDeathRangeProcess* makeProcess(RevBayesCore::DagNode *l,
+                                                                           RevBayesCore::DagNode *m,
+                                                                           RevBayesCore::DagNode *p,
+                                                                           RevBayesCore::TypedDagNode<double> *r,
+                                                                           RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> > *rt,
+                                                                           const std::string &cond,
+                                                                           const std::vector<RevBayesCore::Taxon> &t,
+                                                                           RevBayesCore::TypedDagNode<double> *oa,
+                                                                           double pres,
+                                                                           bool coexist) const;
+
+    private:
+        RevPtr<const RevVariable>                               coexistence;                                                                            //!< Weight each birth by how many lineages could have produced it?
 
     };
     

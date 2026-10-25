@@ -41,6 +41,7 @@ namespace RevBayesCore {
 										  const std::string &condition,
 										  const std::vector<Taxon> &taxa,
 										  bool complete_record,
+										  bool coexistence,
                                           const TypedDagNode<double>* origin = NULL,
                                             double present = 0.0);
         

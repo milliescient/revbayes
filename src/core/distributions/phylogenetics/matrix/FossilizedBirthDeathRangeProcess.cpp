@@ -52,10 +52,11 @@ FossilizedBirthDeathRangeProcess::FossilizedBirthDeathRangeProcess(const DagNode
                                                                      const std::string &incondition,
                                                                      const std::vector<Taxon> &intaxa,
                                                                      bool complete_record,
+                                                                     bool coexistence,
                                                                      const TypedDagNode<double> *inorigin,
                                                                      double inpresent) :
     TypedDistribution<MatrixReal>(new MatrixReal(intaxa.size(), 4)),
-    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, complete_record, inorigin, inpresent)
+    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, complete_record, coexistence, inorigin, inpresent)
 {
 
     dirty_gamma = std::vector<bool>(taxa.size(), true);
@@ -142,9 +143,13 @@ void FossilizedBirthDeathRangeProcess::setValue(MatrixReal *v, bool force)
  */
 double FossilizedBirthDeathRangeProcess::computeLnProbability( void )
 {
-    updateGamma();
-
     double lnProb = computeLnProbabilityRanges();
+
+    // without them, a birth carries no factor for how many lineages could have produced it,
+    // which is exact only where the standing diversity does not vary
+    if ( coexistence == false ) return lnProb;
+
+    updateGamma();
 
     for( size_t i = 0; i < taxa.size(); i++ )
     {
@@ -171,7 +176,8 @@ double FossilizedBirthDeathRangeProcess::computeLnProbability( void )
  */
 bool FossilizedBirthDeathRangeProcess::isCandidateParent(size_t i, size_t j) const
 {
-    if ( i == j ) return false;
+    // without the coexistence terms no birth is weighted by who could have produced it
+    if ( i == j || coexistence == false ) return false;
 
     return ranges[i].divergence < ranges[j].divergence && ranges[i].divergence > ranges[j].death;
 }
