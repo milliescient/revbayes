@@ -3,13 +3,14 @@
 #include "AbstractFossilizedBirthDeathRangeProcess.h"
 #include "StochasticNode.h"
 #include "MatrixReal.h"
+#include "Tree.h"
 #include "TimeInterval.h"
 #include "RbException.h"
 
 using namespace RevBayesCore;
 
 
-/** Downcast a ranges stochastic node (a dnFBDRP range matrix) to the shared range base. */
+/** Downcast a ranges stochastic node (MatrixReal-valued dnFBDRP or Tree-valued dnFBDSP) to the shared range base. */
 AbstractFossilizedBirthDeathRangeProcess* FossilRecordProcess::rangesOf(const DagNode *n)
 {
     const StochasticNode<MatrixReal> *mn = dynamic_cast<const StochasticNode<MatrixReal> *>( n );
@@ -17,6 +18,12 @@ AbstractFossilizedBirthDeathRangeProcess* FossilRecordProcess::rangesOf(const Da
     {
         return const_cast<AbstractFossilizedBirthDeathRangeProcess *>(
                    dynamic_cast<const AbstractFossilizedBirthDeathRangeProcess *>( &mn->getDistribution() ) );
+    }
+    const StochasticNode<Tree> *tn = dynamic_cast<const StochasticNode<Tree> *>( n );
+    if ( tn != NULL )
+    {
+        return const_cast<AbstractFossilizedBirthDeathRangeProcess *>(
+                   dynamic_cast<const AbstractFossilizedBirthDeathRangeProcess *>( &tn->getDistribution() ) );
     }
     return NULL;
 }

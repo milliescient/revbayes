@@ -1,0 +1,8 @@
+extended: both nodes carry the same appearances:
+TRUE	
+extended: the factor matches its closed form at the record's own count of 3:
+TRUE	
+extended: five intervals of one rate match one interval:
+TRUE	
+non-extended: the factor matches its closed form:
+TRUE	

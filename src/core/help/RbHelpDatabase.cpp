@@ -913,7 +913,7 @@ x.probability())");
 	help_strings[string("dnExponential")][string("title")] = string(R"(Exponential Distribution)");
 	help_arrays[string("dnFossilRecord")][string("authors")].push_back(string(R"(June Walker)"));
 	help_strings[string("dnFossilRecord")][string("description")] = string(R"(The fossil record of a set of species, conditioned on a fossilized birth-death range process: the probability of the observed fossil occurrences given the species ranges that produced them.)");
-	help_strings[string("dnFossilRecord")][string("details")] = string(R"(This is the observation half of the fossilized birth-death range model. The range process (`dnFBDRP`) describes how species ranges diversify; this distribution gives the probability of the fossil record itself.
+	help_strings[string("dnFossilRecord")][string("details")] = string(R"(This is the observation half of the fossilized birth-death range model. The range process (`dnFBDRP` or `dnFBDSP`) describes how species ranges diversify; this distribution gives the probability of the fossil record itself.
 
 The `reporting` argument selects how sampled specimens make it into the reported record: `reporting="complete"` (every sampled occurrence is reported) or `reporting="firstlast"` (the oldest and youngest occurrence of each species are reported, and the count in between is unknown).
 
@@ -934,6 +934,7 @@ moves.append( mvMatrixElementSlide(bd, weight=taxa.size()) ))");
 	help_strings[string("dnFossilRecord")][string("name")] = string(R"(dnFossilRecord)");
 	help_references[string("dnFossilRecord")].push_back(RbHelpReference(R"(The fossilized birth-death model for the analysis of stratigraphic range data under different speciation modes. Stadler, Tanja et al. Journal of theoretical biology, 447:41-55.)",R"()",R"(https://www.sciencedirect.com/science/article/pii/S002251931830119X )"));
 	help_arrays[string("dnFossilRecord")][string("see_also")].push_back(string(R"(dnFossilizedBirthDeathRange)"));
+	help_arrays[string("dnFossilRecord")][string("see_also")].push_back(string(R"(mvStratigraphicRange)"));
 	help_strings[string("dnFossilRecord")][string("title")] = string(R"(The fossil record of a set of stratigraphic ranges)");
 	help_arrays[string("dnFossilizedBirthDeathRange")][string("authors")].push_back(string(R"(June Walker)"));
 	help_strings[string("dnFossilizedBirthDeathRange")][string("description")] = string(R"(The fossilized birth death range process (FBDRP) describes the distribution of a matrix of species divergence and extinction times under a model of asymmetric speciation and sampling of extinct species.)");
@@ -960,7 +961,56 @@ moves.append( mvMatrixElementSlide(bd, weight=taxa.size()) ))");
 	help_references[string("dnFossilizedBirthDeathRange")].push_back(RbHelpReference(R"(The fossilized birth-death model for the analysis of stratigraphic range data under different speciation modes. Stadler, Tanja et al. Journal of theoretical biology, 447:41-55.)",R"()",R"(https://www.sciencedirect.com/science/article/pii/S002251931830119X )"));
 	help_references[string("dnFossilizedBirthDeathRange")].push_back(RbHelpReference(R"(Improved estimation of macroevolutionary rates from fossil data using a Bayesian framework. Silvestro, Daniele et al. Paleobiology, 45:546-570.)",R"(https://doi.org/10.1017/pab.2019.23)",R"(https://www.cambridge.org/core/journals/paleobiology/article/improved-estimation-of-macroevolutionary-rates-from-fossil-data-using-a-bayesian-framework/334F08A74A6C92F1FEAD91A71FE59A1C )"));
 	help_arrays[string("dnFossilizedBirthDeathRange")][string("see_also")].push_back(string(R"(dnFossilRecord)"));
+	help_arrays[string("dnFossilizedBirthDeathRange")][string("see_also")].push_back(string(R"(mvStratigraphicRange)"));
 	help_strings[string("dnFossilizedBirthDeathRange")][string("title")] = string(R"(The fossilized birth-death range process)");
+	help_arrays[string("dnFossilizedBirthDeathSpeciation")][string("authors")].push_back(string(R"(June Walker)"));
+	help_strings[string("dnFossilizedBirthDeathSpeciation")][string("description")] = string(R"(The fossilized birth death speciation process (FBDSP) describes the diversification and sampling of extant and extinct species trees under a mixed model of asymmetric (budding) and anagenetic speciation.)");
+	help_strings[string("dnFossilizedBirthDeathSpeciation")][string("details")] = string(R"(Fossil species are represented by a collection of fossil occurrences with uncertainty. Speciation, extinction and sampling rates may be time-homogeneous or piecewise time-heterogeneous. If time-heterogeneous rates are provided, then a vector of rate change time-points must also be provided. Like `dnFBDRP`, this is the birth-death range process on its own (here over trees); pair it with a `dnFossilRecord` node clamped to the occurrences to add the probability of the fossil record, choosing `reporting="complete"` or `reporting="firstlast"` there. The first and last appearance of each species are latent and are not carried by the tree, so sample them with `mvStratigraphicRange`. By default the process runs to age zero. `present` moves that boundary, so a record truncated at a stratigraphic horizon is analysed in the ages it already carries: the timeline starts there, no occurrence may be younger, and `rho` applies at that age rather than at zero.
+
+Every age in the tree needs a move. Tips are extinction times, sampled by `mvFossilTipTimeUniform` between the present and the youngest occurrence. `mvNodeTimeSlideUniform` skips the root, so pair it with `mvRootTimeSlideUniform`.
+
+Symmetric (bifurcating) speciation is not yet available.)");
+	help_strings[string("dnFossilizedBirthDeathSpeciation")][string("example")] = string(R"(lambda ~ dnExp(10)
+mu ~ dnExp(10)
+psi ~ dnExp(10)
+
+min_age = 0.0
+for(i in 1:taxa.size())
+{
+        if ( taxa[i].getMinAge() > min_age )
+        {
+                min_age = taxa[i].getMinAge()
+        }
+}
+
+origin_offset ~ dnExp(1/10)
+origin := min_age + origin_offset
+moves.append( mvSlide(origin_offset, weight = 2) )
+
+bd ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, taxa=taxa)
+
+# the fossil record, conditioned on the range process and clamped to the observed occurrences
+rec ~ dnFossilRecord(ranges=bd, reporting="firstlast")
+rec.clamp(taxa)
+
+moves.append( mvFNPR(bd, weight = taxa.size()) )
+moves.append( mvNodeTimeSlideUniform(bd, weight = taxa.size()) )
+moves.append( mvRootTimeSlideUniform(bd, origin=origin, weight = taxa.size()) )
+moves.append( mvFossilTipTimeUniform(bd, weight = taxa.size()) )
+
+# which lineage continues its ancestor's species at each speciation event
+moves.append( mvRotateNode(bd, weight = taxa.size()) )
+
+# the first and last appearances, which the tree does not carry
+moves.append( mvStratigraphicRange(bd, weight = taxa.size()) ))");
+	help_strings[string("dnFossilizedBirthDeathSpeciation")][string("name")] = string(R"(dnFossilizedBirthDeathSpeciation)");
+	help_references[string("dnFossilizedBirthDeathSpeciation")].push_back(RbHelpReference(R"(The fossilized birth-death model for the analysis of stratigraphic range data under different speciation modes. Stadler, Tanja et al. Journal of theoretical biology, 447:41-55.)",R"()",R"(https://www.sciencedirect.com/science/article/pii/S002251931830119X )"));
+	help_arrays[string("dnFossilizedBirthDeathSpeciation")][string("see_also")].push_back(string(R"(dnFossilizedBirthDeathRange)"));
+	help_arrays[string("dnFossilizedBirthDeathSpeciation")][string("see_also")].push_back(string(R"(dnFossilRecord)"));
+	help_arrays[string("dnFossilizedBirthDeathSpeciation")][string("see_also")].push_back(string(R"(mvFossilTipTimeUniform)"));
+	help_arrays[string("dnFossilizedBirthDeathSpeciation")][string("see_also")].push_back(string(R"(mvRootTimeSlideUniform)"));
+	help_arrays[string("dnFossilizedBirthDeathSpeciation")][string("see_also")].push_back(string(R"(mvStratigraphicRange)"));
+	help_strings[string("dnFossilizedBirthDeathSpeciation")][string("title")] = string(R"(The fossilized birth-death range process over trees)");
 	help_arrays[string("dnGamma")][string("authors")].push_back(string(R"(Sebastian Hoehna)"));
 	help_strings[string("dnGamma")][string("description")] = string(R"(The Gamma distribution describes the probability of the sum of exponentially distributed variables.)");
 	help_strings[string("dnGamma")][string("details")] = string(R"(The gamma distribution takes two parameters, shape and rate. Similar to how 1/rate gives the mean of the exponential, shape/rate gives the mean of the gamma. It provides a natural prior distribution for parameters that could be considered as sums of exponential variables.
@@ -3426,6 +3476,28 @@ moves.append( mvAdaptiveRJSwitch(theta,
 	help_strings[string("mvBirthDeathEventContinuous")][string("name")] = string(R"(mvBirthDeathEventContinuous)");
 	help_strings[string("mvBirthDeathFromAgeEvent")][string("name")] = string(R"(mvBirthDeathFromAgeEvent)");
 	help_strings[string("mvBranchLengthScale")][string("name")] = string(R"(mvBranchLengthScale)");
+	help_arrays[string("mvBuddingTopologyRedraw")][string("authors")].push_back(string(R"(June Walker)"));
+	help_strings[string("mvBuddingTopologyRedraw")][string("description")] = string(R"(Redraws the whole budding (asymmetric speciation) topology of a `dnFBDSP` tree, holding the species ranges fixed.)");
+	help_strings[string("mvBuddingTopologyRedraw")][string("details")] = string(R"(Each lineage is assigned an ancestor drawn uniformly from those alive at its birth. Given the ranges, every compatible tree has the same probability, so the draw is from the exact conditional and every proposal is accepted. With character data on the tree the move is still valid, but acceptance then rests on the likelihood, so pair it with `mvFNPR` or `mvNNI`.
+
+The move requires pure budding and refuses to be set up when `lambda_a > 0`.
+
+It never changes which species buds at a given birth age, so pair it with `mvRotateNode`. Ranges and node ages are untouched: use `mvFossilTipTimeUniform` for the extinction times and `mvNodeTimeSlideUniform` with `mvRootTimeSlideUniform` for the speciation times.)");
+	help_strings[string("mvBuddingTopologyRedraw")][string("example")] = string(R"(tr ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, timeline=timeline, taxa=taxa)
+rec ~ dnFossilRecord(ranges=tr, reporting="firstlast")
+rec.clamp(taxa)
+
+moves.append( mvBuddingTopologyRedraw(tr, weight=taxa.size()) )
+# relabels which lineage carries each birth age; the Gibbs move cannot
+moves.append( mvRotateNode(tr, weight=taxa.size()) )
+moves.append( mvFossilTipTimeUniform(tr, weight=taxa.size()) )
+moves.append( mvNodeTimeSlideUniform(tr, weight=taxa.size()) )
+moves.append( mvRootTimeSlideUniform(tr, origin, weight=2) ))");
+	help_strings[string("mvBuddingTopologyRedraw")][string("name")] = string(R"(mvBuddingTopologyRedraw)");
+	help_arrays[string("mvBuddingTopologyRedraw")][string("see_also")].push_back(string(R"(dnFossilizedBirthDeathSpeciation)"));
+	help_arrays[string("mvBuddingTopologyRedraw")][string("see_also")].push_back(string(R"(mvRotateNode)"));
+	help_arrays[string("mvBuddingTopologyRedraw")][string("see_also")].push_back(string(R"(mvFNPR)"));
+	help_strings[string("mvBuddingTopologyRedraw")][string("title")] = string(R"(Gibbs draw of a budding topology)");
 	help_strings[string("mvBurstEvent")][string("name")] = string(R"(mvBurstEvent)");
 	help_arrays[string("mvCharacterHistory")][string("authors")].push_back(string(R"(Priscilla Lau)"));
 	help_strings[string("mvCharacterHistory")][string("description")] = string(R"(A proposal to change the (discrete) character history, at a node or along a
@@ -3472,6 +3544,7 @@ moves.append( mvCharacterHistory(ctmc=X, qmap_site=Q, graph="tip",
 	help_strings[string("mvCharacterHistory")][string("name")] = string(R"(mvCharacterHistory)");
 	help_strings[string("mvCharacterHistory")][string("title")] = string(R"(Character history move)");
 	help_strings[string("mvCollapseExpandFossilBranch")][string("name")] = string(R"(mvCollapseExpandFossilBranch)");
+	help_strings[string("mvCollapseExpandFossilBranch")][string("title")] = string(R"(Move to collapse or expand a fossil branch)");
 	help_strings[string("mvConjugateInverseWishart")][string("name")] = string(R"(mvConjugateInverseWishart)");
 	help_strings[string("mvContinuousCharacterDataSlide")][string("name")] = string(R"(mvContinuousCharacterDataSlide)");
 	help_strings[string("mvContinuousEventScale")][string("name")] = string(R"(mvContinuousEventScale)");
@@ -3623,6 +3696,7 @@ moves.append( mvMatrixElementSlide(bd, delta=1, weight=taxa.size()/10) )
 moves.append( mvExtinctionRJSwitch(bd, weight=taxa.size()/10) ))");
 	help_strings[string("mvExtinctionRJSwitch")][string("name")] = string(R"(mvExtinctionRJSwitch)");
 	help_arrays[string("mvExtinctionRJSwitch")][string("see_also")].push_back(string(R"(mvMatrixElementSlide)"));
+	help_arrays[string("mvExtinctionRJSwitch")][string("see_also")].push_back(string(R"(mvStratigraphicRange)"));
 	help_arrays[string("mvExtinctionRJSwitch")][string("see_also")].push_back(string(R"(mvRJSwitch)"));
 	help_strings[string("mvExtinctionRJSwitch")][string("title")] = string(R"(Jump a taxon's extinction time to and from the present)");
 	help_strings[string("mvFNPR")][string("description")] = string(R"(Tree topology move that prunes and re-attaches a subtree without changing any
@@ -4113,6 +4187,19 @@ remains unchanged for the tree branches.)");
 	help_strings[string("mvRateAgeBetaShift")][string("title")] = string(R"(The RateAgeBetaShift move)");
 	help_strings[string("mvRootTimeScaleBactrian")][string("name")] = string(R"(mvRootTimeScaleBactrian)");
 	help_strings[string("mvRootTimeSlideUniform")][string("name")] = string(R"(mvRootTimeSlideUniform)");
+	help_arrays[string("mvRotateNode")][string("authors")].push_back(string(R"(June Walker)"));
+	help_arrays[string("mvRotateNode")][string("authors")].push_back(string(R"(June Walker)"));
+	help_strings[string("mvRotateNode")][string("description")] = string(R"(Moves the continuation of an ancestral species between the children of a random internal node, leaving every node age and the topology unchanged.)");
+	help_strings[string("mvRotateNode")][string("details")] = string(R"(Under budding (asymmetric) speciation exactly one child of each node continues its ancestor's species, and the others begin new species there. Which one continues is a free parameter, separate from the topology and the node ages, and this move samples it. The new continuing child is drawn uniformly among the others.)");
+	help_strings[string("mvRotateNode")][string("example")] = string(R"(tr ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, timeline=timeline, taxa=taxa)
+
+# which lineage continues the ancestral species at each speciation event
+moves.append( mvRotateNode(tr, weight=taxa.size()/2) ))");
+	help_strings[string("mvRotateNode")][string("name")] = string(R"(mvRotateNode)");
+	help_arrays[string("mvRotateNode")][string("see_also")].push_back(string(R"(dnFossilizedBirthDeathSpeciation)"));
+	help_arrays[string("mvRotateNode")][string("see_also")].push_back(string(R"(mvBuddingTopologyRedraw)"));
+	help_arrays[string("mvRotateNode")][string("see_also")].push_back(string(R"(mvStratigraphicRange)"));
+	help_strings[string("mvRotateNode")][string("title")] = string(R"(Species continuation move)");
 	help_strings[string("mvSPR")][string("description")] = string(R"(Tree topology move that performs a Subtree Prune and Regraft (SPR) on
 an unrooted tree.)");
 	help_strings[string("mvSPR")][string("details")] = string(R"(`mvSPR` changes tree topology by cutting off a subtree and reattaching it
@@ -4570,6 +4657,23 @@ mymcmc.operatorSummary())");
 	help_arrays[string("mvSpeciesTreeScale")][string("see_also")].push_back(string(R"(mvSpeciesNarrow)"));
 	help_arrays[string("mvSpeciesTreeScale")][string("see_also")].push_back(string(R"(mvSpeciesSubtreeScale)"));
 	help_strings[string("mvSpeciesTreeScale")][string("title")] = string(R"(Tree scale move on species tree and gene trees for multispecies coalescent models.)");
+	help_arrays[string("mvStratigraphicRange")][string("authors")].push_back(string(R"(June Walker)"));
+	help_strings[string("mvStratigraphicRange")][string("description")] = string(R"(Resamples the first and last appearances of one randomly chosen taxon in a fossilized birth-death speciation process (`dnFBDSP`).)");
+	help_strings[string("mvStratigraphicRange")][string("details")] = string(R"(The first and last appearances are latent: the record reports the bins that contain them. A tree does not carry them, so no tree move reaches them. This move redraws both uniformly within the reported bins.
+
+It applies to `dnFBDSP` only. A `dnFBDRP` keeps the appearances in its value, where the matrix element moves sample them. Without this move the appearances never change, and the process warns at startup.)");
+	help_strings[string("mvStratigraphicRange")][string("example")] = string(R"(tr ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, taxa=taxa)
+
+rec ~ dnFossilRecord(ranges=tr, reporting="firstlast")
+rec.clamp(taxa)
+
+moves.append( mvStratigraphicRange(tr, weight=taxa.size()) ))");
+	help_strings[string("mvStratigraphicRange")][string("name")] = string(R"(mvStratigraphicRange)");
+	help_references[string("mvStratigraphicRange")].push_back(RbHelpReference(R"(The fossilized birth-death model for the analysis of stratigraphic range data under different speciation modes. Stadler, Tanja et al. Journal of theoretical biology, 447:41-55.)",R"()",R"(https://www.sciencedirect.com/science/article/pii/S002251931830119X )"));
+	help_arrays[string("mvStratigraphicRange")][string("see_also")].push_back(string(R"(dnFossilizedBirthDeathSpeciation)"));
+	help_arrays[string("mvStratigraphicRange")][string("see_also")].push_back(string(R"(dnFossilRecord)"));
+	help_arrays[string("mvStratigraphicRange")][string("see_also")].push_back(string(R"(mvRotateNode)"));
+	help_strings[string("mvStratigraphicRange")][string("title")] = string(R"(Stratigraphic range move)");
 	help_strings[string("mvSubtreeScale")][string("name")] = string(R"(mvSubtreeScale)");
 	help_strings[string("mvSymmetricMatrixElementSlide")][string("name")] = string(R"(mvSymmetricMatrixElementSlide)");
 	help_strings[string("mvSynchronizedVectorFixedSingleElementSlide")][string("name")] = string(R"(mvSynchronizedVectorFixedSingleElementSlide)");

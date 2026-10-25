@@ -12,6 +12,7 @@ At rho = 1 the move has nothing to do.
 June Walker
 ## see_also
 mvMatrixElementSlide
+mvStratigraphicRange
 mvRJSwitch
 ## example
     bd ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=0.5, timeline=timeline)

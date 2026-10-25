@@ -181,6 +181,7 @@
 #include "Move_CharacterHistory.h"
 
 #include "Move_ExtinctionReversibleJump.h"
+#include "Move_StratigraphicRange.h"
 
 #include "Move_BirthDeathEventContinuous.h"
 #include "Move_BirthDeathEventDiscrete.h"
@@ -212,6 +213,8 @@
 #include "Move_IndependentTopology.h"
 #include "Move_EmpiricalTree.h"
 #include "Move_FNPR.h"
+#include "Move_RotateNode.h"
+#include "Move_BuddingTopologyRedraw.h"
 #include "Move_FossilSiteTimeSlideUniform.h"
 #include "Move_FossilTipTimeUniform.h"
 #include "Move_FossilTipTimeSlideUniform.h"
@@ -441,6 +444,8 @@ void RevLanguage::Workspace::initializeMoveGlobalWorkspace(void)
         addType( new Move_IndependentTopology()              );
         addType( new Move_EmpiricalTree()                    );
         addType( new Move_FNPR()                             );
+        addType( new Move_RotateNode()                       );
+        addType( new Move_BuddingTopologyRedraw()             );
         addType( new Move_FossilSiteTimeSlideUniform()       );
         addType( new Move_FossilTipTimeUniform()             );
         addType( new Move_FossilTipTimeSlideUniform()        );
@@ -491,6 +496,7 @@ void RevLanguage::Workspace::initializeMoveGlobalWorkspace(void)
         addType( new Move_IndependentPriorSampler<Tree>( ) );
 
         addType( new Move_ExtinctionReversibleJump()               );
+        addType( new Move_StratigraphicRange()                     );
     }
     catch(RbException& rbException)
     {

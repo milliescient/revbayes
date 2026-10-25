@@ -17,6 +17,7 @@ The process exposes its latent ages as member methods. `getDivergenceTimes` give
 June Walker
 ## see_also
 dnFossilRecord
+mvStratigraphicRange
 ## example
 lambda ~ dnExp(10)
 mu ~ dnExp(10)

@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <vector>
 
+#include "RbConstants.h"
 #include "DistributionUniform.h"
 #include "FossilTipTimeSlideUniformProposal.h"
 #include "RandomNumberFactory.h"
@@ -13,6 +14,7 @@
 #include "StochasticNode.h"
 #include "TopologyNode.h"
 #include "Tree.h"
+#include "TreeDistributionProperties.h"
 
 namespace RevBayesCore { class DagNode; }
 
@@ -111,7 +113,10 @@ double FossilTipTimeSlideUniformProposal::doProposal( void )
     RandomNumberGenerator* rng     = GLOBAL_RNG;
     
     Tree& tau = tree->getValue();
-    
+
+    const TreeDistributionProperties *props = dynamic_cast<const TreeDistributionProperties *>( &tree->getDistribution() );
+    bool extended = ( props != NULL && props->isExtended() );
+
     // We shouldn't have to do this -- it should be enough to, say, invalidate the node_index in the constructor, check that
     // use_index is true AND node_index is invalidated in the prepareProposal() function, and then let that function compute
     // the node_index if (and only if) both conditions are met. However, this is not enough to prevent mismatches between the
@@ -128,7 +133,8 @@ double FossilTipTimeSlideUniformProposal::doProposal( void )
         for (size_t i = 0; i < tau.getNumberOfTips(); ++i)
         {
             TopologyNode* node = &tau.getNode(i);
-            if ( node->isFossil() )
+            // an extinct tip may already sit at the present, where isFossil() would miss it
+            if ( extended == true ? node->getTaxon().isExtinct() : node->isFossil() )
             {
                 tips.push_back(i);
             }
@@ -137,8 +143,9 @@ double FossilTipTimeSlideUniformProposal::doProposal( void )
 
         if ( tips.empty() )
         {
+            // reject rather than return 0, or a move that could not act counts as accepted
             failed = true;
-            return 0;
+            return RbConstants::Double::neginf;
         }
 
         // pick a random fossil node
@@ -148,10 +155,13 @@ double FossilTipTimeSlideUniformProposal::doProposal( void )
     
     TopologyNode& node = tau.getNode(node_index);
 
-    TopologyNode& parent = node.getParent();
+    if ( node.isRoot() == true && origin == NULL )
+    {
+        throw RbException("Attempting to move a root tip, but no origin time provided.");
+    }
 
-    // we need to work with the times
-    double parent_age   = parent.getAge();
+    // a lone lineage is its own root, so the origin bounds it instead of a parent
+    double parent_age   = node.isRoot() ? origin->getValue() : node.getParent().getAge();
     double my_age       = node.getAge();    
     double min_age      = 0;
     double max_age;
@@ -184,6 +194,8 @@ double FossilTipTimeSlideUniformProposal::doProposal( void )
 
     if ( node.isSampledAncestorTip() == true )
     {
+        TopologyNode& parent = node.getParent();
+
         TopologyNode *sibling = &parent.getChild( 0 );
         if ( sibling == &node )
         {
@@ -216,6 +228,21 @@ double FossilTipTimeSlideUniformProposal::doProposal( void )
         }
     } else {
         max_age = fmin(max_age, parent_age);
+    }
+
+    if ( extended == true )
+    {
+        // an extinction is bounded by the present and the youngest occurrence, not the parent
+        const std::vector<std::pair<TimeInterval, size_t> >& occurrences = node.getTaxon().getOccurrences();
+
+        min_age = 0.0;
+        max_age = node.getTaxon().getMaxAge();
+
+        // a death lies at or below every occurrence, so the binding bound is the youngest maximum
+        for (std::vector<std::pair<TimeInterval, size_t> >::const_iterator it = occurrences.begin(); it != occurrences.end(); ++it)
+        {
+            max_age = fmin(max_age, it->first.getMax());
+        }
     }
     
     // Abort the move if we don't have a valid interval

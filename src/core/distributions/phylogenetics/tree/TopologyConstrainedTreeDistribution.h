@@ -6,13 +6,14 @@
 #include "Tree.h"
 #include "TreeChangeEventListener.h"
 #include "TypedDagNode.h"
+#include "TreeDistributionProperties.h"
 #include "TypedDistribution.h"
 
 namespace RevBayesCore {
     
     /**
      */
-    class TopologyConstrainedTreeDistribution : public TypedDistribution<Tree>, TreeChangeEventListener {
+    class TopologyConstrainedTreeDistribution : public TypedDistribution<Tree>, public TreeDistributionProperties, TreeChangeEventListener {
         
     public:
         TopologyConstrainedTreeDistribution(TypedDistribution<Tree>* base_dist, const std::vector<Clade> &c, Tree *t, std::int64_t age_check_precision);
@@ -24,30 +25,31 @@ namespace RevBayesCore {
 
         
         // pure virtual member functions
-        virtual TopologyConstrainedTreeDistribution*        clone(void) const;                                                                                  //!< Create an independent clone
+        virtual TopologyConstrainedTreeDistribution*        clone(void) const override;                                                                                  //!< Create an independent clone
         
         
         // public member functions you may want to override
-        double                                              computeLnProbability(void);                                                                         //!< Compute the log-transformed probability of the current value.
-        void                                                fireTreeChangeEvent(const TopologyNode &n, const unsigned& m=0);                                    //!< The tree has changed and we want to know which part.
-        virtual void                                        redrawValue(SimulationCondition c);                                                                 //!< Draw a new random value from the distribution
-        virtual void                                        redrawValue(void);                                                                                  //!< Draw a new random value from the distribution
+        double                                              computeLnProbability(void) override;                                                                         //!< Compute the log-transformed probability of the current value.
+        void                                                fireTreeChangeEvent(const TopologyNode &n, const unsigned& m=0) override;                                    //!< The tree has changed and we want to know which part.
+        virtual void                                        redrawValue(SimulationCondition c) override;                                                                 //!< Draw a new random value from the distribution
+        virtual void                                        redrawValue(void) override;                                                                                  //!< Draw a new random value from the distribution
         
         void                                                setBackbone( const TypedDagNode<Tree> *backbone_one=NULL, const TypedDagNode<RbVector<Tree> > *backbone_many=NULL);
-        virtual void                                        setStochasticNode(StochasticNode<Tree> *n);                                                         //!< Set the stochastic node holding this distribution
-        virtual void                                        setValue(Tree *v, bool f=false);                                                                    //!< Set the current value, e.g. attach an observation (clamp)
-        virtual bool                                        allowsSA(void) { return base_distribution->allowsSA(); }                                            //!< Checks if distribution is compatible with sampled ancestors
-        
+        virtual void                                        setStochasticNode(StochasticNode<Tree> *n) override;                                                         //!< Set the stochastic node holding this distribution
+        virtual void                                        setValue(Tree *v, bool f=false) override;                                                                    //!< Set the current value, e.g. attach an observation (clamp)
+        virtual bool                                        allowsSampledAncestors(void) const override { const TreeDistributionProperties *p = dynamic_cast<const TreeDistributionProperties *>( base_distribution ); return p != NULL && p->allowsSampledAncestors(); }
+        virtual bool                                        isExtended(void) const override { const TreeDistributionProperties *p = dynamic_cast<const TreeDistributionProperties *>( base_distribution ); return p != NULL && p->isExtended(); }
+
     protected:
         
         void                                                initializeBitSets();
-        virtual void                                        getAffected(RbOrderedSet<DagNode *>& affected, const DagNode* affecter);                                  //!< get affected nodes
-        virtual void                                        keepSpecialization(const DagNode* affecter);
-        virtual void                                        restoreSpecialization(const DagNode *restorer);
-        virtual void                                        touchSpecialization(const DagNode *toucher, bool touchAll);
+        virtual void                                        getAffected(RbOrderedSet<DagNode *>& affected, const DagNode* affecter) override;                            //!< Get affected nodes
+        virtual void                                        keepSpecialization(const DagNode* affecter) override;
+        virtual void                                        restoreSpecialization(const DagNode *restorer) override;
+        virtual void                                        touchSpecialization(const DagNode *toucher, bool touchAll) override;
         
         // Parameter management functions. You need to override both if you have additional parameters
-        virtual void                                        swapParameterInternal(const DagNode *oldP, const DagNode *newP);                                    //!< Swap a parameter
+        virtual void                                        swapParameterInternal(const DagNode *oldP, const DagNode *newP) override;                                    //!< Swap a parameter
         
         // helper functions
         bool                                                matchesBackbone(void);

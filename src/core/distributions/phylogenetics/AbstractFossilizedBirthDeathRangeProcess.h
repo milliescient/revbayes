@@ -62,9 +62,9 @@ namespace RevBayesCore {
      * We assume that the rate vectors have one more element than the rate-change vectors.
      * Thus, one rate-change means always two interval, two rate-changes three interval, and so on.
      * 
-     * This is the base class for the fossilized birth-death range process. A process provides
-     * updateRanges(), which recomputes the origination and extinction times of each taxon from
-     * its value. Likelihood computations are otherwise shared.
+     * This is the base class for the fossilized birth-death range processes. Each provides
+     * updateRanges(), which recomputes the origination and extinction times of each taxon from its
+     * matrix or tree value. Likelihood computations are otherwise shared.
      *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (Sebastian Hoehna)
@@ -87,6 +87,7 @@ namespace RevBayesCore {
 
         virtual ~AbstractFossilizedBirthDeathRangeProcess(){};
 
+        void                                            setHasResampleMove(void) { has_resample_move = true; }       //!< Registered by mvStratigraphicRange.
         void                                            setHasReportingNode(void) { has_reporting_node = true; }     //!< Registered by dnFossilRecord.
         void                                            setHasSurvivalMove(void) { has_survival_move = true; }       //!< Registered by mvExtinctionRJSwitch.
 
@@ -95,8 +96,11 @@ namespace RevBayesCore {
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<RbVector<double> > &rv) const; //!< Expose the parent probabilities.
         double                                          getPresent() const { return times.front(); }               //!< The youngest interval boundary, which extinction times cannot precede.
         const std::vector<Taxon>&                       getTaxa() const { return taxa; }
+        void                                            resampleFirstLast(size_t i);                                //!< Redraw taxon i's appearances within its reported bins.
         bool                                            hasSurvived(size_t i) const { return ranges[i].survived; }  //!< Taxon i's latent status: alive at the present.
+        double                                          getLastAppearance(size_t i) const { return ranges[i].last; } //!< tau_K.
         void                                            switchSurvived(size_t i);                                   //!< Flip that status, arming the undo. Only mvExtinctionRJSwitch may.
+        void                                            warnIfNoResampleMove(void) const;                           //!< Warn once when the appearances have no move.
         void                                            warnIfNoReportingNode(void) const;                          //!< Warn once when psi has no data.
         void                                            warnIfInertNTaxaCondition(void) const;                      //!< Warn once when rho leaves nTaxa conditioning inert.
         void                                            warnIfNoSurvivalMove(void) const;                           //!< Warn once when rho < 1 and no move samples survival.
@@ -113,6 +117,8 @@ namespace RevBayesCore {
         const std::vector<const DagNode*>&              getRangeParameters(void) const { return range_parameters; } //!< The rate and timeline nodes a dnFossilRecord adopts as parents.
 
     protected:
+        virtual bool                                    marginalizesExtinction(void) const { return false; }        //!< True when the extinction times are integrated out.
+        virtual double                                  rangeEndTerm(size_t i, size_t di, double d) const { return log( death[di] ); } //!< Log term closing range i at d.
         virtual double                                  rangeLnProb(size_t i);                                     //!< Birth-death density of range i.
         virtual double                                  originLnProb(void);                                        //!< Terms attaching to the origin rather than to a range.
         virtual double                                  conditionLnProb(void) const;                               //!< The conditioning normalization, where it applies to the process as a whole.
@@ -193,6 +199,10 @@ namespace RevBayesCore {
         mutable std::vector<double>                     pS_i;                                                   //!< Probability of leaving no descendants from the end of each time interval
 
                                 
+        size_t                                          stored_range = 0;                                       //!< The range mvStratigraphicRange drew.
+        double                                          stored_first = 0.0;                                     //!< The ages it replaced.
+        double                                          stored_last  = 0.0;
+
         size_t                                          switched_range = 0;                                     //!< The range mvExtinctionRJSwitch flipped, and the status it replaced.
         bool                                            stored_survived = false;                                //!< The status before the switch.
         bool                                            switched = false;                                       //!< That undo is armed.
@@ -207,11 +217,14 @@ namespace RevBayesCore {
         std::vector<bool>                               dirty_taxa;                                             //!< Indicates whether partial likelihood needs updating
         
         bool                                            touched;                                               //!< Indicates whether any terms need updating
+        bool                                            has_resample_move = false;                              //!< Set by mvStratigraphicRange when it attaches.
         bool                                            has_reporting_node = false;                             //!< Set by dnFossilRecord when it attaches.
         bool                                            has_survival_move = false;                              //!< Set by mvExtinctionRJSwitch when it attaches.
+        mutable bool                                    warned_no_resample = false;
         mutable bool                                    warned_no_reporting = false;
         mutable bool                                    warned_inert_ntaxa = false;
         mutable bool                                    warned_no_survival = false;
+        bool                                            resampled;                                              //!< The appearance undo is armed.
         double                                          present_time = 0.0;                                     //!< The present, where the timeline starts.
     };
 }
