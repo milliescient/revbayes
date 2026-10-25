@@ -1,0 +1,45 @@
+# reporting="presence". The record says only which bins hold at least one occurrence, so each bin
+# between the extremes is one Bernoulli trial and the extremes keep their instantaneous rate:
+#
+#   log(psi) + log(psi) + sum over interior bins of  log(1 - e^-Lambda)  occupied
+#                                                    -Lambda             empty
+#
+# One taxon, bins of width 1, occurrences in [1,2], [3,4] and [5,6]. tau_1 lies in the oldest
+# occupied bin and tau_K in the youngest, so the interior bins are [2,3], [3,4] and [4,5], of
+# which only [3,4] is occupied. The parts of the extreme bins beyond tau_1 and tau_K hold an
+# unobserved count, and marginalizing a Poisson count over every value gives one.
+# Every line printed must be TRUE.
+taxa <- readTaxonData("data/fbdr_presence.tsv")
+
+lambda <- 0.4
+mu     <- 0.1
+psi    <- 0.5
+origin <- 20.0
+bins   <- v(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+
+bd ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+             condition="time", origin=origin)
+# columns are death, youngest, oldest, divergence
+bd.setValue( matrix( v( v(0.5, 1.5, 5.5, 12.0) ) ) )
+
+rec ~ dnFossilRecord(ranges=bd, reporting="presence", bins=bins)
+rec.clamp(taxa)
+
+expected <- 2 * ln(psi) + ln(abs(1 - exp(-psi))) - 2 * psi
+
+out = "output/presence.txt"
+print(filename=out, "the occupancy term matches its closed form:\n")
+print(filename=out, append=TRUE, abs(rec.lnProbability() - expected) < 1E-8, "\n")
+
+# a grid whose bins all sit outside the extremes leaves only the two instantaneous rates
+coarse <- v(0, 10)
+bd2 ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+              condition="time", origin=origin)
+bd2.setValue( matrix( v( v(0.5, 1.5, 5.5, 12.0) ) ) )
+rec2 ~ dnFossilRecord(ranges=bd2, reporting="presence", bins=coarse)
+rec2.clamp(taxa)
+
+print(filename=out, append=TRUE, "one bin spanning the record leaves only the extremes:\n")
+print(filename=out, append=TRUE, abs(rec2.lnProbability() - 2 * ln(psi)) < 1E-8, "\n")
+
+q()

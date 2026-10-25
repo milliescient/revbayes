@@ -171,7 +171,7 @@ AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProce
 
     dirty_taxa  = std::vector<bool>(taxa.size(), true);
 
-    record_complete = comp;
+    record_reporting = comp ? COMPLETE : FIRSTLAST;
 
     updateRecord();
 
@@ -220,7 +220,11 @@ void AbstractFossilizedBirthDeathRangeProcess::updateRecord( void )
             max_present_age = std::min(max_present_age, ranges[i].last_max);
         }
 
-        ranges[i].singleton = ( count < 2 );
+        // a bin holding at least one occurrence is not evidence of exactly one, so the
+        // appearances stay apart under the occupancy rule unless the bin is a point
+        ranges[i].singleton = ( count < 2 )
+                              && ( record_reporting != PRESENCE
+                                   || ranges[i].first_min == ranges[i].last_max );
 
         ranges[i].first_max = taxa[i].getMaxAge();
         ranges[i].last_min  = taxa[i].getMinAge();
@@ -572,6 +576,8 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilTotal()
 /** Fossil-occurrence log-term for taxon i. */
 double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i ) const
 {
+    if ( record_reporting == PRESENCE ) return lnPresenceRecord(i);
+
     double d = ranges[i].death;
     double o = ranges[i].first;                             // oldest appearance
     size_t oi = findIndex(o);
@@ -683,7 +689,7 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i
             result += log(fossil[yi]) + log(recip_young - diag/recip_old);
 
             // the first/last rule leaves the interior count unreported, so it is marginalized
-            if ( record_complete == false )
+            if ( record_reporting == FIRSTLAST )
             {
                 double S1 = 0.0, f = 1.0;
                 for ( size_t kap = 0; kap < 200; kap++ )
@@ -701,6 +707,72 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i
     {
         // include instantaneous sampling density
         result = ages.begin()->second * log(fossil[oi]);
+    }
+
+    return result;
+}
+
+
+/** Integral of the fossil sampling rate over [lo, hi), which the rate timeline makes piecewise. */
+double AbstractFossilizedBirthDeathRangeProcess::lnPresenceExposure( double lo, double hi ) const
+{
+    double total = 0.0;
+
+    for ( size_t j = 0; j < num_intervals; j++ )
+    {
+        double top = ( j < num_intervals-1 ? times[j+1] : RbConstants::Double::inf );
+        if ( top <= lo ) continue;
+        if ( times[j] >= hi ) break;
+
+        total += fossil[j] * ( std::min(hi, top) - std::max(lo, times[j]) );
+    }
+
+    return total;
+}
+
+
+/**
+ * Occupancy log-term for taxon i.
+ *
+ * The record says only which bins hold at least one occurrence, and occurrences in disjoint bins
+ * are independent Poisson counts, so each bin between the extremes is one Bernoulli trial. The
+ * extremes themselves are tau_1 and tau_K, which the range process places and the matrix moves
+ * sample inside their own bins, so nothing here integrates over an age. The parts of the extreme
+ * bins beyond tau_1 and tau_K hold an unobserved count, and marginalizing a Poisson count over
+ * every value gives one, so they contribute nothing.
+ */
+double AbstractFossilizedBirthDeathRangeProcess::lnPresenceRecord( size_t i ) const
+{
+    double o = ranges[i].first;
+    double y = ranges[i].last;
+
+    if ( !( o >= y && y >= ranges[i].death ) ) return RbConstants::Double::neginf;
+    if ( o > ranges[i].first_max || o < ranges[i].first_min ) return RbConstants::Double::neginf;
+    if ( y < ranges[i].last_min || y > ranges[i].last_max ) return RbConstants::Double::neginf;
+
+    // the oldest and youngest occurrences, whose bins bound the interior
+    double result = log( fossil[findIndex(o)] ) + log( fossil[findIndex(y)] );
+
+    const std::vector<std::pair<TimeInterval, size_t> > &ages = taxa[i].getOccurrences();
+
+    for ( size_t b = 0; b + 1 < record_bins.size(); b++ )
+    {
+        double lo = record_bins[b];
+        double hi = record_bins[b+1];
+
+        // strictly between the extreme bins, so wholly inside (tau_K, tau_1) and never clipped
+        if ( lo < ranges[i].last_max || hi > ranges[i].first_min ) continue;
+
+        bool occupied = false;
+        double mid = 0.5 * ( lo + hi );
+        for ( size_t k = 0; k < ages.size(); k++ )
+        {
+            if ( ages[k].first.getMin() <= mid && ages[k].first.getMax() >= mid ) occupied = true;
+        }
+
+        double Lambda = lnPresenceExposure( lo, hi );
+
+        result += occupied ? log( 1.0 - exp(-Lambda) ) : -Lambda;
     }
 
     return result;

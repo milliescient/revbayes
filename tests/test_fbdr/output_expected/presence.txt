@@ -1,0 +1,4 @@
+the occupancy term matches its closed form:
+TRUE	
+one bin spanning the record leaves only the extremes:
+TRUE	

@@ -103,7 +103,11 @@ namespace RevBayesCore {
         void                                            initializeFirstLast(size_t i);                              //!< Draw taxon i's appearances, nested within the range and its reported bins.
         void                                            drawRanges();                                               //!< Draw an initial range and appearances for every taxon.
         double                                          computeLnFossilTotal();                                     //!< Total fossil-record log-density, for a dnFossilRecord node.
-        void                                            setCompleteRecord(bool comp) { record_complete = comp; }    //!< The reporting model, pushed here by dnFossilRecord.
+        //!< Which occurrences the record reports, pushed here by dnFossilRecord. Under PRESENCE
+        //!< an occurrence stands for a bin holding at least one, so its count is a lower bound.
+        enum Reporting { COMPLETE, FIRSTLAST, PRESENCE };
+        void                                            setReporting(Reporting r) { record_reporting = r; }
+        void                                            setReportingBins(const std::vector<double> &b) { record_bins = b; }
 
         virtual void                                    setOccurrences(const std::vector<Taxon> &t);                //!< Adopt a clamped record's occurrences as the data.
         const std::vector<const DagNode*>&              getRangeParameters(void) const { return range_parameters; } //!< The rate and timeline nodes a dnFossilRecord adopts as parents.
@@ -149,7 +153,10 @@ namespace RevBayesCore {
 
         std::vector<Taxon>                              taxa;                                                  //!< Taxa that will be attached to new simulated trees.
         std::string                                     condition;
-        bool                                            record_complete;                                        //!< Every occurrence reported, or the first/last rule.
+        Reporting                                       record_reporting;                                       //!< Which occurrences the record reports.
+        std::vector<double>                             record_bins;                                            //!< Reporting grid edges, ascending. PRESENCE only.
+        double                                          lnPresenceRecord(size_t i) const;                       //!< Bernoulli per bin, for the occupancy rule.
+        double                                          lnPresenceExposure(double lo, double hi) const;         //!< Integrated sampling rate over a bin.
         double                                          max_present_age;                                        //!< Youngest occurrence maximum; the timeline may not start above it.
 
         void                                            updateRecord(void);                                     //!< Refresh the reported bins and the bounds they put on the appearances.
