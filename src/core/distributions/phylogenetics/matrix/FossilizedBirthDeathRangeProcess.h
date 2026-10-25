@@ -42,6 +42,7 @@ namespace RevBayesCore {
 										  const std::vector<Taxon> &taxa,
 										  bool complete_record,
 										  bool coexistence,
+										  bool require_parent,
                                           const TypedDagNode<double>* origin = NULL,
                                             double present = 0.0,
                                           const TypedDagNode<RbVector<double> >* psi_mixture_rates = NULL,
@@ -78,6 +79,7 @@ namespace RevBayesCore {
         //!< per-capita structure at the event times. Dropping it is exact only where the
         //!< standing diversity does not vary over the span the birth times move in.
         bool                                            coexistence;
+        bool                                            require_parent;                                     //!< Reject a birth with none alive. Off only where ranges were left out.
 
     private:
         
