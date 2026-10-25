@@ -1,0 +1,112 @@
+# dnBDS is the range process under complete lineage sampling: p is zero, so nothing collapses
+# and the birth time each range carries is the species' own origination. Its conditioning is
+# declared rather than baked in, and the coexistence terms default off, which together make it
+# the BDS model. Every line printed must be TRUE.
+taxa <- readTaxonData("data/fbdr_condition.tsv")
+
+lambda ~ dnExponential(1); lambda.setValue(0.4)
+mu     ~ dnExponential(1); mu.setValue(0.1)
+psi    ~ dnExponential(1); psi.setValue(0.5)
+origin ~ dnUniform(8, 30);  origin.setValue(20)
+
+# Set by hand, so the expected terms below are literals read off it rather than the same rules
+# the process applies. Columns are extinction, youngest appearance, oldest appearance and birth.
+config <- matrix( v( v(0.0, 0.0, 0.0, 10.0),
+                     v(0.0, 0.0, 0.0,  8.0),
+                     v(0.0, 0.0, 0.0,  6.0),
+                     v(1.0, 2.5, 2.5, 12.0),
+                     v(3.0, 4.5, 4.5, 14.0),
+                     v(5.0, 6.5, 6.5, 20.0) ) )
+
+n <- taxa.size()
+
+out = "output/complete.txt"
+
+bd ~ dnBDS(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+           condition="sampling", origin=origin)
+bd.setValue(config)
+rec ~ dnFossilRecord(ranges=bd, reporting="complete")
+rec.clamp(taxa)
+
+# Read off the configuration: six speciation rates, three extinction rates, durations 10, 8, 6,
+# 11, 11 and 15 summing to 61, and the origin dividing one speciation rate back out. Only the
+# three extinct ranges carry the conditioning. abs() is there because ln will not take a Real.
+sampled <- -2 * ln(abs(1.0 - exp(-11.0 * psi))) - ln(abs(1.0 - exp(-15.0 * psi)))
+expected <- 5 * ln(lambda) + 3 * ln(mu) - (lambda + mu + psi) * 61.0 + sampled
+
+print(filename=out, "the density matches its closed form, conditioning included:\n")
+print(filename=out, append=TRUE, abs(bd.lnProbability() - expected) < 1E-8, "\n")
+
+# Nothing collapses, so the origination is the birth time itself, drawn or integrated. Read off
+# the configuration, since getDivergenceTimes says nothing here and is not offered.
+births <- v(10.0, 8.0, 6.0, 12.0, 14.0, 20.0)
+
+drawn <- bd.getOriginationTimes()
+mean_s <- bd.getOriginationTimes(mean=TRUE)
+
+exact <- TRUE
+for (i in 1:n)
+{
+    if ( drawn[i] != births[i] ) { exact <- FALSE }
+    if ( mean_s[i] != births[i] ) { exact <- FALSE }
+}
+
+print(filename=out, append=TRUE, "the origination is the birth time itself:\n")
+print(filename=out, append=TRUE, exact, "\n")
+
+# intervals that share a rate must not move it
+timeline <- v(1.0, 2.0, 3.0, 4.0)
+lv := v(lambda, lambda, lambda, lambda, lambda)
+mv := v(mu, mu, mu, mu, mu)
+pv := v(psi, psi, psi, psi, psi)
+
+bd_s ~ dnBDS(taxa=taxa, lambda=lv, mu=mv, psi=pv, rho=1.0, present=0.0, timeline=timeline,
+             condition="sampling", origin=origin)
+bd_s.setValue(config)
+rec_s ~ dnFossilRecord(ranges=bd_s, reporting="complete")
+rec_s.clamp(taxa)
+
+print(filename=out, append=TRUE, "five intervals of one rate match one interval:\n")
+print(filename=out, append=TRUE, abs(bd_s.lnProbability() - expected) < 1E-8, "\n")
+
+# condition="time" takes the ranges as the complete set, so the per-range conditioning drops
+bd_t ~ dnBDS(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+             condition="time", origin=origin)
+bd_t.setValue(config)
+rec_t ~ dnFossilRecord(ranges=bd_t, reporting="complete")
+rec_t.clamp(taxa)
+
+print(filename=out, append=TRUE, "taking the ranges as complete drops exactly the conditioning:\n")
+print(filename=out, append=TRUE, abs((expected - bd_t.lnProbability()) - sampled) < 1E-8, "\n")
+
+# turning the coexistence terms on adds exactly their counts, whose product is 120
+bd_x ~ dnBDS(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+             condition="sampling", origin=origin, coexistence=TRUE)
+bd_x.setValue(config)
+rec_x ~ dnFossilRecord(ranges=bd_x, reporting="complete")
+rec_x.clamp(taxa)
+
+print(filename=out, append=TRUE, "the coexistence terms add exactly their counts:\n")
+print(filename=out, append=TRUE, abs((bd_x.lnProbability() - expected) - ln(120)) < 1E-8, "\n")
+
+# the reconstructed process integrates over the lineages that left no fossil instead
+bd_r ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+               condition="time", origin=origin)
+bd_r.setValue(config)
+rec_r ~ dnFossilRecord(ranges=bd_r, reporting="complete")
+rec_r.clamp(taxa)
+
+print(filename=out, append=TRUE, "the reconstructed process gives a different density:\n")
+print(filename=out, append=TRUE, abs(bd_r.lnProbability() - expected) > 1E-6, "\n")
+
+# the alias is the same distribution
+bd_a ~ dnIndependentRanges(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+                           condition="sampling", origin=origin)
+bd_a.setValue(config)
+rec_a ~ dnFossilRecord(ranges=bd_a, reporting="complete")
+rec_a.clamp(taxa)
+
+print(filename=out, append=TRUE, "the alias is the same distribution:\n")
+print(filename=out, append=TRUE, abs(bd_a.lnProbability() - expected) < 1E-8, "\n")
+
+q()
