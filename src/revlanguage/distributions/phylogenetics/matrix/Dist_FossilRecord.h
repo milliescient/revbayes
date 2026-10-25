@@ -32,6 +32,7 @@ namespace RevLanguage {
         void                                            setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var);
 
         RevPtr<const RevVariable>                       ranges;
+        RevPtr<const RevVariable>                       bins;   //!< The reporting grid, which is not the rate timeline.
         RevPtr<const RevVariable>                       reporting;
     };
 
