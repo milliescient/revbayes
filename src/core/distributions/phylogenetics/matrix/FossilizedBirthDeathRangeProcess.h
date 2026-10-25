@@ -41,6 +41,7 @@ namespace RevBayesCore {
 										  const std::string &condition,
 										  const std::vector<Taxon> &taxa,
 										  bool complete_record,
+										  bool coexistence,
                                           const TypedDagNode<double>* origin = NULL,
                                             double present = 0.0,
                                           const TypedDagNode<RbVector<double> >* psi_mixture_rates = NULL,
@@ -72,6 +73,11 @@ namespace RevBayesCore {
         void                                            keepSpecialization(const DagNode *toucher) override;
         void                                            restoreSpecialization(const DagNode *toucher) override;
         void                                            touchSpecialization(const DagNode *toucher, bool touchAll) override;
+
+        //!< Weight each birth by how many lineages were alive to produce it, which is the
+        //!< per-capita structure at the event times. Dropping it is exact only where the
+        //!< standing diversity does not vary over the span the birth times move in.
+        bool                                            coexistence;
 
     private:
         

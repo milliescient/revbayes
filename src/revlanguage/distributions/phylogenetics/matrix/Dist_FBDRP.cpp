@@ -37,6 +37,7 @@
 #include "RevVariable.h"
 #include "RlDagMemberFunction.h"
 #include "RlDeterministicNode.h"
+#include "RlBoolean.h"
 #include "RlMatrixReal.h"
 #include "RlStochasticNode.h"
 #include "RlDistribution.h"
@@ -120,20 +121,38 @@ RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_FBDRP::createDistribution( 
 
     // relative fossil sampling rates, one component drawn by each species at birth
     RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> >* mr = NULL;
-    if ( psi_mixture_rates->getRevObject() != RevNullObject::getInstance() )
+    if ( psi_mixture_rates != NULL && psi_mixture_rates->getRevObject() != RevNullObject::getInstance() )
     {
         mr = static_cast<const ModelVector<RealPos> &>( psi_mixture_rates->getRevObject() ).getDagNode();
     }
     RevBayesCore::TypedDagNode<RevBayesCore::Simplex>* mw = NULL;
-    if ( psi_mixture_weights->getRevObject() != RevNullObject::getInstance() )
+    if ( psi_mixture_weights != NULL && psi_mixture_weights->getRevObject() != RevNullObject::getInstance() )
     {
         if ( mr == NULL ) throw RbException("psiMixtureWeights needs psiMixtureRates.");
         mw = static_cast<const Simplex &>( psi_mixture_weights->getRevObject() ).getDagNode();
     }
 
-    RevBayesCore::FossilizedBirthDeathRangeProcess* d = new RevBayesCore::FossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, oa, pres, mr, mw);
+    bool coexist = static_cast<const RlBoolean &>( coexistence->getRevObject() ).getValue();
 
-    return d;
+    return makeProcess(l, m, p, r, rt, cond, t, oa, pres, mr, mw, coexist);
+}
+
+
+/** The reconstructed process, whose ranges share an ancestry. */
+RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_FBDRP::makeProcess(RevBayesCore::DagNode *l,
+                                                                       RevBayesCore::DagNode *m,
+                                                                       RevBayesCore::DagNode *p,
+                                                                       RevBayesCore::TypedDagNode<double> *r,
+                                                                       RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> > *rt,
+                                                                       const std::string &cond,
+                                                                       const std::vector<RevBayesCore::Taxon> &t,
+                                                                       RevBayesCore::TypedDagNode<double> *oa,
+                                                                       double pres,
+                                                                       RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> > *mr,
+                                                                       RevBayesCore::TypedDagNode<RevBayesCore::Simplex> *mw,
+                                                                       bool coexist) const
+{
+    return new RevBayesCore::FossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, coexist, oa, pres, mr, mw);
 }
 
 
@@ -210,6 +229,7 @@ const MemberRules& Dist_FBDRP::getParameterRules(void) const
     if ( !rules_set )
     {
         dist_member_rules.push_back( originRule() );
+        dist_member_rules.push_back( coexistenceRule( true ) );
 
         // add the rules from the base class, without the reporting args
         const MemberRules &parentRules = FossilizedBirthDeathRangeProcess<MatrixReal>::getCoreParameterRules();
@@ -242,7 +262,11 @@ const TypeSpec& Dist_FBDRP::getTypeSpec( void ) const
 /** Set a member variable. */
 void Dist_FBDRP::setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var)
 {
-    if ( name == "psiMixtureRates" )
+    if ( name == "coexistence" )
+    {
+        coexistence = var;
+    }
+    else if ( name == "psiMixtureRates" )
     {
         psi_mixture_rates = var;
     }
