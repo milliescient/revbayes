@@ -23,9 +23,10 @@ CompleteFossilizedBirthDeathRangeProcess::CompleteFossilizedBirthDeathRangeProce
                                                                                          const std::vector<Taxon> &intaxa,
                                                                                          bool complete_record,
                                                                                          bool coexistence,
+                                                                                         bool require_parent,
                                                                                          const TypedDagNode<double> *inorigin,
                                                                                          double inpresent) :
-    FossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, complete_record, coexistence, inorigin, inpresent)
+    FossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, complete_record, coexistence, require_parent, inorigin, inpresent)
 {
 
 }

@@ -47,7 +47,8 @@ namespace RevLanguage {
                                                                             double pres,
                                                                             RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> > *mr,
                                                                             RevBayesCore::TypedDagNode<RevBayesCore::Simplex> *mw,
-                                                                            bool coexist) const override;
+                                                                            bool coexist,
+                                                                            bool need_parent) const override;
     };
 
 }

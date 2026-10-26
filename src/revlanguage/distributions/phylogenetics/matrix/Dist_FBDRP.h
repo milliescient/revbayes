@@ -52,13 +52,15 @@ namespace RevLanguage {
                                                                            double pres,
                                                                            RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> > *mr,
                                                                            RevBayesCore::TypedDagNode<RevBayesCore::Simplex> *mw,
-                                                                           bool coexist) const;
+                                                                           bool coexist,
+                                                                           bool need_parent) const;
 
         void                                                    setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var);     //!< Set member variable
 
     private:
 
         RevPtr<const RevVariable>                               coexistence;                                                            //!< Weight each birth by how many lineages could have produced it?
+        RevPtr<const RevVariable>                               require_parent;                                                         //!< Reject a birth with none alive? Follows coexistence when left out.
 
         RevPtr<const RevVariable>                               psi_mixture_rates;                                                      //!< The relative psi of each mixture component
         RevPtr<const RevVariable>                               psi_mixture_weights;                                                    //!< The mixture weights

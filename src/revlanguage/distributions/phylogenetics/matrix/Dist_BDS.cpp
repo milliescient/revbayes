@@ -81,9 +81,10 @@ RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_BDS::makeProcess(RevBayesCo
                                                                       double pres,
                                                                       RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> > *mr,
                                                                       RevBayesCore::TypedDagNode<RevBayesCore::Simplex> *mw,
-                                                                      bool coexist) const
+                                                                      bool coexist,
+                                                                      bool need_parent) const
 {
-    return new RevBayesCore::CompleteFossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, coexist, oa, pres);
+    return new RevBayesCore::CompleteFossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, coexist, need_parent, oa, pres);
 }
 
 
@@ -100,12 +101,13 @@ const MemberRules& Dist_BDS::getParameterRules(void) const
         for (size_t i = 0; i < parentRules.size(); ++i)
         {
             const std::string &label = parentRules[i].getArgumentLabel();
-            if ( label == "coexistence" || label == "psiMixtureRates" || label == "psiMixtureWeights" ) continue;
+            if ( label == "coexistence" || label == "requireParent" || label == "psiMixtureRates" || label == "psiMixtureWeights" ) continue;
 
             dist_member_rules.push_back( parentRules[i].clone() );
         }
 
         dist_member_rules.push_back( coexistenceRule( false ) );
+        dist_member_rules.push_back( requireParentRule() );
 
         rules_set = true;
     }
