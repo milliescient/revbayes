@@ -54,8 +54,8 @@ for ( c in 1:2 )
 
 bd.setValue( matrix( v( v(death[1], last[1], last[1], origin) ) ) )
 
-split_bd  := ifelse( bd[1][3] > bd[1][2], 1, 0 )
-split_ext := ifelse( ext.getFirstAppearances()[1] > ext.getLastAppearances()[1], 1, 0 )
+split_bd  := 1 - bd.getSingletonStatus()[1]
+split_ext := 1 - ext.getSingletonStatus()[1]
 
 # each chain moves only the singleton status and tau_1
 mymcmc = mcmc(model(bd), [ mnFile(split_bd, filename="output/presence_singleton_bd.log", printgen=10,

@@ -1166,17 +1166,18 @@ void AbstractFossilizedBirthDeathRangeProcess::executeMethod(const std::string &
                         ( n == "getDivergenceTimes"   ? ranges[i].divergence : ranges[i].death ) ) );
         }
     }
-    else if ( n == "getExtantStatus" )
+    else if ( n == "getExtantStatus" || n == "getSingletonStatus" )
     {
         AbstractFossilizedBirthDeathRangeProcess *self = const_cast<AbstractFossilizedBirthDeathRangeProcess *>( this );
         self->updateRanges();
 
-        // one indicator per sample, so it is the posterior mean that gives a taxon's
-        // probability of having survived to the present without being sampled
+        // one indicator per sample, so it is the posterior mean that gives a taxon's probability of
+        // having survived to the present without being sampled, or of tau_1 and tau_K being one age
         rv.clear();
         for (size_t i = 0; i < ranges.size(); i++)
         {
-            rv.push_back( ranges[i].survived ? 1.0 : 0.0 );
+            bool flag = ( n == "getExtantStatus" ? ranges[i].survived : ranges[i].singleton );
+            rv.push_back( flag ? 1.0 : 0.0 );
         }
     }
     else if ( n == "getOriginationTimes" )

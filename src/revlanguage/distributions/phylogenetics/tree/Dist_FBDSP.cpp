@@ -273,6 +273,9 @@ RevLanguage::MethodTable Dist_FBDSP::getDistributionMethods( void ) const
     ArgumentRules* last_app_arg_rules = new ArgumentRules();
     methods.addFunction( new DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> >( "getLastAppearances", variable, last_app_arg_rules, true ) );
 
+    ArgumentRules* singleton_arg_rules = new ArgumentRules();
+    methods.addFunction( new DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> >( "getSingletonStatus", variable, singleton_arg_rules, true ) );
+
     ArgumentRules* origin_arg_rules = new ArgumentRules();
     methods.addFunction( new DistributionMemberFunction<Dist_FBDSP, RealPos >( "getOrigin", variable, origin_arg_rules, true ) );
 

@@ -346,6 +346,9 @@ RevLanguage::MethodTable RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::
     ArgumentRules* extant_arg_rules = new ArgumentRules();
     methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, ModelVector<RealPos> >( "getExtantStatus", this->variable, extant_arg_rules, true ) );
 
+    ArgumentRules* singleton_arg_rules = new ArgumentRules();
+    methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, ModelVector<RealPos> >( "getSingletonStatus", this->variable, singleton_arg_rules, true ) );
+
     ArgumentRules* component_arg_rules = new ArgumentRules();
     methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, ModelVector<RealPos> >( "getPsiMixtureComponents", this->variable, component_arg_rules, true ) );
 
