@@ -219,11 +219,7 @@ void AbstractFossilizedBirthDeathRangeProcess::updateRecord( void )
             max_present_age = std::min(max_present_age, ranges[i].last_max);
         }
 
-        // a bin holding at least one occurrence is not evidence of exactly one, so the
-        // appearances stay apart under the occupancy rule unless the bin is a point
-        ranges[i].singleton = ( count < 2 )
-                              && ( record_reporting != PRESENCE
-                                   || ranges[i].first_min == ranges[i].last_max );
+        ranges[i].singleton = ( count < 2 );
 
         ranges[i].first_max = taxa[i].getMaxAge();
         ranges[i].last_min  = taxa[i].getMinAge();
@@ -232,6 +228,47 @@ void AbstractFossilizedBirthDeathRangeProcess::updateRecord( void )
         ranges[i].last = ranges[i].last_max;
     }
 
+    checkPresenceIntervals();
+}
+
+
+/** The reporting model, which a presence record has to meet. */
+void AbstractFossilizedBirthDeathRangeProcess::setReporting( Reporting r )
+{
+    record_reporting = r;
+    checkPresenceIntervals();
+}
+
+
+/** Presence counts the occurrences inside each interval, so a taxon's intervals may not share any. */
+void AbstractFossilizedBirthDeathRangeProcess::checkPresenceIntervals( void ) const
+{
+    if ( record_reporting != PRESENCE ) return;
+
+    for ( size_t i = 0; i < taxa.size(); i++ )
+    {
+        const auto &ages = taxa[i].getOccurrences();
+
+        for ( auto a = ages.begin(); a != ages.end(); a++ )
+        {
+            for ( auto b = std::next(a); b != ages.end(); b++ )
+            {
+                // a shared edge is adjacency, but an exact age inside an interval is in it
+                double lo = std::max( a->first.getMin(), b->first.getMin() );
+                double hi = std::min( a->first.getMax(), b->first.getMax() );
+                bool inside = ( a->first.getMin() < lo && lo < a->first.getMax() ) || ( b->first.getMin() < lo && lo < b->first.getMax() );
+
+                if ( lo < hi || ( lo == hi && inside ) )
+                {
+                    std::ostringstream ss;
+                    ss << "reporting=\"presence\" needs disjoint intervals, and " << taxa[i].getName()
+                       << " reports [" << a->first.getMin() << "," << a->first.getMax() << "] and ["
+                       << b->first.getMin() << "," << b->first.getMax() << "]";
+                    throw RbException( ss.str() );
+                }
+            }
+        }
+    }
 }
 
 
@@ -712,8 +749,8 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i
 }
 
 
-/** Integral of the fossil sampling rate over [lo, hi), which the rate timeline makes piecewise. */
-double AbstractFossilizedBirthDeathRangeProcess::lnPresenceExposure( double lo, double hi ) const
+/** The sampling rate integrated over [lo, hi), which the rate timeline makes piecewise. */
+double AbstractFossilizedBirthDeathRangeProcess::samplingExposure( double lo, double hi ) const
 {
     double total = 0.0;
 
@@ -730,49 +767,98 @@ double AbstractFossilizedBirthDeathRangeProcess::lnPresenceExposure( double lo, 
 }
 
 
+namespace {
+
+    /** log of the sum over k >= m of x^k / k!, which is e^x when m <= 0. */
+    double lnPoissonTail( double x, long m )
+    {
+        if ( m <= 0 ) return x;
+        if ( x <= 0.0 ) return RbConstants::Double::neginf;
+
+        // above the count the tail is most of e^x, so subtract the head instead
+        if ( x > m )
+        {
+            double head = 0.0, f = exp(-x);
+            for ( long k = 0; k < m; k++ )
+            {
+                head += f;
+                f *= x / double(k + 1);
+            }
+            return x + log1p( -head );
+        }
+
+        double sum = 1.0, ratio = 1.0;
+        for ( long k = m + 1; ratio >= 1e-16 * sum; k++ )
+        {
+            ratio *= x / double(k);
+            sum += ratio;
+        }
+
+        return m * log(x) - RbMath::lnFactorial( int(m) ) + log(sum);
+    }
+}
+
+
 /**
- * Occupancy log-term for taxon i.
- *
- * The record says only which bins hold at least one occurrence, and occurrences in disjoint bins
- * are independent Poisson counts, so each bin between the extremes is one Bernoulli trial. The
- * extremes themselves are tau_1 and tau_K, which the range process places and the matrix moves
- * sample inside their own bins, so nothing here integrates over an age. The parts of the extreme
- * bins beyond tau_1 and tau_K hold an unobserved count, and marginalizing a Poisson count over
- * every value gives one, so they contribute nothing.
+ * Presence log-term for taxon i, relative to a process that already charges every stretch of the
+ * range for holding no occurrence. A reported interval holds at least its reported count, so it
+ * refunds the Poisson tail over its exposure inside [tau_K, tau_1], and an exactly dated occurrence
+ * is a density, as under the complete rule. tau_1 and tau_K are occurrences, each taken from an
+ * interval holding it, and a singleton is one occurrence that is both.
  */
 double AbstractFossilizedBirthDeathRangeProcess::lnPresenceRecord( size_t i ) const
 {
+    bool single = ranges[i].singleton;
     double o = ranges[i].first;
-    double y = ranges[i].last;
+    double y = single ? o : ranges[i].last;
 
     if ( !( o >= y && y >= ranges[i].death ) ) return RbConstants::Double::neginf;
-    if ( o > ranges[i].first_max || o < ranges[i].first_min ) return RbConstants::Double::neginf;
-    if ( y < ranges[i].last_min || y > ranges[i].last_max ) return RbConstants::Double::neginf;
 
-    // the oldest and youngest occurrences, whose bins bound the interior
-    double result = log( fossil[findIndex(o)] ) + log( fossil[findIndex(y)] );
+    std::vector<double> exposure;
+    std::vector<long>   need;
+    std::vector<bool>   exact, holds_first, holds_last;
 
-    const std::map<TimeInterval, size_t> &ages = taxa[i].getOccurrences();
-
-    for ( size_t b = 0; b + 1 < record_bins.size(); b++ )
+    for ( const auto &F : taxa[i].getOccurrences() )
     {
-        double lo = record_bins[b];
-        double hi = record_bins[b+1];
+        double lo = std::max( F.first.getMin(), y );
+        double hi = std::min( F.first.getMax(), o );
+        bool point = ( F.first.getMin() == F.first.getMax() );
 
-        // strictly between the extreme bins, so wholly inside (tau_K, tau_1) and never clipped
-        if ( lo < ranges[i].last_max || hi > ranges[i].first_min ) continue;
+        if ( point && lo > hi ) return RbConstants::Double::neginf;
 
-        bool occupied = false;
-        double mid = 0.5 * ( lo + hi );
-        for ( std::map<TimeInterval, size_t>::const_iterator Fi = ages.begin(); Fi != ages.end(); Fi++ )
-        {
-            if ( Fi->first.getMin() <= mid && Fi->first.getMax() >= mid ) occupied = true;
-        }
-
-        double Lambda = lnPresenceExposure( lo, hi );
-
-        result += occupied ? log( 1.0 - exp(-Lambda) ) : -Lambda;
+        exposure.push_back( point ? fossil[findIndex(lo)] : ( hi > lo ? samplingExposure(lo, hi) : 0.0 ) );
+        need.push_back( long(F.second) );
+        exact.push_back( point );
+        holds_first.push_back( F.first.getMin() <= o && o <= F.first.getMax() );
+        holds_last.push_back( F.first.getMin() <= y && y <= F.first.getMax() );
     }
+
+    size_t n = need.size();
+    std::vector<double> terms;
+
+    for ( size_t a = 0; a < n; a++ )
+    {
+        if ( holds_first[a] == false ) continue;
+
+        for ( size_t b = 0; b < n; b++ )
+        {
+            if ( single == true ? b != a : holds_last[b] == false ) continue;
+
+            double term = 0.0;
+            for ( size_t j = 0; j < n; j++ )
+            {
+                long m = need[j] - ( j == a ) - ( single == false && j == b );
+                if ( exact[j] == false ) term += lnPoissonTail( exposure[j], m );
+                else if ( m > 0 )        term += m * log( exposure[j] ) - RbMath::lnFactorial( int(m) );
+            }
+            if ( RbMath::isFinite(term) ) terms.push_back( term );
+        }
+    }
+
+    if ( terms.empty() ) return RbConstants::Double::neginf;
+
+    double result = log( fossil[findIndex(o)] ) + RbMath::log_sum_exp( terms );
+    if ( single == false ) result += log( fossil[findIndex(y)] );
 
     return result;
 }
@@ -1156,6 +1242,27 @@ void AbstractFossilizedBirthDeathRangeProcess::warnIfNoSurvivalMove( void ) cons
         {
             warned_no_survival = true;
             RBOUT("Warning: rho < 1 and no mvExtinctionRJSwitch move. Survival will not be sampled.");
+            return;
+        }
+    }
+}
+
+
+/** Under presence one reported occurrence may stand for more, which only a move over singleton status samples; warn once. */
+void AbstractFossilizedBirthDeathRangeProcess::warnIfNoSingletonMove( void ) const
+{
+    if ( has_singleton_move == true || warned_no_singleton == true ) return;
+    if ( record_reporting != PRESENCE ) return;
+
+    for ( size_t i = 0; i < taxa.size(); i++ )
+    {
+        const auto &ages = taxa[i].getOccurrences();
+
+        // an exact age leaves nothing to separate
+        if ( ranges[i].singleton == true && ages.empty() == false && ages.begin()->first.getMin() != ages.begin()->first.getMax() )
+        {
+            warned_no_singleton = true;
+            RBOUT("Warning: no move samples singleton status. One-occurrence ranges stay single ages.");
             return;
         }
     }

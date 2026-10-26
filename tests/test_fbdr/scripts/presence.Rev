@@ -1,45 +1,66 @@
-# reporting="presence". The record says only which bins hold at least one occurrence, so each bin
-# between the extremes is one Bernoulli trial and the extremes keep their instantaneous rate:
+# reporting="presence". Each reported interval holds at least its reported count. The range process
+# already charges every stretch of the range for holding no occurrence, so each interval refunds the
+# Poisson tail over its exposure inside [tau_K, tau_1]:
 #
-#   log(psi) + log(psi) + sum over interior bins of  log(1 - e^-Lambda)  occupied
-#                                                    -Lambda             empty
+#   log(psi) + log(psi) + sum over intervals of  log( sum_{k >= need} Lambda^k / k! )
 #
-# One taxon, bins of width 1, occurrences in [1,2], [3,4] and [5,6]. tau_1 lies in the oldest
-# occupied bin and tau_K in the youngest, so the interior bins are [2,3], [3,4] and [4,5], of
-# which only [3,4] is occupied. The parts of the extreme bins beyond tau_1 and tau_K hold an
-# unobserved count, and marginalizing a Poisson count over every value gives one.
-# Every line printed must be TRUE.
+# where need is the reported count less the extremes the interval supplies, and the tail is
+# e^Lambda when nothing more is needed. Every line printed must be TRUE.
 taxa <- readTaxonData("data/fbdr_presence.tsv")
 
 lambda <- 0.4
 mu     <- 0.1
 psi    <- 0.5
 origin <- 20.0
-bins   <- v(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
+out = "output/presence.txt"
+
+# One taxon with occurrences in [1,2], [3,4] and [5,6]; tau_1 = 5.5 and tau_K = 1.5. Inside the range
+# [5,6] exposes [5,5.5] and supplies tau_1, [1,2] exposes [1.5,2] and supplies tau_K, and [3,4]
+# still needs its one occurrence.
 bd ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
              condition="time", origin=origin)
 # columns are death, youngest, oldest, divergence
 bd.setValue( matrix( v( v(0.5, 1.5, 5.5, 12.0) ) ) )
-
-rec ~ dnFossilRecord(ranges=bd, reporting="presence", bins=bins)
+rec ~ dnFossilRecord(ranges=bd, reporting="presence")
 rec.clamp(taxa)
 
-expected <- 2 * ln(psi) + ln(abs(1 - exp(-psi))) - 2 * psi
+# lnFactorial is RevBayes' Stirling series, which is 5e-4 off at 1!, as in every other density
+expected <- 2 * ln(psi) + 0.5 * psi + ln(exp(psi) - 1) + 0.5 * psi
+print(filename=out, "the presence term matches its closed form:\n")
+print(filename=out, append=TRUE, abs(rec.lnProbability() - expected) < 1E-3, "\n")
 
-out = "output/presence.txt"
-print(filename=out, "the occupancy term matches its closed form:\n")
-print(filename=out, append=TRUE, abs(rec.lnProbability() - expected) < 1E-8, "\n")
-
-# a grid whose bins all sit outside the extremes leaves only the two instantaneous rates
-coarse <- v(0, 10)
+# Moving tau_1 up or tau_K down widens what the extreme intervals refund, by psi per unit, as an
+# occurrence-free stretch outside the range becomes a stretch that may hold more.
 bd2 ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
               condition="time", origin=origin)
-bd2.setValue( matrix( v( v(0.5, 1.5, 5.5, 12.0) ) ) )
-rec2 ~ dnFossilRecord(ranges=bd2, reporting="presence", bins=coarse)
+bd2.setValue( matrix( v( v(0.5, 1.2, 5.8, 12.0) ) ) )
+rec2 ~ dnFossilRecord(ranges=bd2, reporting="presence")
 rec2.clamp(taxa)
 
-print(filename=out, append=TRUE, "one bin spanning the record leaves only the extremes:\n")
-print(filename=out, append=TRUE, abs(rec2.lnProbability() - 2 * ln(psi)) < 1E-8, "\n")
+print(filename=out, append=TRUE, "the extremes refund psi per unit they move outward:\n")
+print(filename=out, append=TRUE, abs(rec2.lnProbability() - rec.lnProbability() - psi * 0.6) < 1E-8, "\n")
+
+# A single occurrence is one age, tau_1 = tau_K, with nothing left to refund: log(psi).
+single <- readTaxonData("data/fbdr_presence_single.tsv")
+bd3 ~ dnFBDRP(taxa=single, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+              condition="time", origin=origin)
+bd3.setValue( matrix( v( v(0.5, 3.5, 3.5, 12.0) ) ) )
+rec3 ~ dnFossilRecord(ranges=bd3, reporting="presence")
+rec3.clamp(single)
+
+print(filename=out, append=TRUE, "a single occurrence is log(psi) at its age:\n")
+print(filename=out, append=TRUE, abs(rec3.lnProbability() - ln(psi)) < 1E-8, "\n")
+
+# An exactly dated occurrence is a density, log(psi) at its age, in place of the [3,4] tail.
+exact <- readTaxonData("data/fbdr_presence_exact.tsv")
+bd4 ~ dnFBDRP(taxa=exact, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+              condition="time", origin=origin)
+bd4.setValue( matrix( v( v(0.5, 1.5, 5.5, 12.0) ) ) )
+rec4 ~ dnFossilRecord(ranges=bd4, reporting="presence")
+rec4.clamp(exact)
+
+print(filename=out, append=TRUE, "an exactly dated occurrence is log(psi) at its age:\n")
+print(filename=out, append=TRUE, abs(rec4.lnProbability() - 3 * ln(psi) - psi) < 1E-3, "\n")
 
 q()

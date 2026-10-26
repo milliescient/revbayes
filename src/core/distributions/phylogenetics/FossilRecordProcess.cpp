@@ -30,14 +30,11 @@ AbstractFossilizedBirthDeathRangeProcess* FossilRecordProcess::rangesOf(const Da
 
 
 /** The value is the range process's taxa, which carry the occurrences. */
-FossilRecordProcess::FossilRecordProcess(const DagNode *rn,
-                                         AbstractFossilizedBirthDeathRangeProcess::Reporting rule,
-                                         const std::vector<double> &grid) :
+FossilRecordProcess::FossilRecordProcess(const DagNode *rn, AbstractFossilizedBirthDeathRangeProcess::Reporting rule) :
     TypedDistribution< RbVector<Taxon> >( new RbVector<Taxon>() ),
     ranges_node( rn ),
     ranges( rangesOf( rn ) ),
     reporting( rule ),
-    bins( grid ),
     taxa()
 {
     if ( ranges == NULL )
@@ -58,7 +55,6 @@ FossilRecordProcess::FossilRecordProcess(const DagNode *rn,
     *this->value = RbVector<Taxon>( taxa );
 
     ranges->setReporting( reporting );
-    ranges->setReportingBins( bins );
     ranges->setHasReportingNode();
 }
 

@@ -491,6 +491,7 @@ void FossilizedBirthDeathSpeciationProcess::setMcmcMode(bool tf)
     if ( tf == true ) warnIfNoReportingNode();
     if ( tf == true ) warnIfInertNTaxaCondition();
     if ( tf == true ) warnIfNoSurvivalMove();
+    if ( tf == true ) warnIfNoSingletonMove();
 }
 
 

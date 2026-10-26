@@ -90,6 +90,7 @@ namespace RevBayesCore {
         void                                            setHasResampleMove(void) { has_resample_move = true; }       //!< Registered by mvStratigraphicRange.
         void                                            setHasReportingNode(void) { has_reporting_node = true; }     //!< Registered by dnFossilRecord.
         void                                            setHasSurvivalMove(void) { has_survival_move = true; }       //!< Registered by mvExtinctionRJSwitch.
+        void                                            setHasSingletonMove(void) { has_singleton_move = true; }     //!< Registered by a move over singleton status.
 
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const;   //!< Expose the appearances and the origination/extinction times.
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, double &rv) const;              //!< Expose the origin.
@@ -103,14 +104,12 @@ namespace RevBayesCore {
         void                                            warnIfNoReportingNode(void) const;                          //!< Warn once when psi has no data.
         void                                            warnIfInertNTaxaCondition(void) const;                      //!< Warn once when rho leaves nTaxa conditioning inert.
         void                                            warnIfNoSurvivalMove(void) const;                           //!< Warn once when rho < 1 and no move samples survival.
+        void                                            warnIfNoSingletonMove(void) const;                          //!< Warn once when a presence record has one occurrence and no move samples singleton status.
         void                                            initializeFirstLast(size_t i);                              //!< Draw taxon i's appearances, nested within the range and its reported bins.
         void                                            drawRanges();                                               //!< Draw an initial range and appearances for every taxon.
         double                                          computeLnFossilTotal();                                     //!< Total fossil-record log-density, for a dnFossilRecord node.
-        //!< Which occurrences the record reports, pushed here by dnFossilRecord. Under PRESENCE
-        //!< an occurrence stands for a bin holding at least one, so its count is a lower bound.
-        enum Reporting { COMPLETE, FIRSTLAST, PRESENCE };
-        void                                            setReporting(Reporting r) { record_reporting = r; }
-        void                                            setReportingBins(const std::vector<double> &b) { record_bins = b; }
+        enum Reporting { COMPLETE, FIRSTLAST, PRESENCE };                                                           //!< Which occurrences the record reports.
+        void                                            setReporting(Reporting r);                                  //!< The reporting model, pushed here by dnFossilRecord.
 
         virtual void                                    setOccurrences(const std::vector<Taxon> &t);                //!< Adopt a clamped record's occurrences as the data.
         const std::vector<const DagNode*>&              getRangeParameters(void) const { return range_parameters; } //!< The rate and timeline nodes a dnFossilRecord adopts as parents.
@@ -157,9 +156,9 @@ namespace RevBayesCore {
         std::vector<Taxon>                              taxa;                                                  //!< Taxa that will be attached to new simulated trees.
         std::string                                     condition;
         Reporting                                       record_reporting;                                       //!< Which occurrences the record reports.
-        std::vector<double>                             record_bins;                                            //!< Reporting grid edges, ascending. PRESENCE only.
-        double                                          lnPresenceRecord(size_t i) const;                       //!< Bernoulli per bin, for the occupancy rule.
-        double                                          lnPresenceExposure(double lo, double hi) const;         //!< Integrated sampling rate over a bin.
+        double                                          lnPresenceRecord(size_t i) const;                       //!< Each reported interval holds at least its count.
+        double                                          samplingExposure(double lo, double hi) const;           //!< The sampling rate integrated over [lo, hi).
+        void                                            checkPresenceIntervals(void) const;                     //!< Under PRESENCE, refuse a taxon whose intervals overlap.
         double                                          max_present_age;                                        //!< Youngest occurrence maximum; the timeline may not start above it.
 
         void                                            updateRecord(void);                                     //!< Refresh the reported bins and the bounds they put on the appearances.
@@ -217,10 +216,12 @@ namespace RevBayesCore {
         bool                                            has_resample_move = false;                              //!< Set by mvStratigraphicRange when it attaches.
         bool                                            has_reporting_node = false;                             //!< Set by dnFossilRecord when it attaches.
         bool                                            has_survival_move = false;                              //!< Set by mvExtinctionRJSwitch when it attaches.
+        bool                                            has_singleton_move = false;                             //!< Set by a move over singleton status when it attaches.
         mutable bool                                    warned_no_resample = false;
         mutable bool                                    warned_no_reporting = false;
         mutable bool                                    warned_inert_ntaxa = false;
         mutable bool                                    warned_no_survival = false;
+        mutable bool                                    warned_no_singleton = false;
         bool                                            resampled;                                              //!< The appearance undo is armed.
         double                                          present_time = 0.0;                                     //!< The present, where the timeline starts.
     };

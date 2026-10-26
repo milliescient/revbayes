@@ -1,4 +1,8 @@
-the occupancy term matches its closed form:
+the presence term matches its closed form:
 TRUE	
-one bin spanning the record leaves only the extremes:
+the extremes refund psi per unit they move outward:
+TRUE	
+a single occurrence is log(psi) at its age:
+TRUE	
+an exactly dated occurrence is log(psi) at its age:
 TRUE	

@@ -915,7 +915,7 @@ x.probability())");
 	help_strings[string("dnFossilRecord")][string("description")] = string(R"(The fossil record of a set of species, conditioned on a fossilized birth-death range process: the probability of the observed fossil occurrences given the species ranges that produced them.)");
 	help_strings[string("dnFossilRecord")][string("details")] = string(R"(This is the observation half of the fossilized birth-death range model. The range process (`dnFBDRP` or `dnFBDSP`) describes how species ranges diversify; this distribution gives the probability of the fossil record itself.
 
-The `reporting` argument selects how sampled specimens make it into the reported record: `reporting="complete"` (every sampled occurrence is reported) or `reporting="firstlast"` (the oldest and youngest occurrence of each species are reported, and the count in between is unknown).
+The `reporting` argument selects how sampled specimens make it into the reported record: `reporting="complete"` (every sampled occurrence is reported), `reporting="firstlast"` (the oldest and youngest occurrence of each species are reported, and the count in between is unknown) or `reporting="presence"` (each reported interval holds at least its reported count, so a count is a lower bound and a species' intervals must not overlap).
 
 The occurrences, the fossil sampling rate and its timeline are read from the range process rather than given as arguments here.)");
 	help_strings[string("dnFossilRecord")][string("example")] = string(R"(lambda ~ dnExp(10)

@@ -1,9 +1,9 @@
 #ifndef FossilRecordProcess_H
 #define FossilRecordProcess_H
 
+#include "AbstractFossilizedBirthDeathRangeProcess.h"
 #include "TypedDistribution.h"
 #include "RbVector.h"
-#include "AbstractFossilizedBirthDeathRangeProcess.h"
 #include "Taxon.h"
 
 namespace RevBayesCore {
@@ -19,9 +19,7 @@ namespace RevBayesCore {
     class FossilRecordProcess : public TypedDistribution< RbVector<Taxon> > {
 
     public:
-        FossilRecordProcess(const DagNode *ranges,
-                            AbstractFossilizedBirthDeathRangeProcess::Reporting reporting,
-                            const std::vector<double> &bins = std::vector<double>());
+        FossilRecordProcess(const DagNode *ranges, AbstractFossilizedBirthDeathRangeProcess::Reporting reporting);
         virtual ~FossilRecordProcess() {}
 
         FossilRecordProcess*        clone(void) const override;
@@ -39,7 +37,6 @@ namespace RevBayesCore {
         const DagNode*                                   ranges_node;
         AbstractFossilizedBirthDeathRangeProcess*        ranges;
         AbstractFossilizedBirthDeathRangeProcess::Reporting reporting;
-        std::vector<double>                              bins;          // the reporting grid, occupancy only
         std::vector<Taxon>                               taxa;
     };
 }
