@@ -1,0 +1,64 @@
+# The singleton and survival statuses are in neither value, so a checkpoint carries them as booleans.
+# A chain checkpointed with both taxa split (tau_1 > tau_K), the dnFBDRP one surviving and the dnFBDSP
+# one extinct above the present, must resume at the posterior it stopped at. A lost status would collapse
+# tau_1 or move the death, and a tree read back from its Newick would put its tip at the present. Every
+# line printed must be TRUE.
+seed(3)
+
+taxa <- readTaxonData("data/fbdr_presence_single.tsv")
+
+lambda <- 0.4
+mu     <- 0.1
+psi    <- 0.5
+origin <- 20.0
+
+out = "output/checkpoint_status.txt"
+
+bd ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=0.5, present=0.0,
+             condition="time", origin=origin)
+rec ~ dnFossilRecord(ranges=bd, reporting="presence")
+rec.clamp(taxa)
+
+ext ~ dnFBDSP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=0.5, present=0.0,
+              condition="time", origin=origin, extended=TRUE)
+rec_ext ~ dnFossilRecord(ranges=ext, reporting="presence")
+rec_ext.clamp(taxa)
+
+split_bd  := ifelse( bd[1][3] > bd[1][2], 1, 0 )
+alive_bd  := ifelse( bd[1][1] == 0.0, 1, 0 )
+split_ext := ifelse( ext.getFirstAppearances()[1] > ext.getLastAppearances()[1], 1, 0 )
+alive_ext := ifelse( ext.getExtinctionTimes()[1] == 0.0, 1, 0 )
+
+# a resumed run logs after its first move, so the resumed chain all but only moves z, which adds ln(1)
+# to the posterior
+z ~ dnUniform(0, 1)
+
+w = 1.0
+moves = [ mvSlide(z, weight=1),
+          mvSingletonRJSwitch(bd, weight=w), mvExtinctionRJSwitch(bd, weight=w), mvMatrixElementSlide(bd, weight=w),
+          mvSingletonRJSwitch(ext, weight=w), mvExtinctionRJSwitch(ext, weight=w), mvStratigraphicRange(ext, weight=w) ]
+
+# generation 719 of this seed is the first in that state
+a = mcmc(model(bd, z), [ mnFile(split_bd, alive_bd, split_ext, alive_ext, filename="output/checkpoint_status_a.log", printgen=1) ], moves)
+a.run(generations=719, checkpointFile="output/checkpoint_status.state", checkpointInterval=719)
+stopped = readTrace("output/checkpoint_status_a.log", burnin=0)
+
+w = 1E-9
+moves = [ mvSlide(z, weight=1),
+          mvSingletonRJSwitch(bd, weight=w), mvExtinctionRJSwitch(bd, weight=w), mvMatrixElementSlide(bd, weight=w),
+          mvSingletonRJSwitch(ext, weight=w), mvExtinctionRJSwitch(ext, weight=w), mvStratigraphicRange(ext, weight=w) ]
+b = mcmc(model(bd, z), [ mnFile(split_bd, alive_bd, split_ext, alive_ext, filename="output/checkpoint_status_b.log", printgen=1) ], moves)
+b.initializeFromCheckpoint("output/checkpoint_status.state")
+b.run(generations=20)
+resumed = readTrace("output/checkpoint_status_b.log", burnin=0)
+
+# columns are the iteration, posterior, likelihood, prior, then alive_bd, alive_ext, split_bd, split_ext
+last = stopped[2].getValues().size()
+print(filename=out, "the checkpoint holds both taxa split, one surviving:\n")
+print(filename=out, append=TRUE, stopped[5].getValues()[last] == 1 && stopped[6].getValues()[last] == 0 && stopped[7].getValues()[last] + stopped[8].getValues()[last] == 2, "\n")
+print(filename=out, append=TRUE, "the chain resumes at the posterior it stopped at:\n")
+print(filename=out, append=TRUE, resumed[2].getValues()[1] == stopped[2].getValues()[last], "\n")
+print(filename=out, append=TRUE, "and with the same statuses:\n")
+print(filename=out, append=TRUE, resumed[5].getValues()[1] == 1 && resumed[6].getValues()[1] == 0 && resumed[7].getValues()[1] + resumed[8].getValues()[1] == 2, "\n")
+
+q()

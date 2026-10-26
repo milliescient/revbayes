@@ -131,9 +131,46 @@ void FossilizedBirthDeathRangeProcess::setValue(MatrixReal *v, bool force)
         (*this->value)[i][2] = ranges[i].first;
     }
 
+    // a node already touched keeps its cache, which no longer matches
+    dirty_taxa  = std::vector<bool>(taxa.size(), true);
+    dirty_gamma = std::vector<bool>(taxa.size(), true);
+
     repairRanges();
 
     updateRanges();
+}
+
+
+std::string FossilizedBirthDeathRangeProcess::getHiddenStateString( void ) const
+{
+    json j;
+    j["ranges"]    = this->value->toJSON();
+    j["singleton"] = json::array();
+    j["survived"]  = json::array();
+
+    for (size_t i = 0; i < taxa.size(); ++i)
+    {
+        j["singleton"].push_back( ranges[i].singleton );
+        j["survived"].push_back( ranges[i].survived );
+    }
+
+    return j.dump();
+}
+
+
+void FossilizedBirthDeathRangeProcess::setHiddenStateFromString( const std::string &s )
+{
+    json j = json::parse( s );
+
+    MatrixReal *m = this->value->clone();
+    m->initFromString( j["ranges"].dump() );
+
+    // the singleton status ties the appearances when the value is set
+    for (size_t i = 0; i < taxa.size(); ++i) ranges[i].singleton = j["singleton"][i].get<bool>();
+
+    setValue( m );
+
+    for (size_t i = 0; i < taxa.size(); ++i) ranges[i].survived = j["survived"][i].get<bool>();
 }
 
 

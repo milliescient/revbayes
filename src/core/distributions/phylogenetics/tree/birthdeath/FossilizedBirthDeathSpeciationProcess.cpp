@@ -28,6 +28,7 @@
 #include "TimeInterval.h"
 #include "TopologyNode.h"
 #include "Tree.h"
+#include "TreeUtilities.h"
 #include "TypedDagNode.h"
 
 namespace RevBayesCore { class DagNode; }
@@ -371,7 +372,15 @@ std::string FossilizedBirthDeathSpeciationProcess::getHiddenStateString( void ) 
 
         tip.setNodeParameter( "FAD", first.str() );
         tip.setNodeParameter( "LAD", last.str() );
+        tip.setNodeParameter( "singleton", ranges[i].singleton ? "1" : "0" );
+        tip.setNodeParameter( "survived", ranges[i].survived ? "1" : "0" );
     }
+
+    // a Newick puts the youngest tip at zero
+    std::stringstream age;
+    age.precision( 17 );
+    age << t.getRoot().getAge();
+    t.getRoot().setNodeParameter( "age", age.str() );
 
     return t.getNewickRepresentation( false );
 }
@@ -382,6 +391,9 @@ void FossilizedBirthDeathSpeciationProcess::setHiddenStateFromString( const std:
     // read back as a time tree
     Tree *t = this->value->clone();
     t->initFromString( s );
+
+    std::optional<std::string> age = t->getRoot().eraseNodeParameter( "age" );
+    if ( age.has_value() == true ) TreeUtilities::offsetTree( t->getRoot(), atof( age->c_str() ) - t->getRoot().getAge() );
 
     setValue( t );
 }
@@ -467,6 +479,12 @@ bool FossilizedBirthDeathSpeciationProcess::adoptAppearances( void )
             ranges[i].last = atof( l->c_str() );
             annotated = true;
         }
+
+        std::optional<std::string> single   = tip.eraseNodeParameter( "singleton" );
+        std::optional<std::string> survived = tip.eraseNodeParameter( "survived" );
+
+        if ( single.has_value() == true )   ranges[i].singleton = ( *single == "1" );
+        if ( survived.has_value() == true ) ranges[i].survived  = ( *survived == "1" );
 
         if ( annotated == true ) dirty_taxa[i] = true;
     }

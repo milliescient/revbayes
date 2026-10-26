@@ -50,6 +50,8 @@ namespace RevBayesCore {
         FossilizedBirthDeathRangeProcess*               clone(void) const override;                                         //!< Create an independent clone
 
         void                                            setValue(MatrixReal *v, bool force = false) override;
+        std::string                                     getHiddenStateString(void) const override;                          //!< The matrix with the singleton and survival statuses it does not carry.
+        void                                            setHiddenStateFromString(const std::string &s) override;
 
     protected:
         void                                            updateRanges() override;

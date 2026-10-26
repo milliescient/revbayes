@@ -65,7 +65,7 @@ namespace RevBayesCore {
 
         void                                            setValue(Tree *v, bool force=false) override;                       //!< Adopt a tree's annotations, or draw the state it does not carry.
 
-        std::string                                     getHiddenStateString(void) const override;                          //!< The tree annotated with the range labels and appearances a Newick drops.
+        std::string                                     getHiddenStateString(void) const override;                          //!< The tree annotated with the range labels, appearances and statuses a Newick drops.
         void                                            setHiddenStateFromString(const std::string &s) override;
         void                                            redrawValue(void) override;
         void                                            redrawValue(SimulationCondition c) override;                        //!< Redraw without reaching the inherited simulator

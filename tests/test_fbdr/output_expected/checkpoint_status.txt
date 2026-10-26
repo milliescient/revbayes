@@ -1,0 +1,6 @@
+the checkpoint holds both taxa split, one surviving:
+TRUE	
+the chain resumes at the posterior it stopped at:
+TRUE	
+and with the same statuses:
+TRUE	
