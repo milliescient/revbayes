@@ -137,9 +137,6 @@ namespace RevBayesCore {
         virtual void                                    repairRanges(void) {}                                       //!< Re-establish the invariants this process's own moves can break.
         virtual void                                    updateRanges() = 0;                                         //!< Pull the ranges from the value.
 
-        //!< Could range j have parented range i? Every candidate is equally likely where the
-        //!< topology is marginalized, and there is exactly one where it is sampled.
-
         virtual double                                  computeLnProbabilityRanges(bool force = false);
         double                                          computeLnFossilRecord(size_t i) const;                      //!< Fossil-record log-term for taxon i.
         double                                          computeLnFossilRecord(size_t i, double mixture_rate) const; //!< The same, with psi scaled by a mixture rate.

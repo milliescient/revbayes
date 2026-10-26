@@ -60,8 +60,6 @@ namespace RevBayesCore {
     protected:
         void                                            updateRanges() override;
 
-        //!< Range j could have parented range i if i's divergence falls inside j's own range.
-
         // Parameter management functions
         double                                          computeLnProbability(void) override;                                //!< Compute the log-transformed probability of the current value.
 

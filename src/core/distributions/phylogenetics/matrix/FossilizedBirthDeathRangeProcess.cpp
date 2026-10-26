@@ -448,18 +448,3 @@ void FossilizedBirthDeathRangeProcess::swapParameterInternal(const DagNode *oldP
 {
     AbstractFossilizedBirthDeathRangeProcess::swapParameterInternal(oldP, newP);
 }
-
-/**
- * Row i gives the probability that each range parented range i, and its diagonal entry the
- * probability that its parent was a species the record never sampled, which is what is left
- * when the origination does not sit at the divergence. Rows sum to one.
- *
- * Where the topology is marginalized, the density does not depend on which coexisting range
- * budded the daughter, so given the state every candidate is equally likely and the sampled
- * share divides evenly among them. Where the topology is sampled there is one candidate, so
- * the share lands on it. A range with no candidate at all is the origin, which has no parent,
- * and its whole row sits on the diagonal.
- *
- * A single row carries little, being flat across a set. The ancestry appears only in the
- * posterior average, as the divergences move and the candidate sets change with them.
- */
