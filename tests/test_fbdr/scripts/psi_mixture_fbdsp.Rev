@@ -1,0 +1,71 @@
+# psiMixtureRates on dnFBDSP. With all weight on one of two equal components every species starts and
+# stays in it, so the tree, the record and the morphospeciation densities are the plain process
+# exactly, on a drawn tree and on one whose sampled ancestors give anagenetic species, which start in
+# their ancestor's component. A checkpoint carries each species' component. Every line printed must be TRUE.
+taxa <- readTaxonData("data/fbdsp_condition.tsv")
+data <- readDiscreteCharacterData("data/morpho_missing.nex")
+sa_tree <- readTrees("data/fbdsp_sampled_ancestors.tre", treetype="clock")[1]
+
+out = "output/psi_mixture_fbdsp.txt"
+print(filename=out, "psiMixtureRates on dnFBDSP\n")
+
+for (tree in v("drawn", "sampled ancestors")) {
+    for (cond in v("time", "sampling")) {
+        seed(3)
+        plain ~ dnFBDSP(taxa=taxa, lambda=v(0.4, 0.6), mu=v(0.1, 0.2), psi=v(0.5, 0.3), lambda_a=v(0.9, 0.7),
+                        timeline=v(2.0), rho=1.0, origin=20.0, condition=cond)
+        seed(3)
+        mix ~ dnFBDSP(taxa=taxa, lambda=v(0.4, 0.6), mu=v(0.1, 0.2), psi=v(0.5, 0.3), lambda_a=v(0.9, 0.7),
+                      timeline=v(2.0), rho=1.0, origin=20.0, condition=cond,
+                      psiMixtureRates=v(1, 1), psiMixtureWeights=simplex(1, 0))
+        if (tree == "sampled ancestors") {
+            plain.setValue(sa_tree)
+            mix.setValue(sa_tree)
+        }
+        rec_plain ~ dnFossilRecord(ranges=plain, reporting="complete")
+        rec_plain.clamp(taxa)
+        rec_mix ~ dnFossilRecord(ranges=mix, reporting="complete")
+        rec_mix.clamp(taxa)
+        morph_plain ~ dnPhyloMorphospeciation(tree=plain, nStates=v(2, 3, 2, 4), epsilon=0.3)
+        morph_plain.clamp(data)
+        morph_mix ~ dnPhyloMorphospeciation(tree=mix, nStates=v(2, 3, 2, 4), epsilon=0.3)
+        morph_mix.clamp(data)
+
+        print(filename=out, append=TRUE, tree + ", " + cond + ": the same tree, and the plain densities:\n")
+        print(filename=out, append=TRUE, plain == mix && (tree == "drawn" || mix.numSampledAncestors() == 2)
+              && abs(plain.lnProbability() - mix.lnProbability()) < 1E-10
+              && abs(rec_plain.lnProbability() - rec_mix.lnProbability()) < 1E-10
+              && abs(morph_plain.lnProbability() - morph_mix.lnProbability()) < 1E-10, "\n")
+    }
+}
+
+# a resumed run logs after its first move, so the resumed chain all but only moves z
+seed(5)
+bd ~ dnFBDSP(taxa=taxa, lambda=0.4, mu=0.1, psi=0.5, lambda_a=0.9, rho=1.0, origin=20.0, condition="time",
+             psiMixtureRates=v(0.3, 1, 2.5), psiMixtureWeights=simplex(0.2, 0.3, 0.5))
+bd.setValue(sa_tree)
+rec ~ dnFossilRecord(ranges=bd, reporting="complete")
+rec.clamp(taxa)
+comp := bd.getPsiMixtureComponents()
+z ~ dnUniform(0, 1)
+
+moves = [ mvSlide(z, weight=1), mvPsiMixtureAllocation(bd, weight=5) ]
+a = mcmc(model(bd, z), [ mnFile(comp, filename="output/psi_mixture_fbdsp_a.log", printgen=1) ], moves)
+a.run(generations=50, checkpointFile="output/psi_mixture_fbdsp.state", checkpointInterval=50)
+stopped = readTrace("output/psi_mixture_fbdsp_a.log", burnin=0)
+
+moves = [ mvSlide(z, weight=1), mvPsiMixtureAllocation(bd, weight=1E-9) ]
+b = mcmc(model(bd, z), [ mnFile(comp, filename="output/psi_mixture_fbdsp_b.log", printgen=1) ], moves)
+b.initializeFromCheckpoint("output/psi_mixture_fbdsp.state")
+b.run(generations=20)
+resumed = readTrace("output/psi_mixture_fbdsp_b.log", burnin=0)
+
+last = stopped[2].getValues().size()
+same = resumed[2].getValues()[1] == stopped[2].getValues()[last]
+for (k in 5:10) {
+    same = same && resumed[k].getValues()[1] == stopped[k].getValues()[last]
+}
+print(filename=out, append=TRUE, "a checkpoint resumes at the posterior and components it stopped at:\n")
+print(filename=out, append=TRUE, same, "\n")
+
+q()

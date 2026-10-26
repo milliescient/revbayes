@@ -9,6 +9,8 @@ Fossil species are represented by a collection of fossil occurrences with uncert
 
 Every age in the tree needs a move. Tips are extinction times, sampled by `mvFossilTipTimeUniform` between the present and the youngest occurrence. `mvNodeTimeSlideUniform` skips the root, so pair it with `mvRootTimeSlideUniform`.
 
+Fossil sampling rates can vary among species, as in `dnFBDRP`. With `psiMixtureRates`, each species draws a mixture component at budding, independently of its parent, and samples fossils at that component's rate times `psi`; `psiMixtureWeights` gives the probability of each component and defaults to equal weights. An anagenetic species continues its ancestor's lineage and keeps its component. `mvPsiMixtureAllocation` samples the components and `getPsiMixtureComponents()` reports them. The mixture needs `extended=TRUE`.
+
 Symmetric (bifurcating) speciation is not yet available.
 
 ## authors
@@ -16,6 +18,7 @@ June Walker
 ## see_also
 dnFossilizedBirthDeathRange
 dnFossilRecord
+mvPsiMixtureAllocation
 mvFossilTipTimeUniform
 mvRootTimeSlideUniform
 mvStratigraphicRange

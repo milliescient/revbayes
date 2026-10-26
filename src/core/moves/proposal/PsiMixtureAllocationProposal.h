@@ -4,6 +4,7 @@
 #include "MatrixReal.h"
 #include "Proposal.h"
 #include "StochasticNode.h"
+#include "Tree.h"
 
 namespace RevBayesCore {
 
@@ -23,6 +24,7 @@ namespace RevBayesCore {
 
     public:
         PsiMixtureAllocationProposal( StochasticNode<MatrixReal> *n );                          //!< Constructor
+        PsiMixtureAllocationProposal( StochasticNode<Tree> *n );                                //!< Constructor
 
         // Basic utility functions
         void                                    cleanProposal(void);                                //!< Clean up proposal
@@ -44,7 +46,10 @@ namespace RevBayesCore {
 
         AbstractFossilizedBirthDeathRangeProcess& rangeProcess(void) const;                         //!< The distribution, which owns the present and the taxa.
 
-        StochasticNode<MatrixReal>*             matrix = NULL;                                      //!< The range matrix.
+        void                                    check(void) const;                                  //!< Refuse a distribution without a mixture.
+
+        StochasticNode<MatrixReal>*             matrix = NULL;                                      //!< One of these is the variable, the other stays null.
+        StochasticNode<Tree>*                   tree   = NULL;
     };
 
 }

@@ -141,7 +141,10 @@ namespace RevBayesCore {
         virtual double                                  computeLnProbabilityRanges(bool force = false);
         double                                          computeLnFossilRecord(size_t i) const;                      //!< Fossil-record log-term for taxon i.
         double                                          computeLnFossilRecord(size_t i, double mixture_rate) const; //!< The same, with psi scaled by a mixture rate.
-        void                                            mixtureRangeLnProbs(size_t i, std::vector<double> &ln_probs, size_t only) const;  //!< Birth-death density of range i under each component, or under component only.
+        void                                            mixtureRangeLnProbs(size_t i, std::vector<double> &ln_probs, size_t only, const std::vector<double> *source = NULL) const;  //!< Birth-death density of range i under each component, or under component only, its lineage starting in source.
+        virtual void                                    mixtureStemSource(size_t i, std::vector<double> &w) const;  //!< The probability that range i's lineage starts in each component.
+        virtual std::vector<size_t>                     mixtureDependents(size_t i) const { return std::vector<size_t>(); }  //!< The ranges whose lineage starts in range i's component.
+        virtual double                                  observedRangeRate(size_t j) const { return 0.0; }           //!< A rate in interval j at which an observed range must have no event, beside lambda and mu.
 
         // Parameter management functions
         void                                            swapParameterInternal(const DagNode *oldP, const DagNode *newP);                //!< Swap a parameter

@@ -20,8 +20,24 @@ PsiMixtureAllocationProposal::PsiMixtureAllocationProposal( StochasticNode<Matri
     matrix( n )
 {
     addNode( matrix );
+    check();
+}
 
-    if ( dynamic_cast<AbstractFossilizedBirthDeathRangeProcess *>( &matrix->getDistribution() ) == NULL )
+
+PsiMixtureAllocationProposal::PsiMixtureAllocationProposal( StochasticNode<Tree> *n ) : Proposal(),
+    tree( n )
+{
+    addNode( tree );
+    check();
+}
+
+
+void PsiMixtureAllocationProposal::check( void ) const
+{
+    Distribution &d = ( matrix != NULL ? (Distribution&)matrix->getDistribution()
+                                       : (Distribution&)tree->getDistribution() );
+
+    if ( dynamic_cast<AbstractFossilizedBirthDeathRangeProcess *>( &d ) == NULL )
     {
         throw RbException("mvPsiMixtureAllocation requires a fossilized birth-death range process.");
     }
@@ -35,7 +51,10 @@ PsiMixtureAllocationProposal::PsiMixtureAllocationProposal( StochasticNode<Matri
 /** Resolved on each use, so a swapped node leaves no stale pointer. */
 AbstractFossilizedBirthDeathRangeProcess& PsiMixtureAllocationProposal::rangeProcess( void ) const
 {
-    return dynamic_cast<AbstractFossilizedBirthDeathRangeProcess &>( matrix->getDistribution() );
+    Distribution &d = ( matrix != NULL ? (Distribution&)matrix->getDistribution()
+                                       : (Distribution&)tree->getDistribution() );
+
+    return dynamic_cast<AbstractFossilizedBirthDeathRangeProcess &>( d );
 }
 
 
@@ -149,5 +168,6 @@ void PsiMixtureAllocationProposal::tune( double rate )
 
 void PsiMixtureAllocationProposal::swapNodeInternal(DagNode *oldN, DagNode *newN)
 {
-    matrix = static_cast<StochasticNode<MatrixReal>* >(newN);
+    if ( matrix != NULL ) matrix = static_cast<StochasticNode<MatrixReal>* >(newN);
+    else                  tree   = static_cast<StochasticNode<Tree>* >(newN);
 }

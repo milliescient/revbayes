@@ -1733,9 +1733,17 @@ void AbstractFossilizedBirthDeathRangeProcess::prepareProbComputation( void ) co
  * Between b_i and tau_1 the lineage may pass through unsampled species of any component, so Q
  * enters as sum_e w_e Q[e][h]. Below tau_1, Q_tilde = exp( -(lambda + mu + nu_h psi) t + int lambda pbar ).
  */
-void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, std::vector<double> &ln_probs, size_t only ) const
+void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, std::vector<double> &ln_probs, size_t only, const std::vector<double> *source ) const
 {
     size_t H = num_components;
+
+    // the component the lineage starts in at b_i: drawn at birth, unless a subclass knows it
+    std::vector<double> start;
+    if ( source == NULL )
+    {
+        mixtureStemSource( i, start );
+        source = &start;
+    }
 
     double b = ranges[i].divergence;
     double d = ranges[i].death;
@@ -1764,7 +1772,7 @@ void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, st
     for (size_t c = 0; c < num_columns; c++)
     {
         double s = 0.0;
-        for (size_t e = 0; e < H; e++) s += mixture_weights[e] * Q[c*H + e];
+        for (size_t e = 0; e < H; e++) s += (*source)[e] * Q[c*H + e];
 
         ln_probs[ columns[c] ] = log( birth[bi] ) + log(s) + Q_scale[c];
     }
@@ -1783,7 +1791,7 @@ void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, st
         double hi = ( j + 1 < num_intervals ) ? std::min( o, times[j+1] ) : o;
         if ( hi <= lo ) continue;
 
-        birth_death += ( birth[j] + death[j] ) * (hi - lo);
+        birth_death += ( birth[j] + death[j] + observedRangeRate(j) ) * (hi - lo);
         sampling    += fossil[j] * (hi - lo);
     }
 
@@ -1793,8 +1801,15 @@ void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, st
 
         ln_probs[h] += -( birth_death + mixture_rates[h]*sampling ) + ( lambda_pbar_o - lambda_pbar_d );
 
-        if ( ranges[i].survived == false ) ln_probs[h] += log( death[di] );
+        if ( ranges[i].survived == false ) ln_probs[h] += rangeEndTerm( i, di, d );
     }
+}
+
+
+/** Each species draws its component at birth, independently of its parent. */
+void AbstractFossilizedBirthDeathRangeProcess::mixtureStemSource( size_t i, std::vector<double> &w ) const
+{
+    w = mixture_weights;
 }
 
 
@@ -1805,6 +1820,20 @@ std::vector<double> AbstractFossilizedBirthDeathRangeProcess::psiMixtureComponen
 
     std::vector<double> ln_probs;
     mixtureRangeLnProbs( i, ln_probs, num_components );
+
+    // a species whose lineage starts in taxon i's component scores against each of them
+    std::vector<double> start( num_components, 0.0 ), lp;
+    for (size_t j : mixtureDependents( i ))
+    {
+        size_t hj = ranges[j].component;
+        for (size_t h = 0; h < num_components; h++)
+        {
+            start.assign( num_components, 0.0 );
+            start[h] = 1.0;
+            mixtureRangeLnProbs( j, lp, hj, &start );
+            ln_probs[h] += lp[hj];
+        }
+    }
 
     if ( has_reporting_node == true && taxa[i].getMaxAge() != times.front() )
     {
@@ -1828,6 +1857,7 @@ void AbstractFossilizedBirthDeathRangeProcess::setPsiMixtureComponent( size_t i,
     ranges[i].component = h;
 
     dirty_taxa[i] = true;   // the component is in no value
+    for (size_t j : mixtureDependents( i )) dirty_taxa[j] = true;
 }
 
 

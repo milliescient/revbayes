@@ -14,11 +14,12 @@ namespace RevBayesCore {
         bool parent_is_sa   = false;    //!< The range this one budded from was sampled at that node.
         bool ends_at_sa     = false;    //!< The range ends at a sampled ancestor, so its lineage carries on.
         bool ends_symmetric = false;    //!< The range ends by symmetric speciation rather than extinction.
+        int  sa_parent      = -1;       //!< With parent_is_sa, the range sampled at that node.
 
         bool operator==(const SpeciesEntry &e) const
                 {
                     return parent_is_sa == e.parent_is_sa && ends_at_sa == e.ends_at_sa
-                           && ends_symmetric == e.ends_symmetric;
+                           && ends_symmetric == e.ends_symmetric && sa_parent == e.sa_parent;
                 }
 
     };
@@ -58,7 +59,9 @@ namespace RevBayesCore {
                                       const std::vector<Taxon> &taxa,
                                       bool complete_record,
                                       bool extended = true,
-                                      double present = 0.0);  //!< Constructor
+                                      double present = 0.0,
+                                      const TypedDagNode<RbVector<double> >* psi_mixture_rates = NULL,
+                                      const TypedDagNode<Simplex>* psi_mixture_weights = NULL);  //!< Constructor
         
         // public member functions
         FossilizedBirthDeathSpeciationProcess*          clone(void) const override;                                //!< Create an independent clone
@@ -82,6 +85,9 @@ namespace RevBayesCore {
     protected:
         bool                                            marginalizesExtinction(void) const override { return extended == false; }
         double                                          rangeEndTerm(size_t i, size_t di, double d) const override;
+        void                                            mixtureStemSource(size_t i, std::vector<double> &w) const override;  //!< An anagenetic species starts in its ancestor's component.
+        std::vector<size_t>                             mixtureDependents(size_t i) const override;
+        double                                          observedRangeRate(size_t j) const override { return anagenetic[j]; }  //!< No anagenesis inside an observed range.
 
         void                                            repairRanges(void) override;                             //!< Re-take from the tip what a tree move carries there.
         void                                            updateRanges(void) override;

@@ -64,11 +64,19 @@ FossilizedBirthDeathSpeciationProcess::FossilizedBirthDeathSpeciationProcess(con
                                                            const std::vector<Taxon> &intaxa,
                                                            bool comp,
                                                            bool ext,
-                                                           double inpresent) :
+                                                           double inpresent,
+                                                           const TypedDagNode<RbVector<double> >* inmixture_rates,
+                                                           const TypedDagNode<Simplex>* inmixture_weights) :
     AbstractBirthDeathProcess(ra, incondition, intaxa, true, NULL),
-    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, comp, NULL, inpresent),
+    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, comp, NULL, inpresent, inmixture_rates, inmixture_weights),
     extended( ext )
 {
+    // marginalizing the extinction times and the unobserved speciation below a sampled ancestor
+    // are single-psi closed forms
+    if ( num_components > 1 && extended == false )
+    {
+        throw RbException("dnFBDSP: psiMixtureRates needs extended=true.");
+    }
 
     for(std::vector<const DagNode*>::iterator it = range_parameters.begin(); it != range_parameters.end(); it++)
     {
@@ -218,6 +226,32 @@ double FossilizedBirthDeathSpeciationProcess::rangeEndTerm( size_t i, size_t di,
     }
 
     return log( p( di, d ) );
+}
+
+
+/** An anagenetic species continues its ancestor's lineage, and with it the ancestor's component. */
+void FossilizedBirthDeathSpeciationProcess::mixtureStemSource( size_t i, std::vector<double> &w ) const
+{
+    int a = species[i].sa_parent;
+    if ( species[i].parent_is_sa == false || a < 0 )
+    {
+        AbstractFossilizedBirthDeathRangeProcess::mixtureStemSource( i, w );
+        return;
+    }
+
+    w.assign( num_components, 0.0 );
+    w[ ranges[a].component ] = 1.0;
+}
+
+
+std::vector<size_t> FossilizedBirthDeathSpeciationProcess::mixtureDependents( size_t i ) const
+{
+    std::vector<size_t> out;
+    for (size_t j = 0; j < species.size(); j++)
+    {
+        if ( species[j].parent_is_sa == true && species[j].sa_parent == int(i) ) out.push_back( j );
+    }
+    return out;
 }
 
 
@@ -374,6 +408,7 @@ std::string FossilizedBirthDeathSpeciationProcess::getHiddenStateString( void ) 
         tip.setNodeParameter( "LAD", last.str() );
         tip.setNodeParameter( "singleton", ranges[i].singleton ? "1" : "0" );
         tip.setNodeParameter( "survived", ranges[i].survived ? "1" : "0" );
+        if ( num_components > 1 ) tip.setNodeParameter( "component", StringUtilities::to_string( ranges[i].component ) );
     }
 
     // a Newick puts the youngest tip at zero
@@ -485,6 +520,9 @@ bool FossilizedBirthDeathSpeciationProcess::adoptAppearances( void )
 
         if ( single.has_value() == true )   ranges[i].singleton = ( *single == "1" );
         if ( survived.has_value() == true ) ranges[i].survived  = ( *survived == "1" );
+
+        std::optional<std::string> component = tip.eraseNodeParameter( "component" );
+        if ( component.has_value() == true && size_t( atoi( component->c_str() ) ) < num_components ) ranges[i].component = atoi( component->c_str() );
 
         if ( annotated == true ) dirty_taxa[i] = true;
     }
@@ -676,6 +714,21 @@ std::vector<double> FossilizedBirthDeathSpeciationProcess::hiddenSpeciationInteg
     {
         double t0 = span.first, t1 = span.second;
         double total = 0.0;
+
+        // a hidden daughter draws its own component, so it goes unsampled with probability pbar
+        if ( num_components > 1 && t0 < t1 )
+        {
+            total = mixture_solution.lambdaPbarIntegral( t0, t1 );
+            for (size_t i = findIndex(t0); t0 < t1; i++)
+            {
+                double end = ( i + 1 < num_intervals ) ? std::min( t1, times[i+1] ) : t1;
+                total += anagenetic[i] * (end - t0);
+                t0 = end;
+            }
+            out.push_back( total );
+            continue;
+        }
+
         for (size_t i = findIndex(t0); t0 < t1; i++)
         {
             double end = ( i + 1 < num_intervals ) ? std::min( t1, times[i+1] ) : t1;
@@ -1276,6 +1329,13 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
     // stop before indexing with species == -1
     if ( invalid_continuation == true ) return flow;
 
+    // the range sampled at this node, which a species beginning here continues
+    int sa_species = -1;
+    for (size_t c = 0; c < children.size(); c++)
+    {
+        if ( children[c]->isSampledAncestorTip() == true ) sa_species = int( children[c]->getIndex() );
+    }
+
     // a non-symmetric bifurcation is a budding event
     if ( sa_tip == false && n_cont == 1 )
     {
@@ -1317,6 +1377,7 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
             }
 
             next_species[i].parent_is_sa = sa;
+            next_species[i].sa_parent    = sa ? sa_species : -1;
         }
         // child is the ancestral species
         else

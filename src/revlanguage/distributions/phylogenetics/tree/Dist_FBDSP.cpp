@@ -29,6 +29,8 @@
 #include "RevPtr.h"
 #include "RevVariable.h"
 #include "RlAbstractHomologousDiscreteCharacterData.h"
+#include "RlSimplex.h"
+#include "RbException.h"
 #include "RlBirthDeathProcess.h"
 #include "RlBoolean.h"
 #include "Taxon.h"
@@ -112,7 +114,20 @@ RevBayesCore::FossilizedBirthDeathSpeciationProcess* Dist_FBDSP::createDistribut
 
     double pres = static_cast<const RealPos &>( present->getRevObject() ).getValue();
 
-    RevBayesCore::FossilizedBirthDeathSpeciationProcess* d = new RevBayesCore::FossilizedBirthDeathSpeciationProcess(sa, l, m, p, r, la, b, rt, cond, t, true, ext, pres);
+    // relative fossil sampling rates, one component drawn by each species at birth
+    RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> >* mr = NULL;
+    if ( psi_mixture_rates != NULL && psi_mixture_rates->getRevObject() != RevNullObject::getInstance() )
+    {
+        mr = static_cast<const ModelVector<RealPos> &>( psi_mixture_rates->getRevObject() ).getDagNode();
+    }
+    RevBayesCore::TypedDagNode<RevBayesCore::Simplex>* mw = NULL;
+    if ( psi_mixture_weights != NULL && psi_mixture_weights->getRevObject() != RevNullObject::getInstance() )
+    {
+        if ( mr == NULL ) throw RbException("psiMixtureWeights needs psiMixtureRates.");
+        mw = static_cast<const Simplex &>( psi_mixture_weights->getRevObject() ).getDagNode();
+    }
+
+    RevBayesCore::FossilizedBirthDeathSpeciationProcess* d = new RevBayesCore::FossilizedBirthDeathSpeciationProcess(sa, l, m, p, r, la, b, rt, cond, t, true, ext, pres, mr, mw);
 
     return d;
 }
@@ -209,6 +224,9 @@ const MemberRules& Dist_FBDSP::getParameterRules(void) const
         // beta is omitted until symmetric speciation has a move
         dist_member_rules.push_back( new ArgumentRule( "extended",  RlBoolean::getClassTypeSpec(), "Are the tips extinction times? If false the extinction times are marginalized out and each range ends at min(tau_K, youngest child birth).", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean(true) ) );
 
+        dist_member_rules.push_back( new ArgumentRule( "psiMixtureRates", ModelVector<RealPos>::getClassTypeSpec(), "The relative fossil sampling rate of each mixture component, which multiplies psi. Each species draws its component at budding, and an anagenetic species keeps its ancestor's. Needs extended=true. Left out, there is one component.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
+        dist_member_rules.push_back( new ArgumentRule( "psiMixtureWeights", Simplex::getClassTypeSpec(), "The probability of each mixture component. Left out, the weights are equal.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
+
         rules_set = true;
     }
     
@@ -254,6 +272,14 @@ void Dist_FBDSP::setConstParameter(const std::string& name, const RevPtr<const R
     {
         start_age = var;
     }
+    else if ( name == "psiMixtureRates" )
+    {
+        psi_mixture_rates = var;
+    }
+    else if ( name == "psiMixtureWeights" )
+    {
+        psi_mixture_weights = var;
+    }
     else
     {
         FossilizedBirthDeathRangeProcess<TimeTree>::setConstParameter(name, var);
@@ -284,6 +310,9 @@ RevLanguage::MethodTable Dist_FBDSP::getDistributionMethods( void ) const
 
     ArgumentRules* extinction_arg_rules = new ArgumentRules();
     methods.addFunction( new DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> >( "getExtinctionTimes", variable, extinction_arg_rules, true ) );
+
+    ArgumentRules* component_arg_rules = new ArgumentRules();
+    methods.addFunction( new DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> >( "getPsiMixtureComponents", variable, component_arg_rules, true ) );
 
     return methods;
 }

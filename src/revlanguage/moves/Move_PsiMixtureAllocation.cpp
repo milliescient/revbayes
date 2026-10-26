@@ -9,6 +9,8 @@
 #include "Move_PsiMixtureAllocation.h"
 #include "RealPos.h"
 #include "RlMatrixReal.h"
+#include "RlTimeTree.h"
+#include "Tree.h"
 #include "TypeSpec.h"
 #include "Move.h"
 #include "RevObject.h"
@@ -65,11 +67,21 @@ void Move_PsiMixtureAllocation::constructInternalObject( void )
     
     RevBayesCore::Proposal *p = NULL;
 
-    // the range matrix of a dnFBDRP
-    RevBayesCore::TypedDagNode<RevBayesCore::MatrixReal>* tmp = static_cast<const MatrixReal &>( x->getRevObject() ).getDagNode();
-    RevBayesCore::StochasticNode<RevBayesCore::MatrixReal> *n = static_cast<RevBayesCore::StochasticNode<RevBayesCore::MatrixReal> *>( tmp );
+    // the range matrix of a dnFBDRP, or the tree of a dnFBDSP
+    if ( x->getRevObject().isType( TimeTree::getClassTypeSpec() ) )
+    {
+        RevBayesCore::TypedDagNode<RevBayesCore::Tree>* tmp = static_cast<const TimeTree &>( x->getRevObject() ).getDagNode();
+        RevBayesCore::StochasticNode<RevBayesCore::Tree> *n = static_cast<RevBayesCore::StochasticNode<RevBayesCore::Tree> *>( tmp );
 
-    p = new RevBayesCore::PsiMixtureAllocationProposal( n );
+        p = new RevBayesCore::PsiMixtureAllocationProposal( n );
+    }
+    else
+    {
+        RevBayesCore::TypedDagNode<RevBayesCore::MatrixReal>* tmp = static_cast<const MatrixReal &>( x->getRevObject() ).getDagNode();
+        RevBayesCore::StochasticNode<RevBayesCore::MatrixReal> *n = static_cast<RevBayesCore::StochasticNode<RevBayesCore::MatrixReal> *>( tmp );
+
+        p = new RevBayesCore::PsiMixtureAllocationProposal( n );
+    }
 
     double w = static_cast<const RealPos &>( weight->getRevObject() ).getValue();
     
@@ -138,6 +150,7 @@ const MemberRules& Move_PsiMixtureAllocation::getParameterRules(void) const
     {
         std::vector<TypeSpec> types;
         types.push_back( MatrixReal::getClassTypeSpec() );
+        types.push_back( TimeTree::getClassTypeSpec() );
         memberRules.push_back( new ArgumentRule( "x", types, "The fossilized birth death range process whose psi mixture components to draw.", ArgumentRule::BY_REFERENCE, ArgumentRule::STOCHASTIC ) );
         
         /* Inherit weight (but not tuneTarget!) from Move and put it after the arguments created above */

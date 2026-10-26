@@ -1005,6 +1005,8 @@ moves.append( mvPsiMixtureAllocation(bd_mix, weight=taxa.size()) ))");
 
 Every age in the tree needs a move. Tips are extinction times, sampled by `mvFossilTipTimeUniform` between the present and the youngest occurrence. `mvNodeTimeSlideUniform` skips the root, so pair it with `mvRootTimeSlideUniform`.
 
+Fossil sampling rates can vary among species, as in `dnFBDRP`. With `psiMixtureRates`, each species draws a mixture component at budding, independently of its parent, and samples fossils at that component's rate times `psi`; `psiMixtureWeights` gives the probability of each component and defaults to equal weights. An anagenetic species continues its ancestor's lineage and keeps its component. `mvPsiMixtureAllocation` samples the components and `getPsiMixtureComponents()` reports them. The mixture needs `extended=TRUE`.
+
 Symmetric (bifurcating) speciation is not yet available.)");
 	help_strings[string("dnFossilizedBirthDeathSpeciation")][string("example")] = string(R"(lambda ~ dnExp(10)
 mu ~ dnExp(10)
@@ -1043,6 +1045,7 @@ moves.append( mvStratigraphicRange(bd, weight = taxa.size()) ))");
 	help_references[string("dnFossilizedBirthDeathSpeciation")].push_back(RbHelpReference(R"(The fossilized birth-death model for the analysis of stratigraphic range data under different speciation modes. Stadler, Tanja et al. Journal of theoretical biology, 447:41-55.)",R"()",R"(https://www.sciencedirect.com/science/article/pii/S002251931830119X )"));
 	help_arrays[string("dnFossilizedBirthDeathSpeciation")][string("see_also")].push_back(string(R"(dnFossilizedBirthDeathRange)"));
 	help_arrays[string("dnFossilizedBirthDeathSpeciation")][string("see_also")].push_back(string(R"(dnFossilRecord)"));
+	help_arrays[string("dnFossilizedBirthDeathSpeciation")][string("see_also")].push_back(string(R"(mvPsiMixtureAllocation)"));
 	help_arrays[string("dnFossilizedBirthDeathSpeciation")][string("see_also")].push_back(string(R"(mvFossilTipTimeUniform)"));
 	help_arrays[string("dnFossilizedBirthDeathSpeciation")][string("see_also")].push_back(string(R"(mvRootTimeSlideUniform)"));
 	help_arrays[string("dnFossilizedBirthDeathSpeciation")][string("see_also")].push_back(string(R"(mvStratigraphicRange)"));
@@ -4189,7 +4192,7 @@ moves.append( mvNNI(tree=timetree, weight=taxa.size()) ))");
 	help_strings[string("mvNodeTimeSlideUniformAgeConstrained")][string("name")] = string(R"(mvNodeTimeSlideUniformAgeConstrained)");
 	help_arrays[string("mvPsiMixtureAllocation")][string("authors")].push_back(string(R"(June Walker)"));
 	help_strings[string("mvPsiMixtureAllocation")][string("description")] = string(R"(Draws one taxon's fossil sampling mixture component from its full conditional distribution.)");
-	help_strings[string("mvPsiMixtureAllocation")][string("details")] = string(R"(Under `dnFBDRP` with `psiMixtureRates`, each species carries a latent mixture component that scales its fossil sampling rate. The component is not part of the value, so this is the only move that changes it. Each proposal picks a taxon at random and draws its component given its range, its occurrences and the rates, so every proposal is accepted.)");
+	help_strings[string("mvPsiMixtureAllocation")][string("details")] = string(R"(Under `dnFBDRP` or `dnFBDSP` with `psiMixtureRates`, each species carries a latent mixture component that scales its fossil sampling rate. The component is not part of the value, so this is the only move that changes it. Each proposal picks a taxon at random and draws its component given its range, its occurrences, the rates and, under `dnFBDSP`, the anagenetic species that continue it, so every proposal is accepted.)");
 	help_strings[string("mvPsiMixtureAllocation")][string("example")] = string(R"(alpha ~ dnExponential(1)
 bd ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=rho,
              psiMixtureRates=fnDiscretizeGamma(alpha, alpha, 4))
@@ -4198,6 +4201,7 @@ moves.append( mvPsiMixtureAllocation(bd, weight=taxa.size()) )
 components := bd.getPsiMixtureComponents())");
 	help_strings[string("mvPsiMixtureAllocation")][string("name")] = string(R"(mvPsiMixtureAllocation)");
 	help_arrays[string("mvPsiMixtureAllocation")][string("see_also")].push_back(string(R"(dnFossilizedBirthDeathRange)"));
+	help_arrays[string("mvPsiMixtureAllocation")][string("see_also")].push_back(string(R"(dnFossilizedBirthDeathSpeciation)"));
 	help_arrays[string("mvPsiMixtureAllocation")][string("see_also")].push_back(string(R"(mvGibbsMixtureAllocation)"));
 	help_strings[string("mvPsiMixtureAllocation")][string("title")] = string(R"(Gibbs sampling of each taxon's psi mixture component)");
 	help_strings[string("mvRJSwitch")][string("name")] = string(R"(mvRJSwitch)");

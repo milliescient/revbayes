@@ -1,0 +1,11 @@
+psiMixtureRates on dnFBDSP
+drawn, time: the same tree, and the plain densities:
+TRUE	
+drawn, sampling: the same tree, and the plain densities:
+TRUE	
+sampled ancestors, time: the same tree, and the plain densities:
+TRUE	
+sampled ancestors, sampling: the same tree, and the plain densities:
+TRUE	
+a checkpoint resumes at the posterior and components it stopped at:
+TRUE	
