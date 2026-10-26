@@ -879,12 +879,6 @@ double AbstractFossilizedBirthDeathRangeProcess::drawOrigination( size_t i ) con
 }
 
 
-/** P(no unnamed ancestor stands between range i and its attachment). */
-double AbstractFossilizedBirthDeathRangeProcess::sampledOriginationProbability( size_t i ) const
-{
-    return exp( lnOriginationSurvival( i, ranges[i].divergence ) );
-}
-
 
 /**
  * The conditional mean of species i's origination time.
@@ -1059,59 +1053,6 @@ void AbstractFossilizedBirthDeathRangeProcess::executeMethod(const std::string &
 }
 
 
-/**
- * Row i gives the probability that each range parented range i, and its diagonal entry the
- * probability that its parent was a species the record never sampled, which is what is left
- * when the origination does not sit at the divergence. Rows sum to one.
- *
- * Where the topology is marginalized, the density does not depend on which coexisting range
- * budded the daughter, so given the state every candidate is equally likely and the sampled
- * share divides evenly among them. Where the topology is sampled there is one candidate, so
- * the share lands on it. A range with no candidate at all is the origin, which has no parent,
- * and its whole row sits on the diagonal.
- *
- * A single row carries little, being flat across a set. The ancestry appears only in the
- * posterior average, as the divergences move and the candidate sets change with them.
- */
-void AbstractFossilizedBirthDeathRangeProcess::executeMethod(const std::string &n, const std::vector<const DagNode *> &args, RbVector<RbVector<double> > &rv) const
-{
-    if ( n == "getParentProbabilities" )
-    {
-        AbstractFossilizedBirthDeathRangeProcess *self = const_cast<AbstractFossilizedBirthDeathRangeProcess *>( this );
-        self->updateRanges();
-        prepareProbComputation();
-
-        rv.clear();
-        for (size_t i = 0; i < ranges.size(); i++)
-        {
-            RbVector<double> row( ranges.size(), 0.0 );
-
-            size_t candidates = 0;
-            for (size_t j = 0; j < ranges.size(); j++)
-            {
-                if ( isCandidateParent(i, j) ) ++candidates;
-            }
-
-            double sampled = ( candidates > 0 ? sampledOriginationProbability(i) : 0.0 );
-
-            if ( candidates > 0 )
-            {
-                for (size_t j = 0; j < ranges.size(); j++)
-                {
-                    if ( isCandidateParent(i, j) ) row[j] = sampled / candidates;
-                }
-            }
-
-            row[i] = 1.0 - sampled;
-
-            rv.push_back( row );
-        }
-    }
-    else
-    {
-        throw RbException() << "The fossilized birth death range process does not have a member method called '" << n << "'.";
-    }
-}
 
 
 /**

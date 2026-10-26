@@ -164,17 +164,6 @@ double FossilizedBirthDeathRangeProcess::computeLnProbability( void )
 }
 
 
-/**
- * Range j could have parented range i if i's divergence falls inside j's own range, which is
- * the same test gamma counts. It reads the ranges rather than the cached links, so it does
- * not depend on when gamma was last refreshed.
- */
-bool FossilizedBirthDeathRangeProcess::isCandidateParent(size_t i, size_t j) const
-{
-    if ( i == j ) return false;
-
-    return ranges[i].divergence < ranges[j].divergence && ranges[i].divergence > ranges[j].death;
-}
 
 
 /**
@@ -386,3 +375,18 @@ void FossilizedBirthDeathRangeProcess::swapParameterInternal(const DagNode *oldP
 {
     AbstractFossilizedBirthDeathRangeProcess::swapParameterInternal(oldP, newP);
 }
+
+/**
+ * Row i gives the probability that each range parented range i, and its diagonal entry the
+ * probability that its parent was a species the record never sampled, which is what is left
+ * when the origination does not sit at the divergence. Rows sum to one.
+ *
+ * Where the topology is marginalized, the density does not depend on which coexisting range
+ * budded the daughter, so given the state every candidate is equally likely and the sampled
+ * share divides evenly among them. Where the topology is sampled there is one candidate, so
+ * the share lands on it. A range with no candidate at all is the origin, which has no parent,
+ * and its whole row sits on the diagonal.
+ *
+ * A single row carries little, being flat across a set. The ancestry appears only in the
+ * posterior average, as the divergences move and the candidate sets change with them.
+ */

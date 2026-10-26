@@ -49,6 +49,7 @@ namespace RevLanguage {
         static void                                         appendParameterRules(MemberRules &rules);                                           //!< Build the member rules
         static ArgumentRule*                                originRule(void);                                                                   //!< The optional origin argument, for the processes that take one
         RevBayesCore::TypedDagNode<double>*                 createOrigin(void) const;                                                           //!< The given origin node, or NULL if none was given
+
         
         void                                                setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var);   //!< Set member variable
     
@@ -315,8 +316,6 @@ RevLanguage::MethodTable RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::
     ArgumentRules* extant_arg_rules = new ArgumentRules();
     methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, ModelVector<RealPos> >( "getExtantStatus", this->variable, extant_arg_rules, true ) );
 
-    ArgumentRules* parent_arg_rules = new ArgumentRules();
-    methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, ModelVector<ModelVector<RealPos> > >( "getParentProbabilities", this->variable, parent_arg_rules, true ) );
 
     return methods;
 }

@@ -3,8 +3,7 @@
 # attachment and the species' own origination. getDivergenceTimes reports the attachment and
 # getOriginationTimes draws the origination from its conditional, which is an atom on the
 # attachment plus a density below it, or integrates that conditional when given mean=TRUE.
-# getParentProbabilities spreads the atom over the candidate parents and leaves the rest on
-# the diagonal, where the parent was never sampled. Every line printed must be TRUE.
+# Every line printed must be TRUE.
 seed(12345)
 
 taxa <- readTaxonData("data/fbdr_condition.tsv")
@@ -24,7 +23,6 @@ config <- matrix( v( v(0.0, 0.0, 0.0, 10.0),
                      v(5.0, 6.5, 6.5, 20.0) ) )
 
 # Reading the configuration: the ranges alive at each divergence number 3, 4, 5, 2, 1 and none.
-candidates <- v(3, 4, 5, 2, 1, 0)
 
 bd ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
              condition="time", origin=origin)
@@ -86,54 +84,8 @@ for (i in 1:n)
 print(filename=out, append=TRUE, "the integrated mean agrees with the average of 4000 draws:\n")
 print(filename=out, append=TRUE, matches, "\n")
 
-# each row says who could have parented that range, so it is a distribution
-parent <- bd.getParentProbabilities()
 
-rows_ok <- TRUE
-for (i in 1:n)
-{
-    row_total <- 0.0
-    for (j in 1:n)
-    {
-        if ( parent[i][j] < 0.0 || parent[i][j] > 1.0 ) { rows_ok <- FALSE }
-        row_total <- row_total + parent[i][j]
-    }
 
-    if ( abs(row_total - 1.0) > 1E-10 ) { rows_ok <- FALSE }
-}
-
-print(filename=out, append=TRUE, "every row of the parent matrix is a distribution:\n")
-print(filename=out, append=TRUE, rows_ok, "\n")
-
-# As many ranges take weight as coexist at that divergence, and marginalizing the topology
-# leaves them equally likely, so each takes the same share. Counting the entries that carry
-# weight tests the rule rather than restating it.
-flat <- TRUE
-for (i in 1:n)
-{
-    carried <- 0
-    for (j in 1:n)
-    {
-        if ( i != j && parent[i][j] != 0.0 ) { carried <- carried + 1 }
-    }
-
-    if ( carried != candidates[i] ) { flat <- FALSE }
-
-    for (j in 1:n)
-    {
-        if ( i != j && parent[i][j] != 0.0 )
-        {
-            if ( abs(parent[i][j] - (1.0 - parent[i][i])/candidates[i]) > 1E-10 ) { flat <- FALSE }
-        }
-    }
-}
-
-print(filename=out, append=TRUE, "as many ranges take weight as coexist, and they share it evenly:\n")
-print(filename=out, append=TRUE, flat, "\n")
-
-# range 6 is the origin, which has no parent at all, so its row is all diagonal
-print(filename=out, append=TRUE, "the origin's row sits entirely on its own diagonal:\n")
-print(filename=out, append=TRUE, parent[6][6] == 1.0, "\n")
 
 # a denser record leaves less room for an ancestor to go unnamed, so the diagonal cannot rise
 psi_hi ~ dnExponential(1); psi_hi.setValue(5.0)
@@ -144,16 +96,16 @@ bd_hi.setValue(config)
 rec_hi ~ dnFossilRecord(ranges=bd_hi, reporting="complete")
 rec_hi.clamp(taxa)
 
-parent_hi <- bd_hi.getParentProbabilities()
+mean_hi <- bd_hi.getOriginationTimes(mean=TRUE)
 
-falls <- TRUE
+rises <- TRUE
 for (i in 1:n)
 {
-    if ( parent_hi[i][i] > parent[i][i] + 1E-10 ) { falls <- FALSE }
+    if ( mean_hi[i] < mean_s[i] - 1E-10 ) { rises <- FALSE }
 }
 
-print(filename=out, append=TRUE, "raising psi does not raise the unsampled-parent diagonal:\n")
-print(filename=out, append=TRUE, falls, "\n")
+print(filename=out, append=TRUE, "raising psi does not lower the mean origination:\n")
+print(filename=out, append=TRUE, rises, "\n")
 
 # intervals that share a rate must not move it: the composition check, which is what
 # exercises the accumulation of q and q_tilde across interval boundaries
@@ -168,15 +120,12 @@ bd_s.setValue(config)
 rec_s ~ dnFossilRecord(ranges=bd_s, reporting="complete")
 rec_s.clamp(taxa)
 
-parent_s <- bd_s.getParentProbabilities()
+mean_sky <- bd_s.getOriginationTimes(mean=TRUE)
 
 composes <- TRUE
 for (i in 1:n)
 {
-    for (j in 1:n)
-    {
-        if ( abs(parent_s[i][j] - parent[i][j]) > 1E-8 ) { composes <- FALSE }
-    }
+    if ( abs(mean_sky[i] - mean_s[i]) > 1E-8 ) { composes <- FALSE }
 }
 
 print(filename=out, append=TRUE, "five intervals of one rate match one interval:\n")
