@@ -7,6 +7,7 @@
 #include "RbConstants.h"
 #include "MemberObject.h"
 #include "RbVector.h"
+#include "Simplex.h"
 #include "Taxon.h"
 #include "TimeInterval.h"
 #include "TypedDistribution.h"
@@ -37,6 +38,9 @@ namespace RevBayesCore {
 
         //!< Alive at the present. In no value, so only mvExtinctionRJSwitch changes it.
         bool    survived = false;
+
+        //!< Its psi mixture component. In no value, so only mvPsiMixtureAllocation changes it.
+        size_t  component = 0;
 
         //!< Ages never decrease into the past, and each appearance sits within the bins reporting it.
         bool    isOrdered(double present) const
@@ -83,7 +87,9 @@ namespace RevBayesCore {
                                             const std::vector<Taxon> &taxa,
                                             bool complete_record,
                                             const TypedDagNode<double>* origin = NULL,
-                                            double present = 0.0);  //!< Constructor
+                                            double present = 0.0,
+                                            const TypedDagNode<RbVector<double> >* psi_mixture_rates = NULL,
+                                            const TypedDagNode<Simplex>* psi_mixture_weights = NULL);  //!< Constructor
 
         virtual ~AbstractFossilizedBirthDeathRangeProcess(){};
 
@@ -104,6 +110,10 @@ namespace RevBayesCore {
         double                                          getFirstAppearance(size_t i) const { return ranges[i].first; } //!< tau_1.
         bool                                            samplesSingletons(void) const { return record_reporting == PRESENCE; } //!< Only presence leaves a one-occurrence record free to hold more.
         double                                          switchSingleton(size_t i);                                  //!< Expand tau_1 above tau_K or collapse it onto tau_K, arming the undo. Only mvSingletonRJSwitch may.
+        size_t                                          getNumberOfPsiMixtureComponents(void) const { return num_components; }
+        size_t                                          getPsiMixtureComponent(size_t i) const { return ranges[i].component; }
+        void                                            setPsiMixtureComponent(size_t i, size_t h);                 //!< Set taxon i's component, arming the undo. Only mvPsiMixtureAllocation may.
+        std::vector<double>                             psiMixtureComponentLnProbs(size_t i) const;                 //!< Taxon i's log-density under each component, up to a constant.
         void                                            warnIfNoReportingNode(void) const;                          //!< Warn once when psi has no data.
         void                                            warnIfInertNTaxaCondition(void) const;                      //!< Warn once when rho leaves nTaxa conditioning inert.
         void                                            warnIfNoSurvivalMove(void) const;                           //!< Warn once when rho < 1 and no move samples survival.
@@ -132,6 +142,10 @@ namespace RevBayesCore {
 
         virtual double                                  computeLnProbabilityRanges(bool force = false);
         double                                          computeLnFossilRecord(size_t i) const;                      //!< Fossil-record log-term for taxon i.
+        double                                          computeLnFossilRecord(size_t i, double mixture_rate) const; //!< The same, with psi scaled by a mixture rate.
+        void                                            mixtureRangeLnProbs(size_t i, std::vector<double> &ln_probs, size_t only) const;  //!< Birth-death density of range i under each component, or under component only.
+        void                                            propagateMixture(size_t j, std::vector<double> &p, double dt, double &lambda_pbar, std::vector<double> *Q, std::vector<double> *Q_scale) const;  //!< Carry p, int lambda pbar and the columns of Q a time dt up interval j.
+        void                                            mixtureAt(double t, std::vector<double> &p, double &lambda_pbar) const;   //!< p of each component and int lambda pbar from the present up to t.
 
         // Parameter management functions
         void                                            swapParameterInternal(const DagNode *oldP, const DagNode *newP);                //!< Swap a parameter
@@ -159,7 +173,7 @@ namespace RevBayesCore {
         std::vector<Taxon>                              taxa;                                                  //!< Taxa that will be attached to new simulated trees.
         std::string                                     condition;
         Reporting                                       record_reporting;                                       //!< Which occurrences the record reports.
-        double                                          lnPresenceRecord(size_t i) const;                       //!< Each reported interval holds at least its count.
+        double                                          lnPresenceRecord(size_t i, double mixture_rate) const;  //!< Each reported interval holds at least its count.
         double                                          samplingExposure(double lo, double hi) const;           //!< The sampling rate integrated over [lo, hi).
         void                                            checkPresenceIntervals(void) const;                     //!< Under PRESENCE, refuse a taxon whose intervals overlap.
         double                                          max_present_age;                                        //!< Youngest occurrence maximum; the timeline may not start above it.
@@ -178,6 +192,9 @@ namespace RevBayesCore {
         const TypedDagNode<double >*                    homogeneous_rho;                                       //!< The homogeneous speciation rates.
         const TypedDagNode<RbVector<double> >*          timeline;                                              //!< The times of the instantaneous sampling events.
         const TypedDagNode<double >*                    origin_age;                                            //!< The optional process start (NULL = the oldest birth, under no prior).
+        const TypedDagNode<RbVector<double> >*          psi_mixture_rates;                                     //!< The relative psi of each mixture component (NULL = one component).
+        const TypedDagNode<Simplex>*                    psi_mixture_weights;                                   //!< The mixture weights (NULL = equal).
+        size_t                                          num_components;
 
         std::vector<const DagNode*>                     range_parameters;
 
@@ -197,6 +214,14 @@ namespace RevBayesCore {
         mutable std::vector<double>                     p_i;                                                    //!< Probability of leaving no sampled descendants from the end of each time interval
         mutable std::vector<double>                     pS_i;                                                   //!< Probability of leaving no descendants from the end of each time interval
 
+        // used only with more than one psi mixture component
+        mutable std::vector<double>                     mixture_rates;                                          //!< The relative fossil sampling rate of each component
+        mutable std::vector<double>                     mixture_weights;                                        //!< The probability of each component
+        mutable std::vector<std::vector<double> >       mixture_p_i;                                            //!< p of each component at the start of each interval
+        mutable std::vector<double>                     lambda_pbar_i;                                          //!< int lambda pbar from the present to the start of each interval
+        mutable std::vector<std::vector<double> >       mixture_q_i;                                            //!< Q over each interval, one column per component at its start
+        mutable std::vector<std::vector<double> >       mixture_q_scale_i;                                      //!< The log scale of each column of mixture_q_i
+
                                 
         size_t                                          stored_range = 0;                                       //!< The range mvStratigraphicRange drew.
         double                                          stored_first = 0.0;                                     //!< The ages it replaced.
@@ -206,6 +231,9 @@ namespace RevBayesCore {
         bool                                            stored_survived = false;                                //!< The statuses before the switch.
         bool                                            stored_singleton = true;
         bool                                            switched = false;                                       //!< That undo is armed.
+        size_t                                          reallocated_range = 0;                                  //!< The range mvPsiMixtureAllocation moved, and the component it replaced.
+        size_t                                          stored_component = 0;
+        bool                                            reallocated = false;
 
         bool                                            weld_origin = true;                                     //!< Only the origin node drags the oldest birth.
 

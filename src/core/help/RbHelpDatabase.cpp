@@ -944,7 +944,9 @@ The `condition` argument has to match whatever the data were selected for. `time
 
 Fossil species are represented by a collection of fossil occurrences with uncertainty. Speciation, extinction and sampling rates may be time-homogeneous or piecewise time-heterogeneous. If time-heterogeneous rates are provided, then a vector of rate change time-points must also be provided. Under the hood, the fossil data is augmented with the first and last appearance of each species. These are latent, held in columns 2 and 3 of the value, and are sampled during MCMC by the matrix element moves. By default the process runs to age zero. `present` moves that boundary, so a record truncated at a stratigraphic horizon is analysed in the ages it already carries: the timeline starts there, no occurrence may be younger, and `rho` applies at that age rather than at zero.
 
-The process exposes its latent ages as member methods. `getDivergenceTimes` gives the time each range attaches to the nearest range the record samples, which is not the same as where the species itself began, because ancestors that left no occurrence were never named and a chain of them may stand in between. `getOriginationTimes` gives the species' own origination, drawn from its exact conditional, so two calls on one state return two different draws; pass `mean=TRUE` to integrate that conditional instead and get its mean without simulation noise. `getExtantStatus` and `getExtinctionTimes` report the state as it stands, so the first is an indicator you average over the posterior to get a probability rather than a probability itself.)");
+The process exposes its latent ages as member methods. `getDivergenceTimes` gives the time each range attaches to the nearest range the record samples, which is not the same as where the species itself began, because ancestors that left no occurrence were never named and a chain of them may stand in between. `getOriginationTimes` gives the species' own origination, drawn from its exact conditional, so two calls on one state return two different draws; pass `mean=TRUE` to integrate that conditional instead and get its mean without simulation noise. `getExtantStatus` and `getExtinctionTimes` report the state as it stands, so the first is an indicator you average over the posterior to get a probability rather than a probability itself.
+
+Fossil sampling rates can also vary among species. With `psiMixtureRates`, each species draws a mixture component at birth, independently of its parent, and samples fossils at that component's rate times `psi`. `psiMixtureWeights` gives the probability of each component and defaults to equal weights. `psi` is then the mean sampling rate when the rates average one under the weights, as `fnDiscretizeGamma(alpha, alpha, K)` does. Each species carries its component as a latent variable, which `mvPsiMixtureAllocation` samples and `getPsiMixtureComponents()` reports. The probability that a lineage leaves no sampled descendant accounts for the mixture, because unsampled descendants draw their own components.)");
 	help_strings[string("dnFossilizedBirthDeathRange")][string("example")] = string(R"(lambda ~ dnExp(10)
 mu ~ dnExp(10)
 psi ~ dnExp(10)
@@ -956,12 +958,20 @@ rec ~ dnFossilRecord(ranges=bd, reporting="firstlast")
 rec.clamp(taxa)
 
 moves.append( mvMatrixElementScale(bd, weight=taxa.size()) )
-moves.append( mvMatrixElementSlide(bd, weight=taxa.size()) ))");
+moves.append( mvMatrixElementSlide(bd, weight=taxa.size()) )
+
+# fossil sampling rates that vary among species, as a discretized gamma
+alpha ~ dnExp(1)
+bd_mix ~ dnFBDRP(lambda=lambda, mu=mu, psi=psi, rho=1, taxa=taxa,
+                 psiMixtureRates=fnDiscretizeGamma(alpha, alpha, 4))
+moves.append( mvPsiMixtureAllocation(bd_mix, weight=taxa.size()) ))");
 	help_strings[string("dnFossilizedBirthDeathRange")][string("name")] = string(R"(dnFossilizedBirthDeathRange)");
 	help_references[string("dnFossilizedBirthDeathRange")].push_back(RbHelpReference(R"(The fossilized birth-death model for the analysis of stratigraphic range data under different speciation modes. Stadler, Tanja et al. Journal of theoretical biology, 447:41-55.)",R"()",R"(https://www.sciencedirect.com/science/article/pii/S002251931830119X )"));
 	help_references[string("dnFossilizedBirthDeathRange")].push_back(RbHelpReference(R"(Improved estimation of macroevolutionary rates from fossil data using a Bayesian framework. Silvestro, Daniele et al. Paleobiology, 45:546-570.)",R"(https://doi.org/10.1017/pab.2019.23)",R"(https://www.cambridge.org/core/journals/paleobiology/article/improved-estimation-of-macroevolutionary-rates-from-fossil-data-using-a-bayesian-framework/334F08A74A6C92F1FEAD91A71FE59A1C )"));
 	help_arrays[string("dnFossilizedBirthDeathRange")][string("see_also")].push_back(string(R"(dnFossilRecord)"));
 	help_arrays[string("dnFossilizedBirthDeathRange")][string("see_also")].push_back(string(R"(mvStratigraphicRange)"));
+	help_arrays[string("dnFossilizedBirthDeathRange")][string("see_also")].push_back(string(R"(mvPsiMixtureAllocation)"));
+	help_arrays[string("dnFossilizedBirthDeathRange")][string("see_also")].push_back(string(R"(fnDiscretizeGamma)"));
 	help_strings[string("dnFossilizedBirthDeathRange")][string("title")] = string(R"(The fossilized birth-death range process)");
 	help_arrays[string("dnFossilizedBirthDeathSpeciation")][string("authors")].push_back(string(R"(June Walker)"));
 	help_strings[string("dnFossilizedBirthDeathSpeciation")][string("description")] = string(R"(The fossilized birth death speciation process (FBDSP) describes the diversification and sampling of extant and extinct species trees under a mixed model of asymmetric (budding) and anagenetic speciation.)");
@@ -4086,6 +4096,19 @@ moves.append( mvNNI(tree=timetree, weight=taxa.size()) ))");
 	help_strings[string("mvNodeTimeSlidePathTruncatedNormal")][string("name")] = string(R"(mvNodeTimeSlidePathTruncatedNormal)");
 	help_strings[string("mvNodeTimeSlideUniform")][string("name")] = string(R"(mvNodeTimeSlideUniform)");
 	help_strings[string("mvNodeTimeSlideUniformAgeConstrained")][string("name")] = string(R"(mvNodeTimeSlideUniformAgeConstrained)");
+	help_arrays[string("mvPsiMixtureAllocation")][string("authors")].push_back(string(R"(June Walker)"));
+	help_strings[string("mvPsiMixtureAllocation")][string("description")] = string(R"(Draws one taxon's fossil sampling mixture component from its full conditional distribution.)");
+	help_strings[string("mvPsiMixtureAllocation")][string("details")] = string(R"(Under `dnFBDRP` with `psiMixtureRates`, each species carries a latent mixture component that scales its fossil sampling rate. The component is not part of the value, so this is the only move that changes it. Each proposal picks a taxon at random and draws its component given its range, its occurrences and the rates, so every proposal is accepted.)");
+	help_strings[string("mvPsiMixtureAllocation")][string("example")] = string(R"(alpha ~ dnExponential(1)
+bd ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=rho,
+             psiMixtureRates=fnDiscretizeGamma(alpha, alpha, 4))
+
+moves.append( mvPsiMixtureAllocation(bd, weight=taxa.size()) )
+components := bd.getPsiMixtureComponents())");
+	help_strings[string("mvPsiMixtureAllocation")][string("name")] = string(R"(mvPsiMixtureAllocation)");
+	help_arrays[string("mvPsiMixtureAllocation")][string("see_also")].push_back(string(R"(dnFossilizedBirthDeathRange)"));
+	help_arrays[string("mvPsiMixtureAllocation")][string("see_also")].push_back(string(R"(mvGibbsMixtureAllocation)"));
+	help_strings[string("mvPsiMixtureAllocation")][string("title")] = string(R"(Gibbs sampling of each taxon's psi mixture component)");
 	help_strings[string("mvRJSwitch")][string("name")] = string(R"(mvRJSwitch)");
 	help_arrays[string("mvRandomCategoryWalk")][string("authors")].push_back(string(R"(Sebastian Höhna)"));
 	help_strings[string("mvRandomCategoryWalk")][string("description")] = string(R"(This random walk proposal picks a random index of a vector. Then, it picks
