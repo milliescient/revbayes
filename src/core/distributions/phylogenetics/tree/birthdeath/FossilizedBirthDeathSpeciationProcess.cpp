@@ -229,6 +229,15 @@ double FossilizedBirthDeathSpeciationProcess::rangeEndTerm( size_t i, size_t di,
 }
 
 
+/** The range terms also read the anagenetic rate and the chance of symmetric speciation. */
+void FossilizedBirthDeathSpeciationProcess::appendIntervalRates( size_t j, std::vector<double> &v ) const
+{
+    AbstractFossilizedBirthDeathRangeProcess::appendIntervalRates( j, v );
+    v.push_back( anagenetic[j] );
+    v.push_back( symmetric[j] );
+}
+
+
 /** An anagenetic species continues its ancestor's lineage, and with it the ancestor's component. */
 void FossilizedBirthDeathSpeciationProcess::mixtureStemSource( size_t i, std::vector<double> &w ) const
 {
@@ -1576,7 +1585,7 @@ void FossilizedBirthDeathSpeciationProcess::touchSpecialization(const DagNode *t
     {
         if ( first_touch )
         {
-            stored_likelihood = partial_likelihood;
+            storeRangeTerms();
             stored_ranges     = ranges;
         }
 
@@ -1584,7 +1593,7 @@ void FossilizedBirthDeathSpeciationProcess::touchSpecialization(const DagNode *t
     }
     else
     {
-        // a parameter dirties every per-taxon term
+        // a parameter dirties the per-taxon terms of the intervals it changed, found when they are computed
         AbstractBirthDeathProcess::touchSpecialization(toucher, touchAll);
         AbstractFossilizedBirthDeathRangeProcess::touchSpecialization(toucher, touchAll);
     }

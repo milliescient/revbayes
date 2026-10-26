@@ -145,6 +145,9 @@ namespace RevBayesCore {
         virtual void                                    mixtureStemSource(size_t i, std::vector<double> &w) const;  //!< The probability that range i's lineage starts in each component.
         virtual std::vector<size_t>                     mixtureDependents(size_t i) const { return std::vector<size_t>(); }  //!< The ranges whose lineage starts in range i's component.
         virtual double                                  observedRangeRate(size_t j) const { return 0.0; }           //!< A rate in interval j at which an observed range must have no event, beside lambda and mu.
+        virtual void                                    appendIntervalRates(size_t j, std::vector<double> &v) const;  //!< Every rate of interval j a range term reads.
+        void                                            storeRangeTerms(void);                                      //!< Keep the range terms and what they were computed under, for a rejected proposal.
+        void                                            dirtyChangedIntervals(void);                                //!< Dirty the taxa born in or above the youngest interval whose rates changed.
 
         // Parameter management functions
         void                                            swapParameterInternal(const DagNode *oldP, const DagNode *newP);                //!< Swap a parameter
@@ -237,6 +240,10 @@ namespace RevBayesCore {
 
         std::vector<double>                             partial_likelihood;                                     //!< Partial likelihood for each taxon
         std::vector<double>                             stored_likelihood;                                      //!< Stored partial likelihood for each taxon
+        std::vector<double>                             range_shared;                                           //!< What every interval shares, as partial_likelihood was computed under it
+        std::vector<double>                             range_rates;                                            //!< Each interval's rates, likewise
+        std::vector<double>                             stored_range_shared;
+        std::vector<double>                             stored_range_rates;
                                 
         std::vector<bool>                               dirty_taxa;                                             //!< Indicates whether partial likelihood needs updating
 

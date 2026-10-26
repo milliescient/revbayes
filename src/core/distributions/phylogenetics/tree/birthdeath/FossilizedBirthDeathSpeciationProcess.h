@@ -88,6 +88,7 @@ namespace RevBayesCore {
         void                                            mixtureStemSource(size_t i, std::vector<double> &w) const override;  //!< An anagenetic species starts in its ancestor's component.
         std::vector<size_t>                             mixtureDependents(size_t i) const override;
         double                                          observedRangeRate(size_t j) const override { return anagenetic[j]; }  //!< No anagenesis inside an observed range.
+        void                                            appendIntervalRates(size_t j, std::vector<double> &v) const override;
 
         void                                            repairRanges(void) override;                             //!< Re-take from the tip what a tree move carries there.
         void                                            updateRanges(void) override;

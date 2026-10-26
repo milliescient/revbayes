@@ -344,6 +344,8 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnProbabilityRanges( boo
     // prepare the probability computation
     prepareProbComputation();
 
+    dirtyChangedIntervals();
+
     // only the oldest range begins at the origin
     if ( origin_age != NULL )
     {
@@ -1570,6 +1572,8 @@ void AbstractFossilizedBirthDeathRangeProcess::keepSpecialization(const DagNode 
 void AbstractFossilizedBirthDeathRangeProcess::restoreSpecialization(const DagNode *toucher)
 {
     partial_likelihood = stored_likelihood;
+    range_shared       = stored_range_shared;
+    range_rates        = stored_range_rates;
 
     ranges = stored_ranges;
 
@@ -1601,15 +1605,80 @@ void AbstractFossilizedBirthDeathRangeProcess::restoreSpecialization(const DagNo
 
 void AbstractFossilizedBirthDeathRangeProcess::touchSpecialization(const DagNode *toucher, bool touchAll)
 {
+    // a parameter dirties only the taxa whose intervals it changed, which dirtyChangedIntervals finds
     if ( touched == false )
     {
-        stored_likelihood = partial_likelihood;
-        stored_ranges     = ranges;
-
-        dirty_taxa = std::vector<bool>(taxa.size(), true);
+        storeRangeTerms();
+        stored_ranges = ranges;
     }
 
     touched = true;
+}
+
+
+void AbstractFossilizedBirthDeathRangeProcess::storeRangeTerms( void )
+{
+    stored_likelihood   = partial_likelihood;
+    stored_range_shared = range_shared;
+    stored_range_rates  = range_rates;
+}
+
+
+void AbstractFossilizedBirthDeathRangeProcess::appendIntervalRates( size_t j, std::vector<double> &v ) const
+{
+    v.push_back( birth[j] );
+    v.push_back( death[j] );
+    v.push_back( fossil[j] );
+}
+
+
+/**
+ * A range term reads the intervals from the present up to its birth: their rates, and p at their
+ * starts, which the younger intervals set. A change in interval j therefore leaves every taxon
+ * born below it as it was, and a change in what all intervals share leaves none.
+ */
+void AbstractFossilizedBirthDeathRangeProcess::dirtyChangedIntervals( void )
+{
+    std::vector<double> shared( times.begin(), times.end() );
+    shared.push_back( homogeneous_rho->getValue() );
+    shared.insert( shared.end(), mixture_rates.begin(), mixture_rates.end() );
+    shared.insert( shared.end(), mixture_weights.begin(), mixture_weights.end() );
+
+    std::vector<double> rates;
+    std::vector<size_t> start( num_intervals + 1, 0 );
+    for (size_t j = 0; j < num_intervals; j++)
+    {
+        start[j] = rates.size();
+        appendIntervalRates( j, rates );
+    }
+    start[num_intervals] = rates.size();
+
+    size_t first = num_intervals;
+    if ( shared != range_shared || rates.size() != range_rates.size() )
+    {
+        first = 0;
+    }
+    else
+    {
+        for (size_t j = 0; j < num_intervals && first == num_intervals; j++)
+        {
+            for (size_t k = start[j]; k < start[j+1]; k++)
+            {
+                if ( rates[k] != range_rates[k] ) { first = j; break; }
+            }
+        }
+    }
+
+    if ( first < num_intervals )
+    {
+        for (size_t i = 0; i < taxa.size(); i++)
+        {
+            if ( dirty_taxa[i] == false && findIndex( ranges[i].divergence ) >= first ) dirty_taxa[i] = true;
+        }
+    }
+
+    range_shared.swap( shared );
+    range_rates.swap( rates );
 }
 
 

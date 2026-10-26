@@ -410,7 +410,7 @@ void FossilizedBirthDeathRangeProcess::touchSpecialization(const DagNode *touche
     {
         if ( touched == false )
         {
-            stored_likelihood = partial_likelihood;
+            storeRangeTerms();
             stored_ranges     = ranges;
 
             std::set<size_t> touched_indices = dag_node->getTouchedElementIndices();
