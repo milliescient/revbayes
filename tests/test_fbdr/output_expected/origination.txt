@@ -2,13 +2,7 @@ every draw sits between the oldest appearance and the divergence:
 TRUE	
 the integrated mean agrees with the average of 4000 draws:
 TRUE	
-every row of the parent matrix is a distribution:
-TRUE	
-as many ranges take weight as coexist, and they share it evenly:
-TRUE	
-the origin's row sits entirely on its own diagonal:
-TRUE	
-raising psi does not raise the unsampled-parent diagonal:
+raising psi does not lower the mean origination:
 TRUE	
 five intervals of one rate match one interval:
 TRUE	

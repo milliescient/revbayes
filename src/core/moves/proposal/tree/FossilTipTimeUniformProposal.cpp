@@ -233,13 +233,13 @@ double FossilTipTimeUniformProposal::doProposal( void )
     if ( extended == true )
     {
         // an extinction is bounded by the present and the youngest occurrence, not the parent
-        const std::vector<std::pair<TimeInterval, size_t> >& occurrences = node.getTaxon().getOccurrences();
+        const std::map<TimeInterval, size_t>& occurrences = node.getTaxon().getOccurrences();
 
         min_age = 0.0;
         max_age = node.getTaxon().getMaxAge();
 
         // a death lies at or below every occurrence, so the binding bound is the youngest maximum
-        for (std::vector<std::pair<TimeInterval, size_t> >::const_iterator it = occurrences.begin(); it != occurrences.end(); ++it)
+        for (std::map<TimeInterval, size_t>::const_iterator it = occurrences.begin(); it != occurrences.end(); ++it)
         {
             max_age = fmin(max_age, it->first.getMax());
         }

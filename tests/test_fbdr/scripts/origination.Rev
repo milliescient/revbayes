@@ -108,7 +108,7 @@ print(filename=out, append=TRUE, "raising psi does not lower the mean originatio
 print(filename=out, append=TRUE, rises, "\n")
 
 # intervals that share a rate must not move it: the composition check, which is what
-# exercises the accumulation of q and q_tilde across interval boundaries
+# exercises the accumulation of q and q_tilde across interval boundaries; 1E-6 because the mean is 64-step Simpson per interval
 timeline <- v(1.0, 2.0, 3.0, 4.0)
 lv := v(lambda, lambda, lambda, lambda, lambda)
 mv := v(mu, mu, mu, mu, mu)
@@ -125,7 +125,7 @@ mean_sky <- bd_s.getOriginationTimes(mean=TRUE)
 composes <- TRUE
 for (i in 1:n)
 {
-    if ( abs(mean_sky[i] - mean_s[i]) > 1E-8 ) { composes <- FALSE }
+    if ( abs(mean_sky[i] - mean_s[i]) > 1E-6 ) { composes <- FALSE }
 }
 
 print(filename=out, append=TRUE, "five intervals of one rate match one interval:\n")

@@ -46,12 +46,10 @@ AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProce
                                                                          const std::string &incondition,
                                                                          const std::vector<Taxon> &intaxa,
                                                                          bool comp,
-                                                                         bool coexist,
                                                                          const TypedDagNode<double> *inorigin,
                                                                          double inpresent) :
     taxa(intaxa),
     condition(incondition),
-    coexistence(coexist),
     homogeneous_rho(inrho),
     timeline( intimes ),
     origin_age( inorigin ),
@@ -204,14 +202,14 @@ void AbstractFossilizedBirthDeathRangeProcess::updateRecord( void )
 
     for ( size_t i = 0; i < taxa.size(); i++ )
     {
-        const std::vector<std::pair<TimeInterval, size_t> > &record = taxa[i].getOccurrences();
+        const std::map<TimeInterval, size_t> &record = taxa[i].getOccurrences();
 
         size_t count = 0;
-        for ( size_t k = 0; k < record.size(); k++ )
+        for ( std::map<TimeInterval, size_t>::const_iterator Fi = record.begin(); Fi != record.end(); Fi++ )
         {
-            const TimeInterval &bin = record[k].first;
+            const TimeInterval &bin = Fi->first;
 
-            count += record[k].second;
+            count += Fi->second;
 
             // find the oldest minimum age
             ranges[i].first_min = std::max(bin.getMin(), ranges[i].first_min);
@@ -591,7 +589,7 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i
 
     double result = 0.0;
 
-    const std::vector<std::pair<TimeInterval, size_t> > &ages = taxa[i].getOccurrences();
+    const std::map<TimeInterval, size_t> &ages = taxa[i].getOccurrences();
 
     // if there is a range of fossil ages
     if ( min_age != max_age )
@@ -621,7 +619,7 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i
 
             size_t k = 0;
             // increase running psi total for each observation
-            for ( std::vector<std::pair<TimeInterval, size_t> >::const_iterator Fi = ages.begin(); Fi != ages.end(); Fi++,k++ )
+            for ( std::map<TimeInterval, size_t>::const_iterator Fi = ages.begin(); Fi != ages.end(); Fi++,k++ )
             {
                 if ( Fi->first.getMin() < t_0 && Fi->first.getMax() > times[j] )
                 {
@@ -643,14 +641,14 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i
         result = log(fossil[oi]);
 
         size_t count = 0;
-        for ( size_t k = 0; k < ages.size(); k++ ) count += ages[k].second;
+        for ( std::map<TimeInterval, size_t>::const_iterator Fi = ages.begin(); Fi != ages.end(); Fi++ ) count += Fi->second;
         double recip_old = 0.0;                         // sum_{i: tau1 in F_i} count_i / Psi(F_i)
         double recip_young = 0.0;                       // sum_{i: tauK in F_i} count_i / Psi(F_i)
         double diag = 0.0;
 
         size_t k = 0;
         // compute factors of the sum over each possible oldest/youngest observation
-        for ( std::vector<std::pair<TimeInterval, size_t> >::const_iterator Fi = ages.begin(); Fi != ages.end(); Fi++,k++ )
+        for ( std::map<TimeInterval, size_t>::const_iterator Fi = ages.begin(); Fi != ages.end(); Fi++,k++ )
         {
             bool eligible_oldest = ( Fi->first.getMax() >= o );
             bool eligible_youngest = ( Fi->first.getMin() <= y );
@@ -754,7 +752,7 @@ double AbstractFossilizedBirthDeathRangeProcess::lnPresenceRecord( size_t i ) co
     // the oldest and youngest occurrences, whose bins bound the interior
     double result = log( fossil[findIndex(o)] ) + log( fossil[findIndex(y)] );
 
-    const std::vector<std::pair<TimeInterval, size_t> > &ages = taxa[i].getOccurrences();
+    const std::map<TimeInterval, size_t> &ages = taxa[i].getOccurrences();
 
     for ( size_t b = 0; b + 1 < record_bins.size(); b++ )
     {
@@ -766,9 +764,9 @@ double AbstractFossilizedBirthDeathRangeProcess::lnPresenceRecord( size_t i ) co
 
         bool occupied = false;
         double mid = 0.5 * ( lo + hi );
-        for ( size_t k = 0; k < ages.size(); k++ )
+        for ( std::map<TimeInterval, size_t>::const_iterator Fi = ages.begin(); Fi != ages.end(); Fi++ )
         {
-            if ( ages[k].first.getMin() <= mid && ages[k].first.getMax() >= mid ) occupied = true;
+            if ( Fi->first.getMin() <= mid && Fi->first.getMax() >= mid ) occupied = true;
         }
 
         double Lambda = lnPresenceExposure( lo, hi );
@@ -1228,10 +1226,10 @@ void AbstractFossilizedBirthDeathRangeProcess::drawRanges()
         if ( RbMath::isFinite(o) == false )
         {
             o = 0.0;
-            const std::vector<std::pair<TimeInterval, size_t> > &record = taxa[i].getOccurrences();
-            for ( size_t k = 0; k < record.size(); k++ )
+            const std::map<TimeInterval, size_t> &record = taxa[i].getOccurrences();
+            for ( std::map<TimeInterval, size_t>::const_iterator Fi = record.begin(); Fi != record.end(); Fi++ )
             {
-                o = std::max( o, record[k].first.getMin() );
+                o = std::max( o, Fi->first.getMin() );
             }
         }
         if ( o > max ) max = o;
