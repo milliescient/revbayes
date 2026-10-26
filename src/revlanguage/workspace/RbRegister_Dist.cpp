@@ -139,6 +139,7 @@
 /* Character evolution models (in folder "distributions/phylogenetics/character") */
 #include "Dist_CTMC.h"
 #include "Dist_phyloCTMC.h"
+#include "Dist_phyloMorphospeciation.h"
 #include "Dist_phyloCTMCDASequence.h"
 #include "Dist_phyloCTMCDASiteIID.h"
 #include "Dist_phyloCTMCClado.h"
@@ -357,6 +358,7 @@ void RevLanguage::Workspace::initializeDistGlobalWorkspace(void)
 //        AddDistribution< AbstractHomologousDiscreteCharacterData >( new Dist_phyloCTMCClado() );
         addDistribution( new Dist_CTMC() );
         addDistribution( new Dist_phyloCTMC() );
+        addDistribution( new Dist_phyloMorphospeciation() );
         addDistribution( new Dist_phyloCTMCDASequence() );
         addDistribution( new Dist_phyloCTMCDASiteIID() );
         addDistribution( new Dist_phyloCTMCClado() );

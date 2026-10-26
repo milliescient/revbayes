@@ -1,0 +1,6 @@
+all states missing: the density is that of the events:
+TRUE	
+a branch with no hidden speciation holds no events:
+TRUE	
+one species: the stationary frequencies alone:
+TRUE	

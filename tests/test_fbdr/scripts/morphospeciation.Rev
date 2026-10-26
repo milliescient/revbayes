@@ -1,0 +1,28 @@
+# dnPhyloMorphospeciation. Two exact identities, which hold whatever the tree and the rates:
+#   - with every state missing, each character's likelihood is one, so the log density is the
+#     prior on which character changed at each speciation, -m ln n for m speciations;
+#   - a single species has no speciation, so it is its stationary frequencies, sum ln(1/K).
+# Every line printed must be TRUE.
+seed(1)
+out = "output/morphospeciation.txt"
+
+taxa <- readTaxonData("data/fbdsp_condition.tsv")
+bd ~ dnFBDSP(taxa=taxa, lambda=0.4, mu=0.1, psi=0.5, rho=1.0, lambda_a=0.3, origin=20.0, condition="time")
+morph ~ dnPhyloMorphospeciation(tree=bd, nStates=v(2, 3, 2, 4))
+morph.clamp( readDiscreteCharacterData("data/morpho_missing.nex") )
+
+print(filename=out, "all states missing: the density is the prior on the changed characters:\n")
+print(filename=out, append=TRUE, abs(morph.lnProbability() + (taxa.size() - 1) * ln(4)) < 1E-10, "\n")
+
+one <- readTaxonData("data/morpho_one.tsv")
+bd1 ~ dnFBDSP(taxa=one, lambda=0.4, mu=0.1, psi=0.5, rho=1.0, lambda_a=0.3, origin=5.0, condition="time")
+morph1 ~ dnPhyloMorphospeciation(tree=bd1, nStates=v(2, 3, 2, 4))
+morph1.clamp( readDiscreteCharacterData("data/morpho_one.nex") )
+
+print(filename=out, append=TRUE, "one species: the stationary frequencies alone:\n")
+print(filename=out, append=TRUE, abs(morph1.lnProbability() - (ln(1/2) + ln(1/3) + ln(1/2) + ln(1/4))) < 1E-12, "\n")
+
+print(filename=out, append=TRUE, "no species changes at the origin:\n")
+print(filename=out, append=TRUE, morph1.getChangedCharacters()[1] == 0, "\n")
+
+q()
