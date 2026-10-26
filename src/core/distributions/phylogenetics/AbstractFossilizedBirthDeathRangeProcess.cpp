@@ -409,10 +409,9 @@ double AbstractFossilizedBirthDeathRangeProcess::rangeLnProb( size_t i )
 {
     if ( num_components > 1 )
     {
-        std::vector<double> ln_probs;
-        mixtureRangeLnProbs( i, ln_probs, ranges[i].component );
+        mixtureRangeLnProbs( i, mix_ln_probs, ranges[i].component );
 
-        return ln_probs[ ranges[i].component ];
+        return mix_ln_probs[ ranges[i].component ];
     }
 
     double b = ranges[i].divergence;
@@ -1807,11 +1806,10 @@ void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, st
     size_t H = num_components;
 
     // the component the lineage starts in at b_i: drawn at birth, unless a subclass knows it
-    std::vector<double> start;
     if ( source == NULL )
     {
-        mixtureStemSource( i, start );
-        source = &start;
+        mixtureStemSource( i, mix_start );
+        source = &mix_start;
     }
 
     double b = ranges[i].divergence;
@@ -1822,21 +1820,22 @@ void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, st
     size_t oi = findIndex(o);
     size_t di = findIndex(d);
 
-    std::vector<size_t> columns;
+    std::vector<size_t> &columns = mix_columns;
+    columns.clear();
     for (size_t h = 0; h < H; h++)
     {
         if ( only >= H || h == only ) columns.push_back(h);
     }
     size_t num_columns = columns.size();
 
-    std::vector<double> p;
+    std::vector<double> &p = mix_p;
     double lambda_pbar_o = 0.0;
     mixture_solution.at( o, p, lambda_pbar_o );
 
-    std::vector<double> Q, Q_scale;
+    std::vector<double> &Q = mix_Q, &Q_scale = mix_Q_scale;
     mixture_solution.sensitivity( o, b, columns, Q, Q_scale );
 
-    ln_probs = std::vector<double>(H, RbConstants::Double::neginf);
+    ln_probs.assign( H, RbConstants::Double::neginf );
 
     for (size_t c = 0; c < num_columns; c++)
     {

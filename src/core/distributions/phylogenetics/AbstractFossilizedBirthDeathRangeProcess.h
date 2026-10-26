@@ -220,6 +220,8 @@ namespace RevBayesCore {
         mutable std::vector<double>                     mixture_rates;                                          //!< The relative fossil sampling rate of each component
         mutable std::vector<double>                     mixture_weights;                                        //!< The probability of each component
         mutable PsiMixtureSolution                      mixture_solution;                                       //!< p, int lambda pbar and Q of every component
+        mutable std::vector<double>                     mix_start, mix_p, mix_Q, mix_Q_scale, mix_ln_probs;     //!< scratch for the mixture range density
+        mutable std::vector<size_t>                     mix_columns;
 
                                 
         size_t                                          stored_range = 0;                                       //!< The range mvStratigraphicRange drew.

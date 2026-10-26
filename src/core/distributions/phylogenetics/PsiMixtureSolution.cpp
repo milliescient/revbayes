@@ -324,6 +324,16 @@ void PsiMixtureSolution::solve( Interval &I, double lambda, double mu, double ps
     I.second = ( I.top == 0 ) ? 1 : 0;
     for (size_t k = 0; k < K; k++) if ( k != I.top && I.rate[k] > I.rate[I.second] ) I.second = k;
 
+    // the pairs of modes Q sums over, which depend on the interval alone
+    I.pair.resize( K*K*H );
+    for (size_t k = 0; k < K; k++)
+    {
+        for (size_t j = 0; j < K; j++)
+        {
+            for (size_t a = 0; a < H; a++) I.pair[(k*K + j)*H + a] = I.vy[k*H + a] * I.vz[j] - I.vy[j*H + a] * I.vz[k];
+        }
+    }
+
     I.c.resize(K);
     for (size_t k = 0; k < K; k++)
     {
@@ -354,28 +364,31 @@ void PsiMixtureSolution::pAt( const Interval &I, double dt, std::vector<double> 
 
 
 /**
- * M[a*H + b] = dp_a(to)/dp_b(from) / exp(scale), for offsets from <= to within one interval.
- * Q_ab = sum_{k != j} e^{(s_k + s_j) dt} c_j (v_ka v_jz - v_ja v_kz) u_kb / z^2, whose largest pair
- * is the two slowest modes, so scale starts at (s_second - s_top) dt and every other factor is at most 1.
+ * dp(to)/dp(from) applied to C columns, for offsets from <= to within one interval: the columns e_b
+ * for each b in unit, or else the columns of in, H entries each. out[c*H + a] holds the result
+ * divided by exp(scale[c]). Q_ab = sum_{k != j} e^{(s_k + s_j) dt} c_j (v_ka v_jz - v_ja v_kz) u_kb / z^2,
+ * whose largest pair is the two slowest modes, so the scale starts at (s_second - s_top) dt and
+ * every other factor is at most 1. Only the columns asked for are formed.
  */
-void PsiMixtureSolution::localSensitivity( const Interval &I, double from, double to, std::vector<double> &M, double &scale ) const
+void PsiMixtureSolution::localApply( const Interval &I, double from, double to, const std::vector<size_t> *unit, const double *in,
+                                     size_t C, double *out, double *scale ) const
 {
     size_t H = num_components, K = I.rate.size();
     double top = I.rate[I.top], second = I.rate[I.second];
 
     // the coefficients at from, where z = 1
-    cw.assign( K, 0.0 );
+    cw.resize( K );
     double z_from = 0.0;
     for (size_t j = 0; j < K; j++)
     {
-        cw[j] = I.c[j] * exp( ( I.rate[j] - top ) * from );
+        cw[j] = ( from == 0.0 ) ? I.c[j] : I.c[j] * exp( ( I.rate[j] - top ) * from );
         z_from += cw[j] * I.vz[j];
     }
     for (size_t j = 0; j < K; j++) cw[j] /= z_from;
 
     double dt = to - from;
-    e0.assign( K, 0.0 );
-    e1.assign( K, 0.0 );
+    e0.resize( K );
+    e1.resize( K );
     double Z = 0.0;
     for (size_t k = 0; k < K; k++)
     {
@@ -384,7 +397,7 @@ void PsiMixtureSolution::localSensitivity( const Interval &I, double from, doubl
         Z += cw[k] * e0[k] * I.vz[k];
     }
 
-    // G[k*H + a] = sum_{j != k} factor c_j (v_ka v_jz - v_ja v_kz), then M_ab = sum_k G_ka u_kb
+    // G[k*H + a] = sum_{j != k} factor c_j (v_ka v_jz - v_ja v_kz)
     col.assign( K*H, 0.0 );
     for (size_t k = 0; k < K; k++)
     {
@@ -394,30 +407,43 @@ void PsiMixtureSolution::localSensitivity( const Interval &I, double from, doubl
             double factor = ( k == I.top ) ? e1[j] : ( ( j == I.top ) ? e1[k] : e0[k] * e1[j] );
             double x = factor * cw[j];
             if ( x == 0.0 ) continue;
-            for (size_t a = 0; a < H; a++) col[k*H + a] += x * ( I.vy[k*H + a] * I.vz[j] - I.vy[j*H + a] * I.vz[k] );
+            const double *d = &I.pair[(k*K + j)*H];
+            for (size_t a = 0; a < H; a++) col[k*H + a] += x * d[a];
         }
     }
 
-    M.assign( H*H, 0.0 );
-    double largest = 0.0;
-    for (size_t a = 0; a < H; a++)
+    // each column on the left vectors, u_k . in_c, so that out_c = sum_k G_k (u_k . in_c)
+    proj.resize( K*C );
+    for (size_t c = 0; c < C; c++)
     {
-        for (size_t b = 0; b < H; b++)
+        for (size_t k = 0; k < K; k++)
         {
             double x = 0.0;
-            for (size_t k = 0; k < K; k++) x += col[k*H + a] * I.uy[k*H + b];
-            // Q is nonnegative, so a negative entry is rounding
-            x = std::max( 0.0, x / (Z * Z) );
-            M[a*H + b] = x;
-            largest = std::max( largest, x );
+            if ( unit != NULL ) x = I.uy[k*H + (*unit)[c]];
+            else for (size_t b = 0; b < H; b++) x += I.uy[k*H + b] * in[c*H + b];
+            proj[k*C + c] = x;
         }
     }
 
-    scale = ( second - top ) * dt;
-    if ( largest > 0.0 )
+    double base = ( second - top ) * dt;
+    for (size_t c = 0; c < C; c++)
     {
-        for (size_t x = 0; x < H*H; x++) M[x] /= largest;
-        scale += log( largest );
+        double largest = 0.0;
+        for (size_t a = 0; a < H; a++)
+        {
+            double x = 0.0;
+            for (size_t k = 0; k < K; k++) x += col[k*H + a] * proj[k*C + c];
+            // Q is nonnegative, so a negative entry is rounding
+            x = std::max( 0.0, x / (Z * Z) );
+            out[c*H + a] = x;
+            largest = std::max( largest, x );
+        }
+        scale[c] = base;
+        if ( largest > 0.0 )
+        {
+            for (size_t a = 0; a < H; a++) out[c*H + a] /= largest;
+            scale[c] += log( largest );
+        }
     }
 }
 
@@ -473,7 +499,7 @@ void PsiMixtureSolution::update( const std::vector<double> &times, const std::ve
             double ln_z;
             pAt( I, dt, p, ln_z );
             lambda_pbar -= ln_z;
-            localSensitivity( I, 0.0, dt, I.full_Q, I.full_Q_scale );
+            wholeInterval( I, dt );
         }
     }
 }
@@ -499,26 +525,45 @@ double PsiMixtureSolution::lambdaPbarIntegral( double t0, double t1 ) const
 }
 
 
+/** Q over a whole interval, row-major on the scale of its largest column, for the ranges it lies inside. */
+void PsiMixtureSolution::wholeInterval( Interval &I, double dt ) const
+{
+    size_t H = num_components;
+
+    std::vector<size_t> all( H );
+    for (size_t b = 0; b < H; b++) all[b] = b;
+
+    prev.resize( H*H );
+    step_scale.resize( H );
+    localApply( I, 0.0, dt, &all, NULL, H, prev.data(), step_scale.data() );
+
+    double s = *std::max_element( step_scale.begin(), step_scale.end() );
+    I.full_Q.resize( H*H );
+    for (size_t b = 0; b < H; b++)
+    {
+        double f = exp( step_scale[b] - s );
+        for (size_t a = 0; a < H; a++) I.full_Q[a*H + b] = prev[b*H + a] * f;
+    }
+    I.full_Q_scale = s;
+}
+
+
 /** Columns of Q = dp(t)/dp(s), one per component in columns, Q[c*H + a] = dp_a(t)/dp_columns[c](s) / exp(Q_scale[c]). */
 void PsiMixtureSolution::sensitivity( double s, double t, const std::vector<size_t> &columns, std::vector<double> &Q, std::vector<double> &Q_scale ) const
 {
     size_t H = num_components, C = columns.size();
     size_t i = findIndex(s), j = findIndex(t);
 
-    std::vector<double> M;
-    double scale;
+    Q.resize( H*C );
+    Q_scale.resize( C );
     const Interval &first = intervals[i];
-    localSensitivity( first, s - first.start, ( i == j ? t : intervals[i+1].start ) - first.start, M, scale );
+    localApply( first, s - first.start, ( i == j ? t : intervals[i+1].start ) - first.start, &columns, NULL, C, Q.data(), Q_scale.data() );
 
-    Q.assign( H*C, 0.0 );
-    Q_scale.assign( C, scale );
-    for (size_t c = 0; c < C; c++)
+    // whole intervals, each a matrix on one scale
+    next.resize( H );
+    for (size_t k = i + 1; k < j; k++)
     {
-        for (size_t a = 0; a < H; a++) Q[c*H + a] = M[a*H + columns[c]];
-    }
-
-    std::vector<double> next(H);
-    auto apply = [&](const std::vector<double> &A, double A_scale) {
+        const std::vector<double> &A = intervals[k].full_Q;
         for (size_t c = 0; c < C; c++)
         {
             double *Qc = &Q[c*H];
@@ -533,21 +578,25 @@ void PsiMixtureSolution::sensitivity( double s, double t, const std::vector<size
             if ( largest > 0.0 )
             {
                 for (size_t a = 0; a < H; a++) Qc[a] = next[a] / largest;
-                Q_scale[c] += A_scale + log( largest );
+                Q_scale[c] += intervals[k].full_Q_scale + log( largest );
             }
             else
             {
                 std::fill( Qc, Qc + H, 0.0 );
             }
         }
-    };
-
-    for (size_t k = i + 1; k < j; k++) apply( intervals[k].full_Q, intervals[k].full_Q_scale );
+    }
 
     if ( j > i )
     {
         const Interval &last = intervals[j];
-        localSensitivity( last, 0.0, t - last.start, M, scale );
-        apply( M, scale );
+        prev.resize( H*C );
+        step_scale.resize( C );
+        localApply( last, 0.0, t - last.start, NULL, Q.data(), C, prev.data(), step_scale.data() );
+        for (size_t c = 0; c < C; c++)
+        {
+            for (size_t a = 0; a < H; a++) Q[c*H + a] = prev[c*H + a];
+            Q_scale[c] += step_scale[c];
+        }
     }
 }

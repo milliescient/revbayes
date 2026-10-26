@@ -42,6 +42,7 @@ namespace RevBayesCore {
             std::vector<double> key;                            //!< its start, end and rates, as last solved
             std::vector<double> rate, vy, vz, uy, uz, c;
             size_t              top = 0, second = 0;            //!< the two slowest modes
+            std::vector<double> pair;                           //!< pair[(k*K + j)*H + a] = v_ka v_jz - v_ja v_kz
             std::vector<double> full_Q;                         //!< Q over the whole interval, unless it is the oldest
             double              full_Q_scale = 0.0;
         };
@@ -50,7 +51,9 @@ namespace RevBayesCore {
         void                    solve(Interval &I, double lambda, double mu, double psi, const std::vector<double> &p0) const;
         void                    addMode(Interval &I, double s, const std::vector<double> &vy, double vz, const std::vector<double> &uy, double uz) const;
         void                    pAt(const Interval &I, double dt, std::vector<double> &p, double &ln_z) const;
-        void                    localSensitivity(const Interval &I, double from, double to, std::vector<double> &M, double &scale) const;
+        void                    wholeInterval(Interval &I, double dt) const;                                //!< Q over a whole interval, on one scale.
+        void                    localApply(const Interval &I, double from, double to, const std::vector<size_t> *unit, const double *in,
+                                           size_t C, double *out, double *scale) const;     //!< dp(to)/dp(from) applied to C columns, each scaled.
 
         size_t                  num_components = 0;
         std::vector<double>     nu;                             //!< the relative rate of each component
@@ -58,7 +61,7 @@ namespace RevBayesCore {
         std::vector<Interval>   intervals;
         std::vector<double>     solved_shared;                  //!< the arguments every interval shares, as last solved
 
-        mutable std::vector<double> cw, e0, e1, col;            //!< scratch
+        mutable std::vector<double> cw, e0, e1, col, proj, prev, step_scale, next;  //!< scratch
         mutable std::vector<double> a, vy, uy, pole_a, pole_nu, pole_W;
         mutable std::vector<size_t> order, pole_start;
     };
