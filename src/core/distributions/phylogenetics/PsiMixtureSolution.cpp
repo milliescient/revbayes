@@ -24,44 +24,82 @@ namespace {
         double off( void ) const { return ref == NONE ? 0.0 : (*a)[ref]; }
         double gap( size_t q ) const { return ref == NONE ? (*a)[q] : psi * ( (*nu)[q] - (*nu)[ref] ); }
 
-        void eval( double x, double &f, double &df ) const
+        void eval( double x, double &f, double &df, double &scale ) const
         {
             f  = x - off();
             df = 1.0;
+            scale = fabs( x ) + fabs( off() );
             for (size_t q = 0; q < W->size(); q++)
             {
                 double y = 1.0 / ( x + gap(q) );
                 double r = (*W)[q] * y;
                 f  += lm * r;
                 df -= lm * r * y;
+                scale += fabs( lm * r );
             }
         }
 
-        void evalDerivative( double x, double &df, double &d2f ) const
+        // x f(x), which has the same root but not the pole at x = 0, where Newton's steps stall
+        void evalNear( double x, double &g, double &dg, double &scale ) const
         {
-            df  = 1.0;
-            d2f = 0.0;
+            g  = x * ( x - off() );
+            dg = 2.0 * x - off();
+            scale = fabs( x ) * ( fabs( x ) + fabs( off() ) );
             for (size_t q = 0; q < W->size(); q++)
             {
-                double y = 1.0 / ( x + gap(q) );
+                double c = gap(q);
+                if ( c == 0.0 )
+                {
+                    g += lm * (*W)[q];
+                    scale += lm * (*W)[q];
+                    continue;
+                }
+                double y = 1.0 / ( x + c );
+                g  += lm * (*W)[q] * x * y;
+                dg += lm * (*W)[q] * c * y * y;
+                scale += fabs( lm * (*W)[q] * x * y );
+            }
+        }
+
+        // x^2 f'(x), the same for the minimum of f above the pole at x = 0
+        void evalDerivativeNear( double x, double &h, double &dh, double &scale ) const
+        {
+            h  = x * x;
+            dh = 2.0 * x;
+            scale = x * x;
+            for (size_t q = 0; q < W->size(); q++)
+            {
+                double c = gap(q);
+                if ( c == 0.0 )
+                {
+                    h -= lm * (*W)[q];
+                    scale += lm * (*W)[q];
+                    continue;
+                }
+                double y = 1.0 / ( x + c );
                 double r = lm * (*W)[q] * y * y;
-                df  -= r;
-                d2f += 2.0 * r * y;
+                h  -= r * x * x;
+                dh -= r * ( 2.0 * x - 2.0 * x * x * y );
+                scale += r * x * x;
             }
         }
     };
 
 
-    /** The root of g in (lo, hi), where g changes sign once: Newton's steps, bisection when one leaves the bracket. */
+    /**
+     * The root of g in (lo, hi), where g changes sign once: Newton's steps, bisection when one leaves
+     * the bracket. It stops once g is within the rounding of the terms it sums, since a further step
+     * would only follow that rounding's sign.
+     */
     template <class G>
     double safeNewton( const G &g, double lo, double hi, bool positive_at_lo )
     {
         double x = 0.5 * (lo + hi);
         for (size_t iter = 0; iter < 200; iter++)
         {
-            double v, dv;
-            g( x, v, dv );
-            if ( v == 0.0 ) return x;
+            double v, dv, scale;
+            g( x, v, dv, scale );
+            if ( fabs( v ) <= 8.0 * std::numeric_limits<double>::epsilon() * scale ) return x;
 
             if ( (v > 0.0) == positive_at_lo ) lo = x; else hi = x;
 
@@ -155,7 +193,8 @@ void PsiMixtureSolution::solve( Interval &I, double lambda, double mu, double ps
 
         Secular f;
         f.lm = lambda * mu; f.psi = psi; f.a = &pole_a; f.nu = &pole_nu; f.W = &pole_W;
-        auto in = [&](size_t ref) { f.ref = ref; return [&f](double x, double &v, double &dv){ f.eval(x, v, dv); }; };
+        auto in = [&](size_t ref) { f.ref = ref; return [&f](double x, double &v, double &dv, double &sc){ f.eval(x, v, dv, sc); }; };
+        auto near = [&](size_t ref) { f.ref = ref; return [&f](double x, double &v, double &dv, double &sc){ f.evalNear(x, v, dv, sc); }; };
 
         size_t num_bordered = 1;
         for (size_t q = 0; q < num_poles; q++) num_bordered += ( pole_W[q] > 0.0 );
@@ -173,12 +212,12 @@ void PsiMixtureSolution::solve( Interval &I, double lambda, double mu, double ps
             {
                 f.ref = r_prev;
                 double gap = f.gap(q);
-                double v, dv;
-                f.eval( -0.5 * gap, v, dv );
+                double v, dv, sc;
+                f.eval( -0.5 * gap, v, dv, sc );
                 size_t ref = ( v > 0.0 ) ? r_prev : q;
                 double lo  = ( v > 0.0 ) ? -0.5 * gap : 0.0;
                 double hi  = ( v > 0.0 ) ? 0.0 : 0.5 * gap;
-                roots.push_back( std::make_pair( ref, safeNewton( in(ref), lo, hi, true ) ) );
+                roots.push_back( std::make_pair( ref, safeNewton( near(ref), lo, hi, v <= 0.0 ) ) );
             }
             r_prev = q;
         }
@@ -188,16 +227,16 @@ void PsiMixtureSolution::solve( Interval &I, double lambda, double mu, double ps
         while ( pole_W[q0] == 0.0 ) q0++;
         double a0 = pole_a[q0];
         f.ref = q0;
-        double m = safeNewton( [&f](double x, double &df, double &d2f){ f.evalDerivative(x, df, d2f); }, 0.0, a0, false );
-        double fm, dfm;
-        f.eval( m, fm, dfm );
+        double m = safeNewton( [&f](double x, double &h, double &dh, double &sc){ f.evalDerivativeNear(x, h, dh, sc); }, 0.0, a0, false );
+        double fm, dfm, sc;
+        f.eval( m, fm, dfm, sc );
         if ( fm < 0.0 )
         {
-            roots.push_back( std::make_pair( q0, safeNewton( in(q0), 0.0, m, true ) ) );
+            roots.push_back( std::make_pair( q0, safeNewton( near(q0), 0.0, m, true ) ) );
 
             if ( m < 0.5 * a0 )
             {
-                roots.push_back( std::make_pair( q0, safeNewton( in(q0), m, a0, false ) ) );
+                roots.push_back( std::make_pair( q0, safeNewton( near(q0), m, a0, false ) ) );
             }
             else
             {
@@ -387,28 +426,44 @@ void PsiMixtureSolution::update( const std::vector<double> &times, const std::ve
                                  const std::vector<double> &psi, const std::vector<double> &rates, const std::vector<double> &weights,
                                  double rho )
 {
-    std::vector<double> &args = cw;
-    args.assign( times.begin(), times.end() );
-    for (const std::vector<double> *v : { &lambda, &mu, &psi, &rates, &weights }) args.insert( args.end(), v->begin(), v->end() );
-    args.push_back( rho );
-    args.push_back( double( rates.size() ) );
-    if ( args == solved_for ) return;
-    solved_for = args;
+    size_t N = times.size();
+
+    // a change in what every interval shares solves them all again
+    std::vector<double> &shared = cw;
+    shared.assign( rates.begin(), rates.end() );
+    shared.insert( shared.end(), weights.begin(), weights.end() );
+    shared.push_back( rho );
+    shared.push_back( double( N ) );
+    bool all = ( shared != solved_shared || intervals.size() != N );
+    solved_shared = shared;
 
     num_components = rates.size();
     nu = rates;
     w  = weights;
-
-    size_t N = times.size();
     intervals.resize( N );
 
-    std::vector<double> p( num_components, 1.0 - rho );
-    double lambda_pbar = 0.0;
-
+    // an interval's solution depends on its own rates and on the younger intervals through p at
+    // its start, so only it and those older are solved again
+    size_t first = all ? 0 : N;
+    std::vector<double> key(5);
     for (size_t i = 0; i < N; i++)
+    {
+        key[0] = times[i];
+        key[1] = ( i + 1 < N ) ? times[i+1] : std::numeric_limits<double>::infinity();
+        key[2] = lambda[i]; key[3] = mu[i]; key[4] = psi[i];
+        if ( first == N && key != intervals[i].key ) first = i;
+        if ( first <= i ) intervals[i].key = key;
+    }
+    if ( first == N ) return;
+
+    std::vector<double> p = ( first == 0 ) ? std::vector<double>( num_components, 1.0 - rho ) : intervals[first].p_start;
+    double lambda_pbar = ( first == 0 ) ? 0.0 : intervals[first].lambda_pbar_start;
+
+    for (size_t i = first; i < N; i++)
     {
         Interval &I = intervals[i];
         I.start = times[i];
+        I.p_start = p;
         I.lambda_pbar_start = lambda_pbar;
         solve( I, lambda[i], mu[i], psi[i], p );
 

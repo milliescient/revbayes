@@ -24,7 +24,7 @@ namespace RevBayesCore {
 
         void                    update(const std::vector<double> &times, const std::vector<double> &lambda, const std::vector<double> &mu,
                                        const std::vector<double> &psi, const std::vector<double> &rates, const std::vector<double> &weights,
-                                       double rho);                                                         //!< Solve every interval for these rates, unless they are the last ones. times are the interval starts, the present first.
+                                       double rho);                                                         //!< Solve the intervals whose rates changed and those older. times are the interval starts, the present first.
         size_t                  getNumberOfComponents(void) const { return num_components; }
         void                    at(double t, std::vector<double> &p, double &lambda_pbar) const;            //!< p of each component at age t, and int lambda pbar from the present up to t.
         double                  lambdaPbarIntegral(double t0, double t1) const;                             //!< int lambda pbar between ages t0 <= t1.
@@ -38,6 +38,8 @@ namespace RevBayesCore {
         struct Interval {
             double              start = 0.0;
             double              lambda_pbar_start = 0.0;
+            std::vector<double> p_start;                        //!< p at the start, from the younger intervals
+            std::vector<double> key;                            //!< its start, end and rates, as last solved
             std::vector<double> rate, vy, vz, uy, uz, c;
             size_t              top = 0, second = 0;            //!< the two slowest modes
             std::vector<double> full_Q;                         //!< Q over the whole interval, unless it is the oldest
@@ -54,7 +56,7 @@ namespace RevBayesCore {
         std::vector<double>     nu;                             //!< the relative rate of each component
         std::vector<double>     w;                              //!< the weight of each component
         std::vector<Interval>   intervals;
-        std::vector<double>     solved_for;                     //!< the arguments of the last update, which an unchanged call skips
+        std::vector<double>     solved_shared;                  //!< the arguments every interval shares, as last solved
 
         mutable std::vector<double> cw, e0, e1, col;            //!< scratch
         mutable std::vector<double> a, vy, uy, pole_a, pole_nu, pole_W;
