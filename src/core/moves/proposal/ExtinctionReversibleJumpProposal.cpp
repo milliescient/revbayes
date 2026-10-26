@@ -192,4 +192,7 @@ void ExtinctionReversibleJumpProposal::swapNodeInternal(DagNode *oldN, DagNode *
 {
     if ( matrix != NULL ) matrix = static_cast<StochasticNode<MatrixReal>* >(newN);
     else                  tree   = static_cast<StochasticNode<Tree>* >(newN);
+
+    // an mcmc swaps in its own copy of the model, which may predate this move
+    rangeProcess().setHasSurvivalMove();
 }

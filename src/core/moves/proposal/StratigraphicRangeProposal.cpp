@@ -136,4 +136,7 @@ void StratigraphicRangeProposal::undoProposal( void )
 void StratigraphicRangeProposal::swapNodeInternal(DagNode *oldN, DagNode *newN)
 {
     variable = static_cast<StochasticNode<Tree>* >(newN);
+
+    // an mcmc swaps in its own copy of the model, which may predate this move
+    rangeProcess().setHasResampleMove();
 }
