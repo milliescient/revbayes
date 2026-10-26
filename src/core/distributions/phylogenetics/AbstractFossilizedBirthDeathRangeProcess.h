@@ -236,6 +236,15 @@ namespace RevBayesCore {
         std::vector<double>                             stored_likelihood;                                      //!< Stored partial likelihood for each taxon
                                 
         std::vector<bool>                               dirty_taxa;                                             //!< Indicates whether partial likelihood needs updating
+
+        //!< A taxon's record term with the arguments it was computed from, kept until one of them changes
+        struct RecordTerm {
+            double  death = 0.0, first = 0.0, last = 0.0, rate = 0.0, value = 0.0;
+            bool    singleton = false, valid = false;
+        };
+        std::vector<RecordTerm>                         record_terms;
+        std::vector<double>                             record_terms_fossil;                                    //!< The sampling rates and times every record term was computed under
+        std::vector<double>                             record_terms_times;
         
         bool                                            touched;                                               //!< Indicates whether any terms need updating
         bool                                            has_resample_move = false;                              //!< Set by mvStratigraphicRange when it attaches.

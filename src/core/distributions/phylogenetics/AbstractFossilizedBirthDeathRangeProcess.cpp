@@ -219,6 +219,8 @@ AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProce
 /** Derive from the occurrence record the reporting model and the bounds on the appearances. */
 void AbstractFossilizedBirthDeathRangeProcess::updateRecord( void )
 {
+    record_terms.clear();
+
     // the record fixes the bounds and the reporting model; the sampled ages survive a re-derive
     for ( size_t i = 0; i < taxa.size(); i++ )
     {
@@ -616,6 +618,13 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilTotal()
 {
     prepareProbComputation();
 
+    if ( record_terms.size() != taxa.size() || fossil != record_terms_fossil || times != record_terms_times )
+    {
+        record_terms = std::vector<RecordTerm>( taxa.size() );
+        record_terms_fossil = fossil;
+        record_terms_times  = times;
+    }
+
     size_t num_rho_sampled = 0;
     size_t num_rho_unsampled = 0;
 
@@ -634,7 +643,18 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilTotal()
         // an extant taxon with no fossil sample carries no reporting term
         if ( taxa[i].getMaxAge() == times.front() ) continue;
 
-        double r = computeLnFossilRecord(i);
+        // the term depends on the taxon's own ages, status and rate, and on the sampling rates and times
+        RecordTerm &c = record_terms[i];
+        const RangeEntry &e = ranges[i];
+        double rate = num_components > 1 ? mixture_rates[ e.component ] : 1.0;
+        if ( c.valid == false || c.death != e.death || c.first != e.first || c.last != e.last || c.singleton != e.singleton || c.rate != rate )
+        {
+            c.value = computeLnFossilRecord(i, rate);
+            c.death = e.death; c.first = e.first; c.last = e.last; c.singleton = e.singleton; c.rate = rate;
+            c.valid = true;
+        }
+
+        double r = c.value;
         if ( r == RbConstants::Double::neginf )
         {
             return RbConstants::Double::neginf;
