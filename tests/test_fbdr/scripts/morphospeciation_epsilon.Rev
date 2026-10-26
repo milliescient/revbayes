@@ -1,27 +1,23 @@
 # dnPhyloMorphospeciation with epsilon. Exact identities, which hold whatever the tree and the latent
 # sets and counts, with no anagenesis so that every hidden event is a budding:
-#   - with every state missing, each character's likelihood is one, so the log density is the prior
-#     on the changed sets plus the Poisson density of the hidden events on each branch;
+#   - with every state missing, each character's likelihood is one whatever changed at a speciation,
+#     so the log density is the Poisson density of the hidden events on each branch;
 #   - a single species has no speciation and no branch, so it is its stationary frequencies, sum ln(1/K).
 # Every line printed must be TRUE.
 seed(1)
 out = "output/morphospeciation_epsilon.txt"
 
 eps = 0.2
-n = 4
 taxa <- readTaxonData("data/fbdsp_condition.tsv")
 bd ~ dnFBDSP(taxa=taxa, lambda=0.4, mu=0.1, psi=0.5, rho=1.0, lambda_a=0.0, origin=20.0, condition="time")
 morph ~ dnPhyloMorphospeciation(tree=bd, nStates=v(2, 3, 2, 4), epsilon=eps)
 morph.clamp( readDiscreteCharacterData("data/morpho_missing.nex") )
 
 lnp = morph.lnProbability()
-changes = morph.getNumberOfChanges()
 counts = morph.getHiddenEventCounts()
 means = morph.getHiddenEventMeans()
 
-# every species but the one at the origin has a speciation, and that one is reported with no changes
-expected = -n * ln(1 - eps)
-for (i in 1:changes.size()) expected += changes[i] * ln(eps) + (n - changes[i]) * ln(1 - eps)
+expected = 0.0
 for (i in 1:counts.size())
 {
     if (means[i] > 0)
@@ -32,7 +28,7 @@ for (i in 1:counts.size())
     }
 }
 
-print(filename=out, "all states missing: the density is the prior on the changed sets and the events:\n")
+print(filename=out, "all states missing: the density is that of the events:\n")
 print(filename=out, append=TRUE, abs(lnp - expected) < 1E-10, "\n")
 
 print(filename=out, append=TRUE, "a branch with no hidden speciation holds no events:\n")

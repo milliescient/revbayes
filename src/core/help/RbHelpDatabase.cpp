@@ -1644,9 +1644,9 @@ with independent and identically distributed sites)");
 
 The number of characters counts every scored character, invariant ones included, because a speciation chooses among all of them. Drop invariant characters only if you know how many there were.
 
-Which character changed at each speciation is a latent index, sampled by mvMorphospeciationAllocation and reported per species by `getChangedCharacters()`, which gives 0 for the species that begins at the origin. The latent variables are kept by node index, as branch lengths are, so they stay with their speciations and branches when the topology changes. The rates are read from the dnFBDSP tree, so the characters are recomputed whenever any of them changes. Symmetric speciation is not part of the model.
+Which character changed at each speciation is a latent index per species, sampled by mvMorphospeciationAllocation and reported by `getChangedCharacters()`, which gives 0 for the species that begins at the origin. The rates are read from the dnFBDSP tree, so the characters are recomputed whenever any of them changes. Symmetric speciation is not part of the model.
 
-With `epsilon`, a speciation changes each character independently with probability `epsilon`, so it can change several characters or none. A speciation that changes none is one whose new species differs only in characters that were not scored. The characters are then independent only given how many hidden speciation events each branch holds, so each branch carries a latent count of hidden buddings and one of hidden anagenetic events, Poisson with means `int lambda p dt` and `int lambda_a dt`, sampled by mvMorphospeciationEvents. Given the counts, a character is carried along the branch by `((1 - e) I + e J)^N` for each kind of event. Which characters changed at an observed speciation is independent across characters, so it is summed over in the likelihood rather than sampled: the new species is carried by `(1 - e) I + e J`, and mvMorphospeciationAllocation is not used. `getHiddenEventCounts()` and `getHiddenEventMeans()` give both kinds of event together on the branch above each node, by node index.
+With `epsilon`, a speciation changes each character independently with probability `epsilon`, so it can change several characters or none. A speciation that changes none is one whose new species differs only in characters that were not scored. The characters are then independent only given how many hidden speciation events each branch holds, so each branch carries a latent count of hidden buddings and one of hidden anagenetic events, Poisson with means `int lambda p dt` and `int lambda_a dt`, sampled by mvMorphospeciationEvents. Given the counts, a character is carried along the branch by `((1 - e) I + e J)^N` for each kind of event. The characters that changed at each observed speciation are sampled by mvMorphospeciationAllocation and their number reported by `getNumberOfChanges()`. `getHiddenEventCounts()` and `getHiddenEventMeans()` give both kinds of event together on the branch above each node, by node index.
 
 With `epsilon_a`, an anagenetic speciation changes each character with probability `epsilon_a`, and a budding with `epsilon`. Expected change per event is `n epsilon` for a budding and `n epsilon_a` for an anagenesis, so `epsilon / epsilon_a` is how much change a budding carries relative to an anagenesis, which is the contrast punctuated equilibrium makes. `getChangeProbabilities()` gives the two probabilities. `getSpeciationModes()` gives each species' origin, 1 for budding and 2 for anagenesis, and 0 for the species at the origin.)");
 	help_strings[string("dnPhyloMorphospeciation")][string("example")] = string(R"(bd ~ dnFBDSP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=rho, lambda_a=lambda_a, origin=origin)
@@ -1666,6 +1666,7 @@ morph ~ dnPhyloMorphospeciation(tree=bd, epsilon=epsilon, epsilon_a=epsilon_a)
 morph.clamp(matrix)
 
 moves.append( mvMorphospeciationEvents(morph, weight=2 * taxa.size()) )
+moves.append( mvMorphospeciationAllocation(morph, weight=taxa.size()) )
 moves.append( mvSlide(epsilon, weight=5) )
 moves.append( mvSlide(epsilon_a, weight=5) )
 ratio := epsilon / epsilon_a)");
@@ -4093,8 +4094,8 @@ moves.append( mvMatrixElementSwap(x, col=2, weight=1) ))");
 	help_strings[string("mvMirrorMultiplier")][string("name")] = string(R"(mvMirrorMultiplier)");
 	help_strings[string("mvMixtureAllocation")][string("name")] = string(R"(mvMixtureAllocation)");
 	help_arrays[string("mvMorphospeciationAllocation")][string("authors")].push_back(string(R"(June Walker)"));
-	help_strings[string("mvMorphospeciationAllocation")][string("description")] = string(R"(Draws the character that changed at one speciation from its full conditional distribution, under dnPhyloMorphospeciation without epsilon.)");
-	help_strings[string("mvMorphospeciationAllocation")][string("details")] = string(R"(Under dnPhyloMorphospeciation, each speciation carries the index of the character that changed there. The index is not part of the value, so this is the only move that changes it. Each proposal picks a speciation, an interior node of the tree, at random and draws its index given the tree and every species' morphology, from two passes over the tree, so every proposal is accepted. With `epsilon`, the characters change independently, so which ones changed is summed over in the likelihood and this move is not used.)");
+	help_strings[string("mvMorphospeciationAllocation")][string("description")] = string(R"(Draws the character that changed at one species' speciation from its full conditional distribution.)");
+	help_strings[string("mvMorphospeciationAllocation")][string("details")] = string(R"(Under dnPhyloMorphospeciation, each species carries the index of the character that changed when it arose. The index is not part of the value, so this is the only move that changes it. Each proposal picks a species with a speciation event at random and draws its index given the tree and every species' morphology, from two passes over the tree, so every proposal is accepted. With `epsilon`, a species carries a set of changed characters instead, and the same two passes give each character's odds of being in it. Each character is then drawn on its own.)");
 	help_strings[string("mvMorphospeciationAllocation")][string("example")] = string(R"(morph ~ dnPhyloMorphospeciation(tree=bd)
 morph.clamp(matrix)
 
@@ -4112,6 +4113,7 @@ morph ~ dnPhyloMorphospeciation(tree=bd, epsilon=epsilon)
 morph.clamp(matrix)
 
 moves.append( mvMorphospeciationEvents(morph, weight=2 * taxa.size()) )
+moves.append( mvMorphospeciationAllocation(morph, weight=taxa.size()) )
 moves.append( mvSlide(epsilon, weight=5) ))");
 	help_strings[string("mvMorphospeciationEvents")][string("name")] = string(R"(mvMorphospeciationEvents)");
 	help_arrays[string("mvMorphospeciationEvents")][string("see_also")].push_back(string(R"(dnPhyloMorphospeciation)"));

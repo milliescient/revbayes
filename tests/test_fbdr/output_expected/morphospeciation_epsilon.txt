@@ -1,4 +1,4 @@
-all states missing: the density is the prior on the changed sets and the events:
+all states missing: the density is that of the events:
 TRUE	
 a branch with no hidden speciation holds no events:
 TRUE	
