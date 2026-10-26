@@ -472,6 +472,30 @@ map_tree = consensusTree(trace=tree_trace, cutoff=0.5, file="consensus.tree"))")
 	help_arrays[string("diagonalMatrix")][string("authors")].push_back(string(R"(Sebastian Hoehna)"));
 	help_strings[string("diagonalMatrix")][string("description")] = string(R"(Building a identity/diagonal matrix with 'n' columns and rows.)");
 	help_strings[string("diagonalMatrix")][string("name")] = string(R"(diagonalMatrix)");
+	help_arrays[string("dnBDS")][string("authors")].push_back(string(R"(June Walker)"));
+	help_strings[string("dnBDS")][string("description")] = string(R"(The birth-death-with-rateshifts process describes the distribution of a matrix of species origination and extinction times under complete lineage sampling.)");
+	help_strings[string("dnBDS")][string("details")] = string(R"(No lineage goes unsampled, so no range has unsampled descendants to allow for, and the kernel reduces to a speciation rate where a range begins, an extinction rate where it ends, and the three rates integrated over its duration. Nothing is dropped, so nothing collapses, and the birth time each range carries is the species' own origination. That is not true of `dnFBDRP`, where dropping the lineages that left no fossil forces an integration over them, and that integration is simultaneously its p(t) factors and the collapse of origination into divergence. `getDivergenceTimes` is therefore missing here rather than degenerate, and `getOriginationTimes` reports the column.
+
+Nothing is conditioned for you either, so the conditioning has to be declared. `condition="time"` takes the ranges as the complete set and costs nothing. `condition="sampling"` says each range reached the data by leaving a fossil and divides by its own probability of having done so. A species known only from an extant sample takes no term either way, because it is in no fossil record. `survival` and `nTaxa` describe the process that generated the ranges rather than the record, and mean here what they mean elsewhere.
+
+`coexistence` weights each birth by how many lineages were alive to produce it, which is the per-capita structure at the event times. It is the correct term, not an assumption, and is available here as it is in `dnFBDRP`; it defaults off because the published model omits it. The omission is harmless only where the standing diversity does not vary over the span the birth times move in, and it leaves the density unnormalized, which is why this is a partial likelihood rather than a density. Left off, with `condition="sampling"`, the defaults give the likelihood PyRate uses.
+
+Applied to a record that cannot contain the ranges which left no fossil, a lineage leaving none is invisible rather than allowed for: its birth is never credited while the speciation rate is still charged over every duration. So where many lineages go unsampled the speciation rate is underestimated, in whichever intervals those lineages fall. Use `dnFBDRP` where that matters.)");
+	help_strings[string("dnBDS")][string("example")] = string(R"(taxa <- readTaxonData("fossil_ranges.tsv")
+
+lambda ~ dnExponential(1)
+mu     ~ dnExponential(1)
+psi    ~ dnExponential(1)
+
+bd ~ dnBDS(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, condition="sampling")
+
+record ~ dnFossilRecord(ranges=bd, reporting="complete")
+record.clamp(taxa))");
+	help_strings[string("dnBDS")][string("name")] = string(R"(dnBDS)");
+	help_references[string("dnBDS")].push_back(RbHelpReference(R"(Silvestro D, Salamin N, Antonelli A, Meyer X. 2019. Improved estimation of macroevolutionary rates from fossil data using a Bayesian framework. Paleobiology 45:546-570.)",R"(10.1017/pab.2019.23 )",R"()"));
+	help_arrays[string("dnBDS")][string("see_also")].push_back(string(R"(dnFossilizedBirthDeathRange)"));
+	help_arrays[string("dnBDS")][string("see_also")].push_back(string(R"(dnFossilRecord)"));
+	help_strings[string("dnBDS")][string("title")] = string(R"(Birth-death process with rate shifts)");
 	help_arrays[string("dnBernoulli")][string("authors")].push_back(string(R"(John Huelsenbeck)"));
 	help_strings[string("dnBernoulli")][string("description")] = string(R"(The Bernoulli distribution represents a weighted coin toss.)");
 	help_strings[string("dnBernoulli")][string("details")] = string(R"(The Bernoulli distribution takes a parameter p, between 0 and 1, and returns 1 with probability p and 0 with probability (1 - p).)");
@@ -943,6 +967,8 @@ moves.append( mvMatrixElementSlide(bd, weight=taxa.size()) ))");
 The `condition` argument has to match whatever the data were selected for. `time` conditions on nothing, `sampling` on at least one sampled taxon, `survival` on at least one lineage alive at the present, and `nTaxa` on the number of taxa the record reports as extant, which is what data simulated under a fixed number of extant species needs.
 
 Fossil species are represented by a collection of fossil occurrences with uncertainty. Speciation, extinction and sampling rates may be time-homogeneous or piecewise time-heterogeneous. If time-heterogeneous rates are provided, then a vector of rate change time-points must also be provided. Under the hood, the fossil data is augmented with the first and last appearance of each species. These are latent, held in columns 2 and 3 of the value, and are sampled during MCMC by the matrix element moves. By default the process runs to age zero. `present` moves that boundary, so a record truncated at a stratigraphic horizon is analysed in the ages it already carries: the timeline starts there, no occurrence may be younger, and `rho` applies at that age rather than at zero.
+
+`coexistence` weights each birth by how many lineages were alive to produce it, which is the count of ranges it could have budded from. It is the correct term rather than an assumption, and defaults on. Because it depends on the ages and not on the rates, at fixed ages it is a constant and only the posterior over the latent ages feels it; turning it off reproduces the omission in `dnBDS` and is harmless only where the standing diversity does not vary over the span those ages move in.
 
 The process exposes its latent ages as member methods. `getDivergenceTimes` gives the time each range attaches to the nearest range the record samples, which is not the same as where the species itself began, because ancestors that left no occurrence were never named and a chain of them may stand in between. `getOriginationTimes` gives the species' own origination, drawn from its exact conditional, so two calls on one state return two different draws; pass `mean=TRUE` to integrate that conditional instead and get its mean without simulation noise. `getExtantStatus` and `getExtinctionTimes` report the state as it stands, so the first is an indicator you average over the posterior to get a probability rather than a probability itself.
 
