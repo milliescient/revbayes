@@ -915,7 +915,7 @@ x.probability())");
 	help_strings[string("dnFossilRecord")][string("description")] = string(R"(The fossil record of a set of species, conditioned on a fossilized birth-death range process: the probability of the observed fossil occurrences given the species ranges that produced them.)");
 	help_strings[string("dnFossilRecord")][string("details")] = string(R"(This is the observation half of the fossilized birth-death range model. The range process (`dnFBDRP` or `dnFBDSP`) describes how species ranges diversify; this distribution gives the probability of the fossil record itself.
 
-The `reporting` argument selects how sampled specimens make it into the reported record: `reporting="complete"` (every sampled occurrence is reported), `reporting="firstlast"` (the oldest and youngest occurrence of each species are reported, and the count in between is unknown) or `reporting="presence"` (each reported interval holds at least its reported count, so a count is a lower bound and a species' intervals must not overlap).
+The `reporting` argument selects how sampled specimens make it into the reported record: `reporting="complete"` (every sampled occurrence is reported), `reporting="firstlast"` (the oldest and youngest occurrence of each species are reported, and the count in between is unknown) or `reporting="presence"` (each reported interval holds at least its reported count, so a count is a lower bound and a species' intervals must not overlap). Under presence a single reported occurrence over an interval may stand for more, which `mvSingletonRJSwitch` samples.
 
 The occurrences, the fossil sampling rate and its timeline are read from the range process rather than given as arguments here.)");
 	help_strings[string("dnFossilRecord")][string("example")] = string(R"(lambda ~ dnExp(10)
@@ -4270,6 +4270,21 @@ moves.append( mvScaleBactrian(speciation_rate, weight=5) ))");
 	help_strings[string("mvScaleBactrianCauchy")][string("name")] = string(R"(mvScaleBactrianCauchy)");
 	help_strings[string("mvShrinkExpand")][string("name")] = string(R"(mvShrinkExpand)");
 	help_strings[string("mvShrinkExpandScale")][string("name")] = string(R"(mvShrinkExpandScale)");
+	help_arrays[string("mvSingletonRJSwitch")][string("authors")].push_back(string(R"(June Walker)"));
+	help_strings[string("mvSingletonRJSwitch")][string("description")] = string(R"(Expands a taxon's single appearance age into a first and a last appearance within its reported interval, or collapses the two into one.)");
+	help_strings[string("mvSingletonRJSwitch")][string("details")] = string(R"(Under reporting="presence" a taxon with one reported occurrence over an interval may have more, so its first and last appearances may differ within that interval. The continuous moves never change that, so this move is needed to sample it. The last appearance stays where it is: an expansion draws the first appearance uniformly above it, within the interval and below the divergence, and a collapse sets the first appearance onto it. Taxa with more than one occurrence, or an exact age, are never chosen.
+
+The move takes the range matrix of a dnFBDRP or the tree of a dnFBDSP. Under the other reporting models it has nothing to do.)");
+	help_strings[string("mvSingletonRJSwitch")][string("example")] = string(R"(bd ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1, timeline=timeline)
+rec ~ dnFossilRecord(ranges=bd, reporting="presence")
+rec.clamp(taxa)
+
+moves.append( mvMatrixElementSlide(bd, delta=1, weight=taxa.size()/10) )
+moves.append( mvSingletonRJSwitch(bd, weight=taxa.size()/10) ))");
+	help_strings[string("mvSingletonRJSwitch")][string("name")] = string(R"(mvSingletonRJSwitch)");
+	help_arrays[string("mvSingletonRJSwitch")][string("see_also")].push_back(string(R"(mvExtinctionRJSwitch)"));
+	help_arrays[string("mvSingletonRJSwitch")][string("see_also")].push_back(string(R"(dnFossilRecord)"));
+	help_strings[string("mvSingletonRJSwitch")][string("title")] = string(R"(Jump a taxon between one appearance age and two)");
 	help_strings[string("mvSlice")][string("description")] = string(R"(`mvSlice` proposes a new value for a variable based on the current shape of its likelihood function.)");
 	help_strings[string("mvSlice")][string("details")] = string(R"(A slice proposal uses the shape of the current likelihood distribution of a variable to propose a new value.
 First, a likelihood value is drawn uniformly in order to define a horizontal 'slice' through the likelihood distribution.

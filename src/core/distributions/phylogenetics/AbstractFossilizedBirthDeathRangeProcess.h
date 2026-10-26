@@ -90,7 +90,7 @@ namespace RevBayesCore {
         void                                            setHasResampleMove(void) { has_resample_move = true; }       //!< Registered by mvStratigraphicRange.
         void                                            setHasReportingNode(void) { has_reporting_node = true; }     //!< Registered by dnFossilRecord.
         void                                            setHasSurvivalMove(void) { has_survival_move = true; }       //!< Registered by mvExtinctionRJSwitch.
-        void                                            setHasSingletonMove(void) { has_singleton_move = true; }     //!< Registered by a move over singleton status.
+        void                                            setHasSingletonMove(void) { has_singleton_move = true; }     //!< Registered by mvSingletonRJSwitch.
 
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const;   //!< Expose the appearances and the origination/extinction times.
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, double &rv) const;              //!< Expose the origin.
@@ -101,6 +101,9 @@ namespace RevBayesCore {
         double                                          getLastAppearance(size_t i) const { return ranges[i].last; } //!< tau_K.
         void                                            switchSurvived(size_t i);                                   //!< Flip that status, arming the undo. Only mvExtinctionRJSwitch may.
         void                                            warnIfNoResampleMove(void) const;                           //!< Warn once when the appearances have no move.
+        double                                          getFirstAppearance(size_t i) const { return ranges[i].first; } //!< tau_1.
+        bool                                            samplesSingletons(void) const { return record_reporting == PRESENCE; } //!< Only presence leaves a one-occurrence record free to hold more.
+        double                                          switchSingleton(size_t i);                                  //!< Expand tau_1 above tau_K or collapse it onto tau_K, arming the undo. Only mvSingletonRJSwitch may.
         void                                            warnIfNoReportingNode(void) const;                          //!< Warn once when psi has no data.
         void                                            warnIfInertNTaxaCondition(void) const;                      //!< Warn once when rho leaves nTaxa conditioning inert.
         void                                            warnIfNoSurvivalMove(void) const;                           //!< Warn once when rho < 1 and no move samples survival.
@@ -199,8 +202,9 @@ namespace RevBayesCore {
         double                                          stored_first = 0.0;                                     //!< The ages it replaced.
         double                                          stored_last  = 0.0;
 
-        size_t                                          switched_range = 0;                                     //!< The range mvExtinctionRJSwitch flipped, and the status it replaced.
-        bool                                            stored_survived = false;                                //!< The status before the switch.
+        size_t                                          switched_range = 0;                                     //!< The range a switch flipped, and the statuses it replaced.
+        bool                                            stored_survived = false;                                //!< The statuses before the switch.
+        bool                                            stored_singleton = true;
         bool                                            switched = false;                                       //!< That undo is armed.
 
         bool                                            weld_origin = true;                                     //!< Only the origin node drags the oldest birth.
@@ -216,7 +220,7 @@ namespace RevBayesCore {
         bool                                            has_resample_move = false;                              //!< Set by mvStratigraphicRange when it attaches.
         bool                                            has_reporting_node = false;                             //!< Set by dnFossilRecord when it attaches.
         bool                                            has_survival_move = false;                              //!< Set by mvExtinctionRJSwitch when it attaches.
-        bool                                            has_singleton_move = false;                             //!< Set by a move over singleton status when it attaches.
+        bool                                            has_singleton_move = false;                             //!< Set by mvSingletonRJSwitch when it attaches.
         mutable bool                                    warned_no_resample = false;
         mutable bool                                    warned_no_reporting = false;
         mutable bool                                    warned_inert_ntaxa = false;

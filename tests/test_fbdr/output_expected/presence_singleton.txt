@@ -1,0 +1,4 @@
+dnFBDRP splits a single occurrence as often as the record allows:
+TRUE	
+dnFBDSP splits a single occurrence as often as the record allows:
+TRUE	

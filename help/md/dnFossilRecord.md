@@ -7,7 +7,7 @@ The fossil record of a set of species, conditioned on a fossilized birth-death r
 ## details
 This is the observation half of the fossilized birth-death range model. The range process (`dnFBDRP` or `dnFBDSP`) describes how species ranges diversify; this distribution gives the probability of the fossil record itself.
 
-The `reporting` argument selects how sampled specimens make it into the reported record: `reporting="complete"` (every sampled occurrence is reported), `reporting="firstlast"` (the oldest and youngest occurrence of each species are reported, and the count in between is unknown) or `reporting="presence"` (each reported interval holds at least its reported count, so a count is a lower bound and a species' intervals must not overlap).
+The `reporting` argument selects how sampled specimens make it into the reported record: `reporting="complete"` (every sampled occurrence is reported), `reporting="firstlast"` (the oldest and youngest occurrence of each species are reported, and the count in between is unknown) or `reporting="presence"` (each reported interval holds at least its reported count, so a count is a lower bound and a species' intervals must not overlap). Under presence a single reported occurrence over an interval may stand for more, which `mvSingletonRJSwitch` samples.
 
 The occurrences, the fossil sampling rate and its timeline are read from the range process rather than given as arguments here.
 

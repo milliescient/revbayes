@@ -1262,7 +1262,7 @@ void AbstractFossilizedBirthDeathRangeProcess::warnIfNoSingletonMove( void ) con
         if ( ranges[i].singleton == true && ages.empty() == false && ages.begin()->first.getMin() != ages.begin()->first.getMax() )
         {
             warned_no_singleton = true;
-            RBOUT("Warning: no move samples singleton status. One-occurrence ranges stay single ages.");
+            RBOUT("Warning: no mvSingletonRJSwitch move. Single occurrences stay single ages.");
             return;
         }
     }
@@ -1273,9 +1273,10 @@ void AbstractFossilizedBirthDeathRangeProcess::warnIfNoSingletonMove( void ) con
 /** Flip taxon i between surviving and dying. The caller sets the death time to match. */
 void AbstractFossilizedBirthDeathRangeProcess::switchSurvived(size_t i)
 {
-    switched_range  = i;
-    stored_survived = ranges[i].survived;
-    switched        = true;
+    switched_range   = i;
+    stored_survived  = ranges[i].survived;
+    stored_singleton = ranges[i].singleton;
+    switched         = true;
 
     ranges[i].survived = !ranges[i].survived;
 
@@ -1318,6 +1319,39 @@ void AbstractFossilizedBirthDeathRangeProcess::resampleFirstLast(size_t i)
         ranges[i].last = ranges[i].first;
     }
 
+}
+
+
+/**
+ * Expand taxon i's tau_1 uniformly above tau_K, within its interval and below its divergence, or
+ * collapse it onto tau_K. tau_K stays, so the move is the same whether or not a value carries it.
+ *
+ * \return The log hastings ratio.
+ */
+double AbstractFossilizedBirthDeathRangeProcess::switchSingleton(size_t i)
+{
+    double y     = ranges[i].last;
+    double width = std::min( taxa[i].getMaxAge(), ranges[i].divergence ) - y;
+
+    if ( width <= 0.0 ) return RbConstants::Double::neginf;
+
+    stored_range = i;
+    stored_first = ranges[i].first;
+    stored_last  = y;
+    resampled    = true;
+
+    switched_range   = i;
+    stored_survived  = ranges[i].survived;
+    stored_singleton = ranges[i].singleton;
+    switched         = true;
+
+    bool single = ranges[i].singleton;
+    ranges[i].singleton = !single;
+    ranges[i].first = single ? y + GLOBAL_RNG->uniform01() * width : y;
+
+    dirty_taxa[i] = true;
+
+    return single ? log( width ) : -log( width );
 }
 
 
@@ -1457,7 +1491,8 @@ void AbstractFossilizedBirthDeathRangeProcess::restoreSpecialization(const DagNo
 
     if ( switched )
     {
-        ranges[switched_range].survived = stored_survived;
+        ranges[switched_range].survived  = stored_survived;
+        ranges[switched_range].singleton = stored_singleton;
     }
 
     dirty_taxa = std::vector<bool>(taxa.size(), false);
