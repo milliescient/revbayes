@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "RbConstants.h"
+#include "PsiMixtureSolution.h"
 #include "MemberObject.h"
 #include "RbVector.h"
 #include "Simplex.h"
@@ -141,8 +142,6 @@ namespace RevBayesCore {
         double                                          computeLnFossilRecord(size_t i) const;                      //!< Fossil-record log-term for taxon i.
         double                                          computeLnFossilRecord(size_t i, double mixture_rate) const; //!< The same, with psi scaled by a mixture rate.
         void                                            mixtureRangeLnProbs(size_t i, std::vector<double> &ln_probs, size_t only) const;  //!< Birth-death density of range i under each component, or under component only.
-        void                                            propagateMixture(size_t j, std::vector<double> &p, double dt, double &lambda_pbar, std::vector<double> *Q, std::vector<double> *Q_scale) const;  //!< Carry p, int lambda pbar and the columns of Q a time dt up interval j.
-        void                                            mixtureAt(double t, std::vector<double> &p, double &lambda_pbar) const;   //!< p of each component and int lambda pbar from the present up to t.
 
         // Parameter management functions
         void                                            swapParameterInternal(const DagNode *oldP, const DagNode *newP);                //!< Swap a parameter
@@ -214,10 +213,7 @@ namespace RevBayesCore {
         // used only with more than one psi mixture component
         mutable std::vector<double>                     mixture_rates;                                          //!< The relative fossil sampling rate of each component
         mutable std::vector<double>                     mixture_weights;                                        //!< The probability of each component
-        mutable std::vector<std::vector<double> >       mixture_p_i;                                            //!< p of each component at the start of each interval
-        mutable std::vector<double>                     lambda_pbar_i;                                          //!< int lambda pbar from the present to the start of each interval
-        mutable std::vector<std::vector<double> >       mixture_q_i;                                            //!< Q over each interval, one column per component at its start
-        mutable std::vector<std::vector<double> >       mixture_q_scale_i;                                      //!< The log scale of each column of mixture_q_i
+        mutable PsiMixtureSolution                      mixture_solution;                                       //!< p, int lambda pbar and Q of every component
 
                                 
         size_t                                          stored_range = 0;                                       //!< The range mvStratigraphicRange drew.

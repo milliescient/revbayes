@@ -186,11 +186,6 @@ AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProce
         ranges[i].component = start;
     }
 
-    mixture_p_i       = std::vector<std::vector<double> >(num_intervals);
-    lambda_pbar_i     = std::vector<double>(num_intervals, 0.0);
-    mixture_q_i       = std::vector<std::vector<double> >(num_intervals);
-    mixture_q_scale_i = std::vector<std::vector<double> >(num_intervals);
-
     p_i         = std::vector<double>(num_intervals, 1.0);
     pS_i        = std::vector<double>(num_intervals, 1.0);
     q_i         = std::vector<double>(num_intervals, 0.0);
@@ -591,7 +586,7 @@ double AbstractFossilizedBirthDeathRangeProcess::conditionLnProb( void ) const
     {
         std::vector<double> p;
         double lambda_pbar = 0.0;
-        mixtureAt( origin, p, lambda_pbar );
+        mixture_solution.at( origin, p, lambda_pbar );
 
         double pbar = 0.0;
         for (size_t h = 0; h < num_components; h++) pbar += mixture_weights[h] * p[h];
@@ -1708,177 +1703,8 @@ void AbstractFossilizedBirthDeathRangeProcess::prepareProbComputation( void ) co
         }
         mixture_weights = ( psi_mixture_weights != NULL ) ? std::vector<double>( psi_mixture_weights->getValue() ) : std::vector<double>(H, 1.0 / H);
 
-        mixture_p_i[0]   = std::vector<double>(H, 1.0 - homogeneous_rho->getValue());
-        lambda_pbar_i[0] = 0.0;
-
-        for (size_t i = 0; i + 1 < num_intervals; i++)
-        {
-            std::vector<double> p = mixture_p_i[i];
-            std::vector<double> Q(H*H, 0.0), Q_scale(H, 0.0);
-            for (size_t c = 0; c < H; c++) Q[c*H + c] = 1.0;
-
-            double lambda_pbar = lambda_pbar_i[i];
-            propagateMixture( i, p, times[i+1] - times[i], lambda_pbar, &Q, &Q_scale );
-
-            mixture_p_i[i+1]     = p;
-            lambda_pbar_i[i+1]   = lambda_pbar;
-            mixture_q_i[i]       = Q;
-            mixture_q_scale_i[i] = Q_scale;
-        }
+        mixture_solution.update( times, birth, death, fossil, mixture_rates, mixture_weights, homogeneous_rho->getValue() );
     }
-}
-
-
-/**
- * Carry p of each component, int lambda pbar and the columns of Q a time dt up interval j.
- * With p = y / z, y' = mu z - (lambda + mu + nu_h psi) y and z' = -lambda sum_h w_h y_h are linear,
- * and Q = dp(t)/dp(s). Q holds columns of length H, each scaled by exp(Q_scale).
- */
-void AbstractFossilizedBirthDeathRangeProcess::propagateMixture( size_t j, std::vector<double> &p, double dt, double &lambda_pbar, std::vector<double> *Q, std::vector<double> *Q_scale ) const
-{
-    if ( dt <= 0.0 ) return;
-
-    size_t H = num_components;
-    size_t N = H + 1;
-
-    double b = birth[j];
-    double d = death[j];
-    double f = fossil[j];
-
-    double min_rate = *std::min_element( mixture_rates.begin(), mixture_rates.end() );
-
-    // the two slowest eigenvalues lie within lambda + mu + min_rate psi of each other, which bounds
-    // the cancellation in each step's Q; faster components only decay within a step
-    size_t n = std::max( size_t(1), size_t( ceil( dt * (b + 2.0*d + min_rate*f) ) ) );
-    double dt_step = dt / n;
-
-    // the generator of (y, z) over one step, with z last: diagonal on y, a column mu and a row -lambda w
-    std::vector<double> diag(H, 0.0), row(H, 0.0);
-    double norm = 0.0, row_norm = 0.0;
-    for (size_t h = 0; h < H; h++)
-    {
-        diag[h] = -(b + d + mixture_rates[h]*f) * dt_step;
-        row[h]  = -b * mixture_weights[h] * dt_step;
-        norm = std::max( norm, fabs(diag[h]) + d * dt_step );
-        row_norm += fabs(row[h]);
-    }
-    norm = std::max( norm, row_norm );
-    double column = d * dt_step;
-
-    // scale the generator to norm at most 1/2, so the series converges fast, and square back after
-    int squarings = ( norm > 0.5 ) ? int( ceil( log2( norm / 0.5 ) ) ) : 0;
-    double scale = ldexp( 1.0, -squarings );
-    for (size_t h = 0; h < H; h++)
-    {
-        diag[h] *= scale;
-        row[h]  *= scale;
-    }
-    column *= scale;
-
-    // its exponential by the Taylor series, row-major, each term costing O(H^2) by the sparsity
-    std::vector<double> E(N*N, 0.0), term(N*N, 0.0), next(N*N, 0.0);
-    for (size_t a = 0; a < N; a++)
-    {
-        E[a*N + a]    = 1.0;
-        term[a*N + a] = 1.0;
-    }
-    for (size_t m = 1; m < 30; m++)
-    {
-        double largest = 0.0;
-        for (size_t a = 0; a < N; a++)
-        {
-            const double *ta = &term[a*N];
-            double to_z = 0.0;
-            for (size_t c = 0; c < H; c++)
-            {
-                double x = ( ta[c] * diag[c] + ta[H] * row[c] ) / m;
-                next[a*N + c] = x;
-                to_z += ta[c];
-                largest = std::max( largest, fabs(x) );
-            }
-            next[a*N + H] = to_z * column / m;
-            largest = std::max( largest, fabs(next[a*N + H]) );
-        }
-        term.swap(next);
-        for (size_t a = 0; a < N*N; a++) E[a] += term[a];
-        if ( largest < 1E-18 ) break;
-    }
-    for (int k = 0; k < squarings; k++)
-    {
-        for (size_t a = 0; a < N; a++)
-        {
-            for (size_t c = 0; c < N; c++)
-            {
-                double x = 0.0;
-                for (size_t e = 0; e < N; e++) x += E[a*N + e] * E[e*N + c];
-                next[a*N + c] = x;
-            }
-        }
-        E.swap(next);
-    }
-
-    size_t num_columns = ( Q == NULL ) ? 0 : Q->size() / H;
-
-    std::vector<double> v(N, 0.0), S(H*H, 0.0), col(H, 0.0);
-
-    for (size_t step = 0; step < n; step++)
-    {
-        for (size_t a = 0; a < N; a++)
-        {
-            double x = E[a*N + H];
-            for (size_t e = 0; e < H; e++) x += E[a*N + e] * p[e];
-            v[a] = x;
-        }
-
-        double z = v[H];
-        lambda_pbar -= log(z);
-        for (size_t a = 0; a < H; a++) p[a] = v[a] / z;
-
-        if ( num_columns == 0 ) continue;
-
-        for (size_t a = 0; a < H; a++)
-        {
-            for (size_t e = 0; e < H; e++)
-            {
-                // Q is nonnegative, so a negative entry is rounding in a fast component's column
-                S[a*H + e] = std::max( 0.0, ( E[a*N + e] - p[a] * E[H*N + e] ) / z );
-            }
-        }
-
-        for (size_t c = 0; c < num_columns; c++)
-        {
-            double *Qc = &(*Q)[c*H];
-            double largest = 0.0;
-            for (size_t a = 0; a < H; a++)
-            {
-                double x = 0.0;
-                for (size_t e = 0; e < H; e++) x += S[a*H + e] * Qc[e];
-                col[a] = x;
-                largest = std::max( largest, fabs(x) );
-            }
-            if ( largest > 0.0 )
-            {
-                for (size_t a = 0; a < H; a++) Qc[a] = col[a] / largest;
-                (*Q_scale)[c] += log(largest);
-            }
-            else
-            {
-                std::fill( Qc, Qc + H, 0.0 );
-            }
-        }
-    }
-}
-
-
-/** p of each component and int lambda pbar from the present up to t. */
-void AbstractFossilizedBirthDeathRangeProcess::mixtureAt( double t, std::vector<double> &p, double &lambda_pbar ) const
-{
-    size_t j = findIndex(t);
-
-    p           = mixture_p_i[j];
-    lambda_pbar = lambda_pbar_i[j];
-
-    propagateMixture( j, p, t - times[j], lambda_pbar, NULL, NULL );
 }
 
 
@@ -1908,61 +1734,10 @@ void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, st
 
     std::vector<double> p;
     double lambda_pbar_o = 0.0;
-    mixtureAt( o, p, lambda_pbar_o );
+    mixture_solution.at( o, p, lambda_pbar_o );
 
-    std::vector<double> Q(H*num_columns, 0.0), Q_scale(num_columns, 0.0);
-    for (size_t c = 0; c < num_columns; c++) Q[c*H + columns[c]] = 1.0;
-
-    double lambda_pbar = 0.0;
-    if ( oi == bi )
-    {
-        propagateMixture( oi, p, b - o, lambda_pbar, &Q, &Q_scale );
-    }
-    else
-    {
-        propagateMixture( oi, p, times[oi+1] - o, lambda_pbar, &Q, &Q_scale );
-
-        // whole intervals, whose columns carry their own scales
-        std::vector<double> col(H, 0.0);
-        for (size_t j = oi+1; j < bi; j++)
-        {
-            const std::vector<double> &Qj = mixture_q_i[j];
-            const std::vector<double> &sj = mixture_q_scale_i[j];
-
-            for (size_t c = 0; c < num_columns; c++)
-            {
-                double *Qc = &Q[c*H];
-
-                double top = RbConstants::Double::neginf;
-                for (size_t e = 0; e < H; e++)
-                {
-                    if ( Qc[e] != 0.0 ) top = std::max( top, sj[e] );
-                }
-                if ( top == RbConstants::Double::neginf ) continue;
-
-                std::fill( col.begin(), col.end(), 0.0 );
-                for (size_t e = 0; e < H; e++)
-                {
-                    if ( Qc[e] == 0.0 ) continue;
-                    double x = Qc[e] * exp( sj[e] - top );
-                    for (size_t a = 0; a < H; a++) col[a] += Qj[e*H + a] * x;
-                }
-
-                double largest = 0.0;
-                for (size_t a = 0; a < H; a++) largest = std::max( largest, fabs(col[a]) );
-                if ( largest == 0.0 )
-                {
-                    std::fill( Qc, Qc + H, 0.0 );
-                    continue;
-                }
-                for (size_t a = 0; a < H; a++) Qc[a] = col[a] / largest;
-                Q_scale[c] += top + log(largest);
-            }
-        }
-
-        p = mixture_p_i[bi];
-        propagateMixture( bi, p, b - times[bi], lambda_pbar, &Q, &Q_scale );
-    }
+    std::vector<double> Q, Q_scale;
+    mixture_solution.sensitivity( o, b, columns, Q, Q_scale );
 
     ln_probs = std::vector<double>(H, RbConstants::Double::neginf);
 
@@ -1978,7 +1753,7 @@ void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, st
     if ( taxa[i].getMaxAge() == times.front() ) return;
 
     double lambda_pbar_d = 0.0;
-    mixtureAt( d, p, lambda_pbar_d );
+    mixture_solution.at( d, p, lambda_pbar_d );
 
     // the exposure from d_i up to tau_1, without and with psi
     double birth_death = 0.0, sampling = 0.0;
