@@ -1,0 +1,46 @@
+# A dnFBDSP checkpoint must carry every age exactly. Rebuilt from branch lengths rounded to 15
+# places, a survivor's tip lands off the present and the resumed density is -inf. The chain runs
+# the tree moves, stops, and resumes moving only z, so its first resumed posterior must equal the
+# last one it stopped at. Every line printed must be TRUE.
+taxa <- readTaxonData("data/fbdsp_condition.tsv")
+out = "output/checkpoint_ages.txt"
+print(filename=out, "a dnFBDSP checkpoint resumes at the posterior it stopped at:\n")
+
+same = TRUE
+for (s in 1:4) {
+    seed(s)
+    lambda ~ dnExponential(4)
+    mu ~ dnExponential(4)
+    psi ~ dnExponential(2)
+    la ~ dnExponential(4)
+    origin ~ dnUniform(7, 20)
+    origin.setValue(20)
+    tr ~ dnFBDSP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, lambda_a=la, origin=origin, condition="time")
+    rec ~ dnFossilRecord(ranges=tr, reporting="complete")
+    rec.clamp(taxa)
+    z ~ dnUniform(0, 1)
+
+    for (pass in 1:2) {
+        w = ifelse(pass == 1, 1.0, 1E-9)
+        moves = [ mvSlide(z, weight=1), mvScale(lambda, weight=w), mvScale(mu, weight=w), mvScale(psi, weight=w),
+                  mvScale(la, weight=w), mvSlide(origin, weight=w),
+                  mvFossilTipTimeUniform(tr, origin=origin, weight=5*w), mvFNPR(tr, weight=5*w),
+                  mvNodeTimeSlideUniform(tr, weight=5*w), mvRotateNode(tr, weight=5*w),
+                  mvCollapseExpandFossilBranch(tr, origin, weight=5*w), mvStratigraphicRange(tr, weight=5*w) ]
+        log = "output/checkpoint_ages_" + s + "_" + pass + ".log"
+        m = mcmc(model(tr, z), [ mnModel(filename=log, printgen=1) ], moves)
+        if (pass == 1) {
+            m.run(generations=500, checkpointFile="output/checkpoint_ages_" + s + ".state", checkpointInterval=500)
+            stopped = readTrace(log, burnin=0)
+        } else {
+            m.initializeFromCheckpoint("output/checkpoint_ages_" + s + ".state")
+            m.run(generations=20)
+            resumed = readTrace(log, burnin=0)
+        }
+    }
+    last = stopped[2].getValues().size()
+    same = same && resumed[2].getValues()[1] == stopped[2].getValues()[last]
+}
+print(filename=out, append=TRUE, same, "\n")
+
+q()

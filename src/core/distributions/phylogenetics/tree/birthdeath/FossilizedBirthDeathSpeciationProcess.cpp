@@ -420,11 +420,15 @@ std::string FossilizedBirthDeathSpeciationProcess::getHiddenStateString( void ) 
         if ( num_components > 1 ) tip.setNodeParameter( "component", StringUtilities::to_string( ranges[i].component ) );
     }
 
-    // a Newick puts the youngest tip at zero
-    std::stringstream age;
-    age.precision( 17 );
-    age << t.getRoot().getAge();
-    t.getRoot().setNodeParameter( "age", age.str() );
+    // every age exactly: branch lengths rounded to 15 places would move a survivor off the present
+    // or a tip above its last appearance
+    for (TopologyNode *node : t.getNodes())
+    {
+        std::stringstream age;
+        age.precision( 17 );
+        age << node->getAge();
+        node->setNodeParameter( "age", age.str() );
+    }
 
     return t.getNewickRepresentation( false );
 }
@@ -436,8 +440,27 @@ void FossilizedBirthDeathSpeciationProcess::setHiddenStateFromString( const std:
     Tree *t = this->value->clone();
     t->initFromString( s );
 
-    std::optional<std::string> age = t->getRoot().eraseNodeParameter( "age" );
-    if ( age.has_value() == true ) TreeUtilities::offsetTree( t->getRoot(), atof( age->c_str() ) - t->getRoot().getAge() );
+    std::vector<TopologyNode*> nodes = t->getNodes();
+    std::vector<std::optional<std::string> > ages( nodes.size() );
+    bool every = true;
+    for (size_t i = 0; i < nodes.size(); ++i)
+    {
+        ages[i] = nodes[i]->eraseNodeParameter( "age" );
+        every = every && ages[i].has_value();
+    }
+
+    if ( every == true )
+    {
+        for (size_t i = 0; i < nodes.size(); ++i) nodes[i]->setAge( atof( ages[i]->c_str() ), false );
+    }
+    else
+    {
+        // an older checkpoint carries only the root's age, and a Newick puts the youngest tip at zero
+        for (size_t i = 0; i < nodes.size(); ++i)
+        {
+            if ( nodes[i]->isRoot() && ages[i].has_value() ) TreeUtilities::offsetTree( *nodes[i], atof( ages[i]->c_str() ) - nodes[i]->getAge() );
+        }
+    }
 
     setValue( t );
 }

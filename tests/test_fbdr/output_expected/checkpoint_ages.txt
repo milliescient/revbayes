@@ -1,0 +1,2 @@
+a dnFBDSP checkpoint resumes at the posterior it stopped at:
+TRUE	
