@@ -4902,6 +4902,17 @@ moves.append( delta_up_down_move ))");
 	help_strings[string("mvVectorSingleElementSlide")][string("name")] = string(R"(mvVectorSingleElementSlide)");
 	help_strings[string("mvVectorSlide")][string("name")] = string(R"(mvVectorSlide)");
 	help_strings[string("mvVectorSlideRecenter")][string("name")] = string(R"(mvVectorSlideRecenter)");
+	help_strings[string("mvWilsonBalding")][string("description")] = string(R"(Prunes a subtree with its parent node and regrafts it elsewhere in a time tree, at a new age.)");
+	help_strings[string("mvWilsonBalding")][string("details")] = string(R"(`mvWilsonBalding` picks a node that is neither the root, a child of the root, nor a sampled-ancestor tip, and removes it together with its parent node. It then picks uniformly among the places the subtree can go: any branch older than the subtree, where the new parent age is drawn uniformly along the branch, or any older fossil tip, which becomes a sampled ancestor. Unlike `mvFNPR`, it changes the attachment age and can create or remove sampled ancestors, so it moves a fossil between tip and ancestor in another part of the tree in one step.
+
+On budding trees the parent's species flag passes to the sibling left behind, and the new parent takes the flag of the branch it splits. A sampled ancestor continues its species, and on a branch a coin decides which child continues. The root is never pruned or regrafted above.)");
+	help_strings[string("mvWilsonBalding")][string("example")] = string(R"(moves.append( mvWilsonBalding(tree, weight=taxa.size()) ))");
+	help_strings[string("mvWilsonBalding")][string("name")] = string(R"(mvWilsonBalding)");
+	help_references[string("mvWilsonBalding")].push_back(RbHelpReference(R"(Wilson IJ, Balding DJ (1998). Genealogical inference from microsatellite data. Genetics 150:499-510. )",R"()",R"()"));
+	help_references[string("mvWilsonBalding")].push_back(RbHelpReference(R"(Gavryushkina A, Welch D, Stadler T, Drummond AJ (2014). Bayesian inference of sampled ancestor trees for epidemiology and fossil calibration. PLoS Computational Biology 10:e1003919. )",R"()",R"()"));
+	help_arrays[string("mvWilsonBalding")][string("see_also")].push_back(string(R"(mvFNPR)"));
+	help_arrays[string("mvWilsonBalding")][string("see_also")].push_back(string(R"(mvCollapseExpandFossilBranch)"));
+	help_strings[string("mvWilsonBalding")][string("title")] = string(R"(Wilson-Balding subtree prune-and-regraft move)");
 	help_strings[string("nodeAgeByID")][string("name")] = string(R"(nodeAgeByID)");
 	help_strings[string("normalize")][string("name")] = string(R"(normalize)");
 	help_arrays[string("pathSampler")][string("authors")].push_back(string(R"(Sebastian Höhna)"));

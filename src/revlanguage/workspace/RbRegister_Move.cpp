@@ -214,6 +214,7 @@
 #include "Move_BurstEvent.h"
 #include "Move_BranchLengthScale.h"
 #include "Move_CollapseExpandFossilBranch.h"
+#include "Move_WilsonBalding.h"
 #include "Move_IndependentTopology.h"
 #include "Move_EmpiricalTree.h"
 #include "Move_FNPR.h"
@@ -445,6 +446,7 @@ void RevLanguage::Workspace::initializeMoveGlobalWorkspace(void)
         addType( new Move_BurstEvent()                       );
         addType( new Move_BranchLengthScale()                );
         addType( new Move_CollapseExpandFossilBranch()       );
+        addType( new Move_WilsonBalding()                    );
         addType( new Move_IndependentTopology()              );
         addType( new Move_EmpiricalTree()                    );
         addType( new Move_FNPR()                             );

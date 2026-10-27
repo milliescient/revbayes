@@ -17,6 +17,7 @@ namespace RevBayesCore {
 
         virtual bool    isExtended(void) const { return false; }                                     //!< Tips are extinction times
         virtual bool    allowsSampledAncestors(void) const { return false; }                         //!< Checks if distribution is compatible with sampled ancestors
+        virtual bool    tracksSpeciesContinuation(void) const { return false; }                      //!< Node flags say which child continues its parent's species
         virtual bool    tipAgeConstrainedToRange(const Taxon &t) const { return isExtended() == false; }
         virtual bool    validatesTipAgesOnSet(void) const { return isExtended() == false; }
     };

@@ -38,6 +38,7 @@ namespace RevBayesCore {
         virtual void                                        setStochasticNode(StochasticNode<Tree> *n) override;                                                         //!< Set the stochastic node holding this distribution
         virtual void                                        setValue(Tree *v, bool f=false) override;                                                                    //!< Set the current value, e.g. attach an observation (clamp)
         virtual bool                                        allowsSampledAncestors(void) const override { const TreeDistributionProperties *p = dynamic_cast<const TreeDistributionProperties *>( base_distribution ); return p != NULL && p->allowsSampledAncestors(); }
+        virtual bool                                        tracksSpeciesContinuation(void) const override { const TreeDistributionProperties *p = dynamic_cast<const TreeDistributionProperties *>( base_distribution ); return p != NULL && p->tracksSpeciesContinuation(); }
         virtual bool                                        isExtended(void) const override { const TreeDistributionProperties *p = dynamic_cast<const TreeDistributionProperties *>( base_distribution ); return p != NULL && p->isExtended(); }
 
     protected:
