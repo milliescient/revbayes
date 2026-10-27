@@ -202,11 +202,7 @@ bool PhyloMorphospeciationProcess::prepare( void )
 }
 
 
-/**
- * A start from which every morphology is reachable: at least one hidden event of each kind wherever
- * that kind can happen. An event with 0 < e < 1 gives every state a positive probability, so no
- * observed difference is impossible.
- */
+/** A start from which every morphology is reachable: one hidden event of each kind wherever it can happen. */
 void PhyloMorphospeciationProcess::initializeLatents( void )
 {
     const Tree &t = tree->getValue();
@@ -285,12 +281,7 @@ double PhyloMorphospeciationProcess::decay( size_t c, double e ) const
 }
 
 
-/**
- * Carry each character along a node's branch. Without epsilon, the Mk chain of length stem has
- * e = exp(-stem K/(K-1)). With it, each hidden event applies (1 - e) I + e J for its kind's e, and
- * these all commute, so the branch's matrix has the product of their decays. A forced branch is the
- * identity, or randomizes every character.
- */
+/** Carry each character along a node's branch, or force it to the identity or full randomization. */
 void PhyloMorphospeciationProcess::carry( std::vector<double> &v, size_t node, BranchForcing branch ) const
 {
     if ( branch == IDENTITY ) return;
@@ -349,12 +340,7 @@ void PhyloMorphospeciationProcess::prepareCache( void )
 }
 
 
-/**
- * The partial at interior node j from its continuing child a and budding child b, scaled per character.
- * Without epsilon, the budding child differs from the parent at the changed character only. With it,
- * each character changes independently, so the sum over the characters that changed carries the budding
- * child by (1 - e) I + e J for the speciation's kind, and no changed set is kept.
- */
+/** The partial at interior node j from its continuing child a and budding child b, scaled per character. */
 void PhyloMorphospeciationProcess::combine( const Slot &a, const Slot &b, long j, Forcing forcing, Slot &out ) const
 {
     out.v.resize( total_states );
@@ -433,7 +419,7 @@ const PhyloMorphospeciationProcess::Slot& PhyloMorphospeciationProcess::evaluate
         }
     }
 
-    // overwrite the slot not used last, which keeps the last state for a rejection to return to
+    // keep the last state for a rejection to return to
     size_t s = 1 - current[idx];
     Slot &out = slots[s];
     if ( node.isTip() )
@@ -480,10 +466,7 @@ std::vector<double> PhyloMorphospeciationProcess::rootLnLikelihoods( const Slot 
 }
 
 
-/**
- * log L per character with the change at one node's speciation, or the matrix of the branch above it,
- * forced. Only the path from there to the root differs from the cache, which must be current.
- */
+/** log L per character with one node's speciation or branch forced; the cache must be current. */
 std::vector<double> PhyloMorphospeciationProcess::forcedLnLikelihoods( const Forced &f )
 {
     const Tree &t = tree->getValue();
@@ -568,8 +551,7 @@ double PhyloMorphospeciationProcess::computeLnProbability( void )
 
 
 /**
- * Gibbs draw of the character that changed at one speciation, chosen uniformly. One pass with every
- * character changed there and one with none give each character's likelihood of being the one.
+ * Gibbs draw of the character that changed at one speciation, chosen uniformly.
  *
  * \return The hastings ratio, which cancels the posterior ratio.
  */
@@ -661,14 +643,8 @@ double PhyloMorphospeciationProcess::resampleEvents( void )
 
 
 /**
- * Gibbs draw of the count of one kind of hidden event on one node's branch, the kind chosen uniformly
- * among those the branch can hold.
- *
- * Each character's likelihood is linear in the branch's matrix e I + (1 - e) 11'/K, so with L1 its
- * likelihood when the branch is the identity and L0 when it randomizes, L(N) = (1 - x) L0 + x L1 with
- * x the branch's decay, d^N times the decay of the other kind's events. Two passes give the full
- * conditional, Poisson(N) prod L(N), for every N. It is summed until the Poisson tail, times a bound on
- * the likelihood, is below e^-30 of the total.
+ * Gibbs draw of the count of one kind of hidden event on one node's branch.
+ * L(N) = (1 - x) L0 + x L1 per character, with x the branch's decay.
  *
  * \return The hastings ratio, which cancels the posterior ratio.
  */
@@ -791,7 +767,7 @@ void PhyloMorphospeciationProcess::setValue( AbstractHomologousDiscreteCharacter
     TypedDistribution<AbstractHomologousDiscreteCharacterData>::setValue( v, force );
     tips_stale = true;
 
-    // new data may be impossible from latent variables drawn with the old, so start again from a safe state
+    // new data may be impossible under the old latent variables
     latents_ready = false;
 
     if ( states_given )
@@ -1033,12 +1009,7 @@ void PhyloMorphospeciationProcess::executeMethod( const std::string &n, const st
 }
 
 
-/**
- * The latent variables, which a checkpoint cannot recover from the data: the changed character at each
- * node, or with epsilon the hidden counts of each kind on the branch above it. They are by node index,
- * which the checkpointed tree keeps. Fields are separated by '|', and only for clamped characters,
- * whose value comes back with the data.
- */
+/** The latent variables by node index, '|'-separated, for clamped characters only. */
 std::string PhyloMorphospeciationProcess::getHiddenStateString( void ) const
 {
     if ( this->dag_node == NULL || this->dag_node->isClamped() == false ) return "";

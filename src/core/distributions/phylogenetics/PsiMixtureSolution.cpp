@@ -11,11 +11,7 @@ namespace {
 
     const size_t NONE = size_t(-1);
 
-    /**
-     * The secular function f(s) = s + lambda mu sum_q W_q / (s + a_q) in the coordinate x = s + a_ref,
-     * or x = s when ref is NONE. Measuring from the nearest pole keeps s + a_q exact to its last digit
-     * however close two poles lie.
-     */
+    /** The secular function f(s) = s + lambda mu sum_q W_q / (s + a_q) in the coordinate x = s + a_ref. */
     struct Secular {
         double lm, psi;
         const std::vector<double> *a, *nu, *W;
@@ -86,11 +82,7 @@ namespace {
     };
 
 
-    /**
-     * The root of g in (lo, hi), where g changes sign once: Newton's steps, bisection when one leaves
-     * the bracket. It stops once g is within the rounding of the terms it sums, since a further step
-     * would only follow that rounding's sign.
-     */
+    /** The root of g in (lo, hi) by safeguarded Newton, stopping at the rounding of g's terms. */
     template <class G>
     double safeNewton( const G &g, double lo, double hi, bool positive_at_lo )
     {
@@ -245,8 +237,7 @@ void PsiMixtureSolution::solve( Interval &I, double lambda, double mu, double ps
         }
         else
         {
-            // a double root to rounding: lambda = mu with nearly all weight at nu psi = 0. Splitting it
-            // costs about sqrt(eps) in p, where the stepped solution would lose as much
+            // a double root to rounding: lambda = mu with nearly all weight at nu psi = 0
             double h = 1E-8 * m;
             roots.push_back( std::make_pair( q0, m - h ) );
             roots.push_back( std::make_pair( q0, m + h ) );
@@ -364,11 +355,8 @@ void PsiMixtureSolution::pAt( const Interval &I, double dt, std::vector<double> 
 
 
 /**
- * dp(to)/dp(from) applied to C columns, for offsets from <= to within one interval: the columns e_b
- * for each b in unit, or else the columns of in, H entries each. out[c*H + a] holds the result
- * divided by exp(scale[c]). Q_ab = sum_{k != j} e^{(s_k + s_j) dt} c_j (v_ka v_jz - v_ja v_kz) u_kb / z^2,
- * whose largest pair is the two slowest modes, so the scale starts at (s_second - s_top) dt and
- * every other factor is at most 1. Only the columns asked for are formed.
+ * dp(to)/dp(from) applied to C columns within one interval: e_b for each b in unit, or else the
+ * columns of in. out[c*H + a] holds the result divided by exp(scale[c]).
  */
 void PsiMixtureSolution::localApply( const Interval &I, double from, double to, const std::vector<size_t> *unit, const double *in,
                                      size_t C, double *out, double *scale ) const
@@ -468,8 +456,7 @@ void PsiMixtureSolution::update( const std::vector<double> &times, const std::ve
     w  = weights;
     intervals.resize( N );
 
-    // an interval's solution depends on its own rates and on the younger intervals through p at
-    // its start, so only it and those older are solved again
+    // only this interval and older ones are solved again
     size_t first = all ? 0 : N;
     std::vector<double> key(5);
     for (size_t i = 0; i < N; i++)

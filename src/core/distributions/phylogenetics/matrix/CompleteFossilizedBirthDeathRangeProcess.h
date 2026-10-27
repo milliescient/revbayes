@@ -8,16 +8,7 @@ namespace RevBayesCore {
     /**
      * @brief The fossilized birth-death range process under complete lineage sampling.
      *
-     * No lineage goes unsampled, so no range has unsampled descendants to allow for: p is zero
-     * and the kernel collapses from q to plain exponential waiting. Nothing is dropped, so
-     * nothing collapses, and a range's birth time is the species' own origination rather than a
-     * divergence from the nearest sampled range.
-     *
-     * Nor is anything conditioned here. The reconstructed process has to integrate over the
-     * lineages it drops, and that integration is simultaneously its p(t) factors and the
-     * collapse of origination into divergence; here the conditioning is declared instead.
-     * condition="time" takes the ranges as the complete set, condition="sampling" divides each
-     * by its own probability of having left a fossil.
+     * p is zero, and a range's birth time is the species' own origination.
      */
     class CompleteFossilizedBirthDeathRangeProcess : public FossilizedBirthDeathRangeProcess {
 

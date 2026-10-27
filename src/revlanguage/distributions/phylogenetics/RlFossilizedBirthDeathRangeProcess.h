@@ -328,8 +328,7 @@ RevLanguage::MethodTable RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::
     ArgumentRules* origin_arg_rules = new ArgumentRules();
     methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, RealPos >( "getOrigin", this->variable, origin_arg_rules, true ) );
 
-    // Where no lineage goes unsampled the column is an origination, which getOriginationTimes
-    // already reports, so there is no divergence to offer.
+    // under complete sampling the column is an origination, not a divergence
     if ( hasUnsampledLineages() )
     {
         ArgumentRules* divergence_arg_rules = new ArgumentRules();

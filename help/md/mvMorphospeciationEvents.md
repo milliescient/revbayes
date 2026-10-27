@@ -5,7 +5,7 @@ Gibbs sampling of the hidden speciation events on a branch
 ## description
 Draws the count of hidden speciation events of one kind on one branch from its full conditional distribution, under dnPhyloMorphospeciation with epsilon.
 ## details
-With epsilon, a speciation can change any number of characters, and the characters are independent only given how many speciation events each branch holds. Each branch therefore carries a latent count of hidden buddings and one of hidden anagenetic events, each Poisson with its integrated rate. The counts are not part of the value, so this is the only move that changes them. Each proposal picks a branch that can hold events and one kind of event on it, and draws that count given the other, the tree and every species' morphology. Every character's likelihood is linear in the branch's transition matrix, so two passes over the tree give the full conditional for every count, and every proposal is accepted.
+With epsilon, each branch carries latent Poisson counts of hidden budding and anagenetic events. This is the only move that changes them. Each proposal picks a branch and one kind of event on it and draws the count from its full conditional, so every proposal is accepted.
 ## authors
 June Walker
 ## see_also

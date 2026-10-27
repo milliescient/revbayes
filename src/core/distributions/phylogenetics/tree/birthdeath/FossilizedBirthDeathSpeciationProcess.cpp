@@ -71,8 +71,7 @@ FossilizedBirthDeathSpeciationProcess::FossilizedBirthDeathSpeciationProcess(con
     AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, comp, NULL, inpresent, inmixture_rates, inmixture_weights),
     extended( ext )
 {
-    // marginalizing the extinction times and the unobserved speciation below a sampled ancestor
-    // are single-psi closed forms
+    // these marginalizations are single-psi closed forms
     if ( num_components > 1 && extended == false )
     {
         throw RbException("dnFBDSP: psiMixtureRates needs extended=true.");
@@ -420,8 +419,7 @@ std::string FossilizedBirthDeathSpeciationProcess::getHiddenStateString( void ) 
         if ( num_components > 1 ) tip.setNodeParameter( "component", StringUtilities::to_string( ranges[i].component ) );
     }
 
-    // every age exactly: branch lengths rounded to 15 places would move a survivor off the present
-    // or a tip above its last appearance
+    // exact ages, since rounded branch lengths move a survivor off the present
     for (TopologyNode *node : t.getNodes())
     {
         std::stringstream age;
@@ -455,7 +453,7 @@ void FossilizedBirthDeathSpeciationProcess::setHiddenStateFromString( const std:
     }
     else
     {
-        // an older checkpoint carries only the root's age, and a Newick puts the youngest tip at zero
+        // an older checkpoint carries only the root's age
         for (size_t i = 0; i < nodes.size(); ++i)
         {
             if ( nodes[i]->isRoot() && ages[i].has_value() ) TreeUtilities::offsetTree( *nodes[i], atof( ages[i]->c_str() ) - nodes[i]->getAge() );
@@ -726,10 +724,7 @@ bool FossilizedBirthDeathSpeciationProcess::hasSymmetricSpeciation( void ) const
 }
 
 
-/**
- * int_{t0}^{t1} ( lambda p(t) + lambda_a ) dt for ages t0 <= t1: the rate at which hidden speciation
- * replaces the species on an observed lineage. Within an interval, int lambda p = (ln q + (lambda + mu + psi) t) / 2.
- */
+/** int_{t0}^{t1} ( lambda p(t) + lambda_a ) dt for ages t0 <= t1. */
 double FossilizedBirthDeathSpeciationProcess::hiddenSpeciationIntegral(double t0, double t1) const
 {
     return hiddenSpeciationIntegrals( std::vector<std::pair<double,double> >( 1, std::make_pair( t0, t1 ) ) )[0];
@@ -880,7 +875,6 @@ bool FossilizedBirthDeathSpeciationProcess::redrawTopology( void )
         top[i] = tip;
     }
 
-    // youngest birth first, so a lineage's subtree is complete before it attaches
     std::vector<size_t> byBirth(n);
     for (size_t i = 0; i < n; ++i) byBirth[i] = i;
     std::sort( byBirth.begin(), byBirth.end(), [this](size_t a, size_t b){ return ranges[a].divergence < ranges[b].divergence; } );
@@ -1417,7 +1411,6 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
             // propagate species index
             flow.species = i;
 
-            // a sampled ancestor tip is a sample of this species, so it can name one that ended below
             if ( child.isSampledAncestorTip() == true ) pending_species = i;
 
             // its range ends here and the lineage carries on below
@@ -1439,7 +1432,7 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
         }
     }
 
-    // a species that ended below is named by the sampled ancestor here, which is a sample of it
+    // the sampled ancestor here names a species that ended below
     if ( pending_end > 0.0 && pending_species >= 0 )
     {
         if ( ranges[pending_species].death != pending_end )
@@ -1451,7 +1444,7 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
         pending_end = 0.0;
     }
 
-    // no child carries this node's species, so it ends here and the node above has to name it
+    // no child carries this node's species, so it ends here
     if ( flow.species < 0 && sa_tip == false )
     {
         flow.end_age = node.getAge();
@@ -1616,7 +1609,6 @@ void FossilizedBirthDeathSpeciationProcess::touchSpecialization(const DagNode *t
     }
     else
     {
-        // a parameter dirties the per-taxon terms of the intervals it changed, found when they are computed
         AbstractBirthDeathProcess::touchSpecialization(toucher, touchAll);
         AbstractFossilizedBirthDeathRangeProcess::touchSpecialization(toucher, touchAll);
     }

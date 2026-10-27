@@ -109,7 +109,7 @@ void MonteCarloSampler::baseCheckpoint( void )
             
         for (auto& node: n)
         {
-            // a clamped node's value comes back with the data, but its distribution may carry latent state that does not
+            // a clamped node's distribution may carry latent state
             bool clamped_with_state = node->isClamped() && node->isStochastic() && node->getDistribution().getHiddenStateString().empty() == false;
             if ( !node->isClamped() || clamped_with_state )
             {

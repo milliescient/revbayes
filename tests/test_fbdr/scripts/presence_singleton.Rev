@@ -1,12 +1,9 @@
-# mvSingletonRJSwitch under reporting="presence". One occurrence reported over [3,4] may be one age, or a
-# first and last appearance inside it. The move keeps tau_K = y and expands tau_1 above it or collapses
-# it, so with only this move and the range fixed, the chain must split as often as
+# mvSingletonRJSwitch under reporting="presence", with one occurrence over [3,4] and the range fixed.
+# The chain must split as often as
 #
 #   P(pair) / P(single) = int_y^4 p(o) psi e^(psi (o - y)) do / p(y)
 #
-# where p(t) is the density of a single age at t, and the pair's record adds psi e^(psi (o - y)) to it
-# (presence.Rev checks that term). A lone dnFBDSP lineage scores its range the same way as a dnFBDRP,
-# so its chain is held to the same ratio at its own death and tau_K. Every line printed must be TRUE.
+# where p(t) is the density of a single age at t. dnFBDSP is held to the same ratio. Every line printed must be TRUE.
 seed(4)
 
 taxa <- readTaxonData("data/fbdr_presence_single.tsv")

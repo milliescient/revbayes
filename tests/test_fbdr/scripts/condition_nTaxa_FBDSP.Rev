@@ -1,13 +1,10 @@
-# condition="nTaxa" on dnFBDSP. The conditioning acts on the count at the present, so it pays the
-# same closed-form factor as dnFBDRP, whatever tree hangs on the ranges:
+# condition="nTaxa" on dnFBDSP pays the same closed-form factor as dnFBDRP:
 #
 #   alpha = mu (1 - e^-(lambda-mu)x) / (lambda - mu e^-(lambda-mu)x)
 #   beta  = lambda (1 - e^-(lambda-mu)x) / (lambda - mu e^-(lambda-mu)x)
 #
 # so P(0) = alpha, P(n) = (1 - alpha)(1 - beta) beta^(n-1), and the conditioning pays -log P(n).
-# A tree does not carry the appearance ages, so each node draws its own. The fossils here have
-# exact ages, which leaves nothing to draw, so two nodes on one tree differ only by their
-# conditioning. Six taxa, three of them extant. Every line printed must be TRUE.
+# The fossils have exact ages. Six taxa, three of them extant. Every line printed must be TRUE.
 seed(1)
 taxa <- readTaxonData("data/fbdsp_condition.tsv")
 

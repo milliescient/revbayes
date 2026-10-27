@@ -1,8 +1,5 @@
-# The singleton and survival statuses are in neither value, so a checkpoint carries them as booleans.
-# A chain checkpointed with both taxa split (tau_1 > tau_K), the dnFBDRP one surviving and the dnFBDSP
-# one extinct above the present, must resume at the posterior it stopped at. A lost status would collapse
-# tau_1 or move the death, and a tree read back from its Newick would put its tip at the present. Every
-# line printed must be TRUE.
+# A checkpoint must carry the singleton and survival statuses, so a chain resumed with both taxa
+# split, one surviving and one extinct, starts at the posterior it stopped at. Every line printed must be TRUE.
 seed(3)
 
 taxa <- readTaxonData("data/fbdr_presence_single.tsv")
@@ -29,8 +26,7 @@ alive_bd  := ifelse( bd[1][1] == 0.0, 1, 0 )
 split_ext := ifelse( ext.getFirstAppearances()[1] > ext.getLastAppearances()[1], 1, 0 )
 alive_ext := ifelse( ext.getExtinctionTimes()[1] == 0.0, 1, 0 )
 
-# a resumed run logs after its first move, so the resumed chain all but only moves z, which adds ln(1)
-# to the posterior
+# the resumed chain moves only z, which adds ln(1) to the posterior
 z ~ dnUniform(0, 1)
 
 w = 1.0

@@ -134,8 +134,7 @@ RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_FBDRP::createDistribution( 
 
     bool coexist = static_cast<const RlBoolean &>( coexistence->getRevObject() ).getValue();
 
-    // the support constraint is the other half of the same statement, so it follows the weight
-    // unless it was asked for separately
+    // requireParent defaults to coexistence
     bool need_parent = coexist;
     if ( require_parent != NULL && require_parent->getRevObject() != RevNullObject::getInstance() )
     {

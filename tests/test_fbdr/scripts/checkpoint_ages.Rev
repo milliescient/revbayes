@@ -1,7 +1,5 @@
-# A dnFBDSP checkpoint must carry every age exactly. Rebuilt from branch lengths rounded to 15
-# places, a survivor's tip lands off the present and the resumed density is -inf. The chain runs
-# the tree moves, stops, and resumes moving only z, so its first resumed posterior must equal the
-# last one it stopped at. Every line printed must be TRUE.
+# A resumed dnFBDSP chain that moves only z must start at the posterior it stopped at,
+# so the checkpoint must carry every age exactly. Every line printed must be TRUE.
 taxa <- readTaxonData("data/fbdsp_condition.tsv")
 out = "output/checkpoint_ages.txt"
 print(filename=out, "a dnFBDSP checkpoint resumes at the posterior it stopped at:\n")

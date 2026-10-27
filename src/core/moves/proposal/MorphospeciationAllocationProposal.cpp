@@ -64,7 +64,7 @@ double MorphospeciationAllocationProposal::doProposal( void )
     PhyloMorphospeciationProcess &p = process();
     if ( p.getNumberOfCharacters() == 0 ) return 0.0;
 
-    // which speciations there are depends on the tree, so the distribution chooses one after preparing it
+    // the distribution chooses the speciation after preparing the tree
     return p.resampleChangedCharacter();
 }
 

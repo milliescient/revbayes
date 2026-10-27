@@ -44,7 +44,7 @@ namespace RevBayesCore {
 
     public:
         //!< Must this taxon's tip age lie inside its occurrence range?
-        //!< Whether setValue validates every tip age up front rather than leaving it to the density.
+        //!< Whether setValue validates every tip age.
 
     protected:
         // pure virtual helper functions

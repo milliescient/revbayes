@@ -79,7 +79,7 @@ double RotateNodeProposal::doProposal( void )
     {
         failed = true;
 
-        // reject rather than return 0, or a move that could not act counts as accepted
+        // reject, so a move that could not act is not counted as accepted
         return RbConstants::Double::neginf;
     }
 
@@ -98,7 +98,7 @@ double RotateNodeProposal::doProposal( void )
         else                                          others.push_back( child );
     }
 
-    // the reverse move draws from a set of the same size, so the proposal is symmetric
+    // symmetric: the reverse move draws from a set of the same size
     moved_continuer = others[ size_t( rng->uniform01() * others.size() ) ];
 
     stored_continuer->setContinuesParentSpecies( false );

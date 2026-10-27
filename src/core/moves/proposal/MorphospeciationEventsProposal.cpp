@@ -71,7 +71,7 @@ double MorphospeciationEventsProposal::doProposal( void )
     PhyloMorphospeciationProcess &p = process();
     if ( p.getNumberOfCharacters() == 0 ) return 0.0;
 
-    // which branches can hold events depends on the tree, so the distribution chooses one after preparing it
+    // the distribution chooses the branch after preparing the tree
     return p.resampleEvents();
 }
 

@@ -68,7 +68,7 @@ void Move_StratigraphicRange::constructInternalObject( void )
 
     RevBayesCore::Proposal *p = new RevBayesCore::StratigraphicRangeProposal( n );
 
-    // now allocate a new sliding move
+    // now allocate a new move
     double w = static_cast<const RealPos &>( weight->getRevObject() ).getValue();
     
     value = new RevBayesCore::MetropolisHastingsMove(p,w);

@@ -6,16 +6,13 @@
 namespace RevLanguage {
 
     /**
-     * The RevLanguage wrapper of the birth-death-with-rateshifts process.
+     * The RevLanguage wrapper of the range process under complete lineage sampling, dnBDS.
      *
-     * The same arguments as dnFBDRP, handed to the process under complete lineage sampling and
-     * with the coexistence terms off by default. Under condition="sampling" that is the BDS
-     * model of Silvestro et al. (2019), whose likelihood is PyRate's. See
-     * CompleteFossilizedBirthDeathRangeProcess for what the assumption costs.
+     * Under condition="sampling" this is the BDS model of Silvestro et al. (2019).
      *
      * @copyright Copyright 2009-
-     * @author The RevBayes Development Core Team (Sebastian Hoehna)
-     * @since 2014-01-26, version 1.0
+     * @author The RevBayes Development Core Team (June Walker)
+     * @since 2026-10-24, version 1.0
      *
      */
     class Dist_BDS : public Dist_FBDRP {

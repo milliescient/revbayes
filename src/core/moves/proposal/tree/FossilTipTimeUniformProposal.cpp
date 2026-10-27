@@ -142,7 +142,7 @@ double FossilTipTimeUniformProposal::doProposal( void )
 
         if ( tips.empty() )
         {
-            // reject rather than return 0, or a move that could not act counts as accepted
+            // reject, so a move that could not act is not counted as accepted
             failed = true;
             return RbConstants::Double::neginf;
         }
@@ -238,7 +238,7 @@ double FossilTipTimeUniformProposal::doProposal( void )
         min_age = 0.0;
         max_age = node.getTaxon().getMaxAge();
 
-        // a death lies at or below every occurrence, so the binding bound is the youngest maximum
+        // the binding bound is the youngest maximum
         for (std::map<TimeInterval, size_t>::const_iterator it = occurrences.begin(); it != occurrences.end(); ++it)
         {
             max_age = fmin(max_age, it->first.getMax());

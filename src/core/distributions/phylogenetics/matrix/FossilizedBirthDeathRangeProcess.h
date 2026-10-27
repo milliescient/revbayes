@@ -73,9 +73,7 @@ namespace RevBayesCore {
         void                                            restoreSpecialization(const DagNode *toucher) override;
         void                                            touchSpecialization(const DagNode *toucher, bool touchAll) override;
 
-        //!< Weight each birth by how many lineages were alive to produce it, which is the
-        //!< per-capita structure at the event times. Dropping it is exact only where the
-        //!< standing diversity does not vary over the span the birth times move in.
+        //!< Weight each birth by how many lineages were alive to produce it.
         bool                                            coexistence;
         bool                                            require_parent;                                     //!< Reject a birth with none alive. Off only where ranges were left out.
 

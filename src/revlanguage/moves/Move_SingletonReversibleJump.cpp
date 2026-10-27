@@ -83,7 +83,7 @@ void Move_SingletonReversibleJump::constructInternalObject( void )
         p = new RevBayesCore::SingletonReversibleJumpProposal( n );
     }
 
-    // now allocate a new sliding move
+    // now allocate a new move
     double w = static_cast<const RealPos &>( weight->getRevObject() ).getValue();
     
     value = new RevBayesCore::MetropolisHastingsMove(p,w);

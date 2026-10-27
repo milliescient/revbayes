@@ -1,7 +1,5 @@
-# psiMixtureRates. With every component at the same rate the mixture leaves the no-sample
-# probabilities unchanged, so each taxon differs from the plain process only by the weight of
-# its component. That holds under a skyline and under sampling conditioning, and it checks the
-# linear system for the mixed no-sample probabilities against the closed form. Every line
+# psiMixtureRates. With every component at the same rate, each taxon differs from the plain process
+# only by the weight of its component, under a skyline and under sampling conditioning. Every line
 # printed must be TRUE.
 taxa <- readTaxonData("data/fbdr_condition.tsv")
 

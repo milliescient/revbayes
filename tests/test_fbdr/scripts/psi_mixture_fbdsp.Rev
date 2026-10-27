@@ -1,7 +1,6 @@
-# psiMixtureRates on dnFBDSP. With all weight on one of two equal components every species starts and
-# stays in it, so the tree, the record and the morphospeciation densities are the plain process
-# exactly, on a drawn tree and on one whose sampled ancestors give anagenetic species, which start in
-# their ancestor's component. A checkpoint carries each species' component. Every line printed must be TRUE.
+# psiMixtureRates on dnFBDSP. With all weight on one of two equal components, the tree, record and
+# morphospeciation densities are the plain process, with and without sampled ancestors, and a
+# checkpoint carries each species' component. Every line printed must be TRUE.
 taxa <- readTaxonData("data/fbdsp_condition.tsv")
 data <- readDiscreteCharacterData("data/morpho_missing.nex")
 sa_tree <- readTrees("data/fbdsp_sampled_ancestors.tre", treetype="clock")[1]
@@ -39,7 +38,7 @@ for (tree in v("drawn", "sampled ancestors")) {
     }
 }
 
-# a resumed run logs after its first move, so the resumed chain all but only moves z
+# the resumed chain moves only z
 seed(5)
 bd ~ dnFBDSP(taxa=taxa, lambda=0.4, mu=0.1, psi=0.5, lambda_a=0.9, rho=1.0, origin=20.0, condition="time",
              psiMixtureRates=v(0.3, 1, 2.5), psiMixtureWeights=simplex(0.2, 0.3, 0.5))

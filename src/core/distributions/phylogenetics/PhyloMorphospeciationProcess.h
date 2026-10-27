@@ -18,27 +18,9 @@ namespace RevBayesCore {
     /**
      * @brief Morphological characters whose changes happen at the speciation events of a dnFBDSP tree.
      *
-     * Without epsilon, every speciation changes the new species at one character, chosen uniformly, to
-     * a state drawn from that character's Mk kernel. Conditional on the tree, a character evolves along
-     * a species' stem as a Markov chain with generator J - I over the length (1/n) int (lambda p + lambda_a) dt,
-     * does not change over the species' sampled range, and starts from the kernel's stationary
-     * distribution at the root. Which character changed at each speciation is a latent index per
-     * speciation, sampled by mvMorphospeciationAllocation.
-     *
-     * With epsilon, a speciation changes each character independently, so it can change several or
-     * none. Each branch carries latent counts of hidden budding and hidden anagenetic events, Poisson
-     * with means int lambda p dt and int lambda_a dt, and given the counts the characters are
-     * independent, each carried by ((1 - e) I + e J)^N for each kind of event. The counts are sampled by
-     * mvMorphospeciationEvents. Which characters changed at an observed speciation is independent across
-     * characters, so it is summed over in the pruning: the budding child is carried by (1 - e) I + e J.
-     *
-     * With epsilon_a, anagenetic speciations change each character with probability epsilon_a and
-     * buddings with epsilon, so epsilon / epsilon_a is how much change a budding carries relative to an
-     * anagenesis.
-     *
-     * The latent variables are kept by node index, as branch lengths are: the change at an interior
-     * node's speciation and the hidden events on the branch above a node. The moves of the topology keep
-     * every node and its index, so the latent variables stay with their events and branches.
+     * Without epsilon, each speciation changes one character, a latent index per speciation. With
+     * epsilon, each speciation changes every character independently, and each branch carries latent
+     * counts of hidden budding and anagenetic events. Latent variables are kept by node index.
      */
     class PhyloMorphospeciationProcess : public TypedDistribution<AbstractHomologousDiscreteCharacterData>, public MemberObject< RbVector<double> > {
 

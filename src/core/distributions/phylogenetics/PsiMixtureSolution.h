@@ -7,15 +7,10 @@
 namespace RevBayesCore {
 
     /**
-     * @brief The extinction probabilities of a birth-death process whose species each sample fossils
-     * at their own multiple of psi, drawn at birth from a mixture.
+     * @brief Extinction probabilities under a mixture of psi multiples drawn at birth.
      *
-     * With p_h = y_h / z, the system y_h' = mu z - (lambda + mu + nu_h psi) y_h, z' = -lambda sum_h w_h y_h
-     * is linear, and its generator, a diagonal bordered by one row and one column, has real eigenvalues
-     * that are the roots of a secular equation. Each interval keeps its eigensystem, so p, int lambda pbar
-     * and Q = dp(t)/dp(s) at any age cost a few exponentials, with no stepping. Q is a sum over pairs of
-     * modes in which the pair's own term vanishes exactly, so it carries no cancellation however long
-     * the interval.
+     * With p_h = y_h / z the system is linear, so each interval keeps its eigensystem and p,
+     * int lambda pbar and Q = dp(t)/dp(s) are closed forms.
      */
     class PsiMixtureSolution {
 

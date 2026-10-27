@@ -118,7 +118,7 @@ double CollapseExpandFossilBranchProposal::doProposal( void )
 
     if ( fossils.empty() )
     {
-        // reject rather than return 0, or a move that could not act counts as accepted
+        // reject, so a move that could not act is not counted as accepted
         failed = true;
         return RbConstants::Double::neginf;
     }

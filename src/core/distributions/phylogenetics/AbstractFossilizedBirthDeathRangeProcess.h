@@ -26,8 +26,7 @@ namespace RevBayesCore {
         double  death = 0.0;                                //!< The extinction time.
         double  last  = 0.0;                                //!< The youngest appearance, tau_K.
         double  first = 0.0;                                //!< The oldest appearance, tau_1.
-        //!< Where the range attaches to the nearest range the record samples. Ancestors leaving no
-        //!< occurrence were never named, so the species itself may originate below this.
+        //!< Where the range attaches to the nearest sampled range.
         double  divergence = 0.0;
 
         double  first_min = 0.0;                            //!< The oldest reported minimum.
@@ -37,10 +36,10 @@ namespace RevBayesCore {
 
         bool    singleton = true;                           //!< Fewer than two occurrences, so the appearances are one age.
 
-        //!< Alive at the present. In no value, so only mvExtinctionRJSwitch changes it.
+        //!< Alive at the present. Only mvExtinctionRJSwitch changes it.
         bool    survived = false;
 
-        //!< Its psi mixture component. In no value, so only mvPsiMixtureAllocation changes it.
+        //!< Its psi mixture component. Only mvPsiMixtureAllocation changes it.
         size_t  component = 0;
 
         //!< Ages never decrease into the past, and each appearance sits within the bins reporting it.
@@ -249,7 +248,7 @@ namespace RevBayesCore {
                                 
         std::vector<bool>                               dirty_taxa;                                             //!< Indicates whether partial likelihood needs updating
 
-        //!< A taxon's record term with the arguments it was computed from, kept until one of them changes
+        //!< A taxon's record term with the arguments it was computed from
         struct RecordTerm {
             double  death = 0.0, first = 0.0, last = 0.0, rate = 0.0, value = 0.0;
             bool    singleton = false, valid = false;

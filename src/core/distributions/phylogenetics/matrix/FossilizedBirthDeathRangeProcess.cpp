@@ -138,7 +138,6 @@ void FossilizedBirthDeathRangeProcess::setValue(MatrixReal *v, bool force)
         (*this->value)[i][2] = ranges[i].first;
     }
 
-    // a node already touched keeps its cache, which no longer matches
     dirty_taxa  = std::vector<bool>(taxa.size(), true);
     dirty_gamma = std::vector<bool>(taxa.size(), true);
 
@@ -208,8 +207,6 @@ double FossilizedBirthDeathRangeProcess::computeLnProbability( void )
 {
     double lnProb = computeLnProbabilityRanges();
 
-    // without them, a birth carries no factor for how many lineages could have produced it,
-    // which is exact only where the standing diversity does not vary
     if ( coexistence == false && require_parent == false ) return lnProb;
 
     updateGamma();
@@ -221,9 +218,7 @@ double FossilizedBirthDeathRangeProcess::computeLnProbability( void )
             // only the origin buds from nothing
             if ( i == max_birth ) continue;
 
-            // Where ranges were left out, the lineage a birth came from may be one of them, so
-            // none alive among those kept is an observation rather than an impossibility. The
-            // weight still counts the attachments there are, and log(0) is not one of them.
+            // without require_parent, a birth with none alive takes no weight
             if ( require_parent == false ) continue;
 
             return RbConstants::Double::neginf;

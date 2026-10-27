@@ -5,7 +5,7 @@ Gibbs sampling of each taxon's psi mixture component
 ## description
 Draws one taxon's fossil sampling mixture component from its full conditional distribution.
 ## details
-Under `dnFBDRP` or `dnFBDSP` with `psiMixtureRates`, each species carries a latent mixture component that scales its fossil sampling rate. The component is not part of the value, so this is the only move that changes it. Each proposal picks a taxon at random and draws its component given its range, its occurrences, the rates and, under `dnFBDSP`, the anagenetic species that continue it, so every proposal is accepted.
+Under `dnFBDRP` or `dnFBDSP` with `psiMixtureRates`, each species carries a latent mixture component that scales its fossil sampling rate. This is the only move that changes it. Each proposal picks a taxon at random and draws its component from its full conditional, so every proposal is accepted.
 ## authors
 June Walker
 ## see_also

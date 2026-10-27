@@ -221,7 +221,7 @@ void AbstractFossilizedBirthDeathRangeProcess::updateRecord( void )
 {
     record_terms.clear();
 
-    // the record fixes the bounds and the reporting model; the sampled ages survive a re-derive
+    // sampled ages survive a re-derive
     for ( size_t i = 0; i < taxa.size(); i++ )
     {
         ranges[i].first_min = 0.0;
@@ -257,7 +257,6 @@ void AbstractFossilizedBirthDeathRangeProcess::updateRecord( void )
         ranges[i].first_max = taxa[i].getMaxAge();
         ranges[i].last_min  = taxa[i].getMinAge();
 
-        // only used when the record has two extremes to order
         ranges[i].last = ranges[i].last_max;
     }
 
@@ -286,7 +285,7 @@ void AbstractFossilizedBirthDeathRangeProcess::checkPresenceIntervals( void ) co
         {
             for ( auto b = std::next(a); b != ages.end(); b++ )
             {
-                // a shared edge is adjacency, but an exact age inside an interval is in it
+                // a shared edge is not an overlap
                 double lo = std::max( a->first.getMin(), b->first.getMin() );
                 double hi = std::min( a->first.getMax(), b->first.getMax() );
                 bool inside = ( a->first.getMin() < lo && lo < a->first.getMax() ) || ( b->first.getMin() < lo && lo < b->first.getMax() );
@@ -308,7 +307,6 @@ void AbstractFossilizedBirthDeathRangeProcess::checkPresenceIntervals( void ) co
 /** Adopt a clamped record's occurrences as the data and re-derive the record model. */
 void AbstractFossilizedBirthDeathRangeProcess::setOccurrences( const std::vector<Taxon> &t )
 {
-    // the ordinary case, which must leave every sampled age exactly as it is
     bool changed = ( t.size() != taxa.size() );
 
     for (size_t i = 0; i < taxa.size() && changed == false; ++i)
@@ -373,12 +371,11 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnProbabilityRanges( boo
 
         double present = times.front();
 
-        // a move on the value can put an age anywhere, so enforce the support for every taxon
         if ( ranges[i].isOrdered( present ) == false )
         {
             return RbConstants::Double::neginf;
         }
-        // a survivor ends at the present, so a continuous move that walks d off it is rejected here
+        // a survivor ends at the present
         if ( ranges[i].survived == true && d != present )
         {
             return RbConstants::Double::neginf;
@@ -454,7 +451,6 @@ double AbstractFossilizedBirthDeathRangeProcess::rangeLnProb( size_t i )
     // divide by q_tilde at the death time
     lnProb -= q( di, d, true);
 
-    // the extinction density, or what closes a marginalized range
     if ( ranges[i].survived == false )
     {
         lnProb += rangeEndTerm( i, di, d );
@@ -517,7 +513,7 @@ void AbstractFossilizedBirthDeathRangeProcess::numTaxaGeometric( double &alpha, 
         double nC = fC * A + C;
         double nD = fC * B + D;
 
-        // defined up to scale, so normalise to keep the entries bounded
+        // normalise to keep the entries bounded
         double s = std::max( std::max(fabs(nA), fabs(nB)), std::max(fabs(nC), fabs(nD)) );
         if ( s > 0.0 )
         {
@@ -570,7 +566,6 @@ double AbstractFossilizedBirthDeathRangeProcess::lnProbNumTaxa( size_t n ) const
 
     double lnProb = log(1.0 - alpha) + log(1.0 - beta);
 
-    // beta == 0 forbids more than one survivor, so 0 * log(0) is never evaluated
     if ( n > 1 )
     {
         lnProb += (n - 1) * log(beta);
@@ -632,7 +627,6 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilTotal()
     double lnProb = 0.0;
     for ( size_t i = 0; i < taxa.size(); ++i )
     {
-        // status is data, so it is scored here and not by the bare range process
         if ( taxa[i].isExtinct() == false && ranges[i].survived == false )
         {
             return RbConstants::Double::neginf;
@@ -644,7 +638,6 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilTotal()
         // an extant taxon with no fossil sample carries no reporting term
         if ( taxa[i].getMaxAge() == times.front() ) continue;
 
-        // the term depends on the taxon's own ages, status and rate, and on the sampling rates and times
         RecordTerm &c = record_terms[i];
         const RangeEntry &e = ranges[i];
         double rate = num_components > 1 ? mixture_rates[ e.component ] : 1.0;
@@ -690,7 +683,6 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i
 /** Fossil-occurrence log-term for taxon i, with psi scaled by a mixture rate. */
 double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i, double mixture_rate ) const
 {
-    // a component that never samples cannot carry a fossil, and the terms below would give NaN
     if ( mixture_rate == 0.0 ) return RbConstants::Double::neginf;
 
     if ( record_reporting == PRESENCE ) return lnPresenceRecord( i, mixture_rate );
@@ -701,7 +693,6 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i
     double y  = ranges[i].last;                             // youngest appearance
     size_t yi = findIndex(y);
 
-    // the interior runs down to tau_K, or to the range end where the youngest is unreported
     double min_age = ranges[i].singleton == false ? y : d;
     double max_age = o;
 
@@ -802,10 +793,10 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i
             {
                 return RbConstants::Double::neginf;
             }
-            // excluding the diagonal, where a single occurrence supplies both extremes
+            // excluding the diagonal
             result += log(mixture_rate*fossil[yi]) + log(recip_young - diag/recip_old);
 
-            // the first/last rule leaves the interior count unreported, so it is marginalized
+            // marginalize the unreported interior count
             if ( record_reporting == FIRSTLAST )
             {
                 double S1 = 0.0, f = 1.0;
@@ -856,7 +847,6 @@ namespace {
         if ( m <= 0 ) return x;
         if ( x <= 0.0 ) return RbConstants::Double::neginf;
 
-        // above the count the tail is most of e^x, so subtract the head instead
         if ( x > m )
         {
             double head = 0.0, f = exp(-x);
@@ -880,13 +870,7 @@ namespace {
 }
 
 
-/**
- * Presence log-term for taxon i, relative to a process that already charges every stretch of the
- * range for holding no occurrence. A reported interval holds at least its reported count, so it
- * refunds the Poisson tail over its exposure inside [tau_K, tau_1], and an exactly dated occurrence
- * is a density, as under the complete rule. tau_1 and tau_K are occurrences, each taken from an
- * interval holding it, and a singleton is one occurrence that is both.
- */
+/** Presence log-term for taxon i: each reported interval holds at least its reported count. */
 double AbstractFossilizedBirthDeathRangeProcess::lnPresenceRecord( size_t i, double mixture_rate ) const
 {
     bool single = ranges[i].singleton;
@@ -979,25 +963,7 @@ double AbstractFossilizedBirthDeathRangeProcess::lnQFromPresent( size_t i, doubl
 }
 
 
-/**
- * log P(species i originated above t), for t between its oldest appearance and its birth.
- *
- * A range's birth time is where it attaches to the nearest range the record samples, not where
- * the species itself began: ancestors that left no occurrence were never named, so a chain of
- * them may stand in between. The stretch holding that chain is the regime in which either
- * daughter of a budding event may carry the species identity, and below the species' own
- * origination the identity is pinned. Those two regimes are q and q_tilde, so the ratio of
- * their segment terms is the survival function
- *
- *     S(t) = q(o) q_tilde(t) / ( q_tilde(o) q(t) ),
- *
- * falling from one at the oldest appearance o. The remainder S(b) is the atom on the
- * attachment itself, where no unnamed ancestor intervenes.
- *
- * Symmetric speciation and anagenesis reach an unnamed ancestor by routes this does not count,
- * so a process admitting either must override it. So must one under complete lineage sampling,
- * where nothing collapses and the origination is the birth time itself.
- */
+/** log P(species i originated above t) = log[ q(o) q_tilde(t) / ( q_tilde(o) q(t) ) ], for o <= t <= b. */
 double AbstractFossilizedBirthDeathRangeProcess::lnOriginationSurvival( size_t i, double t ) const
 {
     double o = ranges[i].first;
@@ -1010,15 +976,7 @@ double AbstractFossilizedBirthDeathRangeProcess::lnOriginationSurvival( size_t i
 }
 
 
-/**
- * Draw species i's own origination time.
- *
- * Nothing else in the model conditions on it: the occurrences all sit at or below the
- * oldest appearance, and gamma attaches to the birth time. So this is the exact full
- * conditional and the draw always stands, rather than a proposal needing a Hastings
- * ratio. Inverting the survival function needs no quadrature, as it is a ratio of
- * kernels the process already computes.
- */
+/** Draw species i's own origination time from its full conditional. */
 double AbstractFossilizedBirthDeathRangeProcess::drawOrigination( size_t i ) const
 {
     double o = ranges[i].first;
@@ -1045,17 +1003,7 @@ double AbstractFossilizedBirthDeathRangeProcess::drawOrigination( size_t i ) con
 
 
 
-/**
- * The conditional mean of species i's origination time.
- *
- * The origination is confined to the oldest appearance and the divergence, so its mean is
- * the oldest appearance plus the integral of the survival function across them. That
- * carries none of the simulation noise drawOrigination does, and the atom needs no term of
- * its own because the survival function already holds it.
- *
- * The kernels are smooth within a rate interval and kinked only at its boundaries, so the
- * quadrature runs interval by interval. It inherits any override of the survival function.
- */
+/** The conditional mean of species i's origination time, integrated per rate interval. */
 double AbstractFossilizedBirthDeathRangeProcess::meanOrigination( size_t i ) const
 {
     double o = ranges[i].first;
@@ -1107,7 +1055,7 @@ double AbstractFossilizedBirthDeathRangeProcess::p( size_t i, double t, bool sur
 
     double A = sqrt( diff*diff + 4.0*b*f);
 
-    // survival takes f = 0, so b == d leaves A = 0, where the closed form is singular
+    // b == d leaves the closed form singular
     if ( A < 1E-10 )
     {
         double s = 1.0 - (1.0 - r)*pi;
@@ -1157,10 +1105,6 @@ double AbstractFossilizedBirthDeathRangeProcess::q( size_t i, double t, bool til
 }
 
 
-/**
- *
- *
- */
 /** The appearances and the origination and extinction times. */
 void AbstractFossilizedBirthDeathRangeProcess::executeMethod(const std::string &n, const std::vector<const DagNode *> &args, RbVector<double> &rv) const
 {
@@ -1187,8 +1131,6 @@ void AbstractFossilizedBirthDeathRangeProcess::executeMethod(const std::string &
         AbstractFossilizedBirthDeathRangeProcess *self = const_cast<AbstractFossilizedBirthDeathRangeProcess *>( this );
         self->updateRanges();
 
-        // one indicator per sample, so it is the posterior mean that gives a taxon's probability of
-        // having survived to the present without being sampled, or of tau_1 and tau_K being one age
         rv.clear();
         for (size_t i = 0; i < ranges.size(); i++)
         {
@@ -1202,8 +1144,6 @@ void AbstractFossilizedBirthDeathRangeProcess::executeMethod(const std::string &
         self->updateRanges();
         prepareProbComputation();
 
-        // mean=TRUE integrates the conditional rather than drawing from it, which costs a
-        // quadrature and returns the same quantity carrying none of the simulation noise
         bool mean = args.size() > 0 && static_cast<const TypedDagNode<Boolean>* >( args[0] )->getValue();
 
         rv.clear();
@@ -1370,7 +1310,7 @@ void AbstractFossilizedBirthDeathRangeProcess::switchSurvived(size_t i)
 
     ranges[i].survived = !ranges[i].survived;
 
-    dirty_taxa[i] = true;   // the status is in no value
+    dirty_taxa[i] = true;
 }
 
 
@@ -1381,7 +1321,7 @@ void AbstractFossilizedBirthDeathRangeProcess::resampleFirstLast(size_t i)
     stored_last  = ranges[i].last;
     resampled = true;
 
-    dirty_taxa[i] = true;   // a tree does not carry these ages
+    dirty_taxa[i] = true;
 
     // a non-extended extinct range ends at its tip
     if ( marginalizesExtinction() == true && taxa[i].isExtinct() == true && ranges[i].singleton )
@@ -1413,8 +1353,7 @@ void AbstractFossilizedBirthDeathRangeProcess::resampleFirstLast(size_t i)
 
 
 /**
- * Expand taxon i's tau_1 uniformly above tau_K, within its interval and below its divergence, or
- * collapse it onto tau_K. tau_K stays, so the move is the same whether or not a value carries it.
+ * Expand taxon i's tau_1 uniformly above tau_K, or collapse it onto tau_K.
  *
  * \return The log hastings ratio.
  */
@@ -1449,7 +1388,7 @@ void AbstractFossilizedBirthDeathRangeProcess::drawRanges()
 {
     RandomNumberGenerator* rng = GLOBAL_RNG;
 
-    // an unbounded max_age would push every birth to infinity, so fall back to the minima
+    // an unbounded max_age falls back to the minima
     double max = 0;
     for (size_t i = 0; i < taxa.size(); i++)
     {
@@ -1470,7 +1409,6 @@ void AbstractFossilizedBirthDeathRangeProcess::drawRanges()
 
     double present = times.front();
 
-    // The origin comes first and every appearance is drawn under it.
     if ( origin_age != NULL )
     {
         max = origin_age->getValue();
@@ -1478,7 +1416,7 @@ void AbstractFossilizedBirthDeathRangeProcess::drawRanges()
 
     for (size_t i = 0; i < taxa.size(); i++)
     {
-        // Draw d over its range, then the appearances NESTED (d <= last <= first)
+        // d <= last <= first
         if ( taxa[i].isExtinct() == false )
         {
             ranges[i].survived = true;
@@ -1533,7 +1471,7 @@ void AbstractFossilizedBirthDeathRangeProcess::drawRanges()
     {
         size_t i = order[k];
 
-        // the oldest birth is the origin, already drawn above and bounding every appearance
+        // the oldest birth is the origin
         if ( k == 0 )
         {
             ranges[i].divergence = ( origin_age != NULL )
@@ -1604,7 +1542,6 @@ void AbstractFossilizedBirthDeathRangeProcess::restoreSpecialization(const DagNo
 
 void AbstractFossilizedBirthDeathRangeProcess::touchSpecialization(const DagNode *toucher, bool touchAll)
 {
-    // a parameter dirties only the taxa whose intervals it changed, which dirtyChangedIntervals finds
     if ( touched == false )
     {
         storeRangeTerms();
@@ -1631,11 +1568,7 @@ void AbstractFossilizedBirthDeathRangeProcess::appendIntervalRates( size_t j, st
 }
 
 
-/**
- * A range term reads the intervals from the present up to its birth: their rates, and p at their
- * starts, which the younger intervals set. A change in interval j therefore leaves every taxon
- * born below it as it was, and a change in what all intervals share leaves none.
- */
+/** A change in interval j dirties only the taxa born in or above it. */
 void AbstractFossilizedBirthDeathRangeProcess::dirtyChangedIntervals( void )
 {
     std::vector<double> shared( times.begin(), times.end() );
@@ -1754,7 +1687,7 @@ void AbstractFossilizedBirthDeathRangeProcess::prepareProbComputation( void ) co
 
             if ( condition == "survival" )
             {
-                // survival ignores fossil sampling: the f = 0 case of the recursion above
+                // survival ignores fossil sampling
                 diff = b - d;
 
                 A = fabs( diff );
@@ -1763,7 +1696,7 @@ void AbstractFossilizedBirthDeathRangeProcess::prepareProbComputation( void ) co
 
                 if ( A < 1E-10 )
                 {
-                    // b == d leaves A = 0, where the closed form is singular but its limit is not
+                    // b == d leaves the closed form singular
                     pS_i[i+1] = 1.0 - s/(1.0 + b*s*dt);
                 }
                 else
@@ -1796,11 +1729,7 @@ void AbstractFossilizedBirthDeathRangeProcess::prepareProbComputation( void ) co
 }
 
 
-/**
- * Birth-death density of range i given its component h, for every h or for h = only.
- * Between b_i and tau_1 the lineage may pass through unsampled species of any component, so Q
- * enters as sum_e w_e Q[e][h]. Below tau_1, Q_tilde = exp( -(lambda + mu + nu_h psi) t + int lambda pbar ).
- */
+/** Birth-death density of range i given its component h, for every h or for h = only. */
 void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, std::vector<double> &ln_probs, size_t only, const std::vector<double> *source ) const
 {
     size_t H = num_components;
@@ -1889,7 +1818,6 @@ std::vector<double> AbstractFossilizedBirthDeathRangeProcess::psiMixtureComponen
     std::vector<double> ln_probs;
     mixtureRangeLnProbs( i, ln_probs, num_components );
 
-    // a species whose lineage starts in taxon i's component scores against each of them
     std::vector<double> start( num_components, 0.0 ), lp;
     for (size_t j : mixtureDependents( i ))
     {
@@ -1924,7 +1852,7 @@ void AbstractFossilizedBirthDeathRangeProcess::setPsiMixtureComponent( size_t i,
 
     ranges[i].component = h;
 
-    dirty_taxa[i] = true;   // the component is in no value
+    dirty_taxa[i] = true;
     for (size_t j : mixtureDependents( i )) dirty_taxa[j] = true;
 }
 

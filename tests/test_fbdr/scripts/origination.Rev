@@ -1,9 +1,4 @@
-# A range attaches to the nearest range the record samples at its divergence time, and a chain
-# of ancestors that left no occurrence, and so were never named, may stand between that
-# attachment and the species' own origination. getDivergenceTimes reports the attachment and
-# getOriginationTimes draws the origination from its conditional, which is an atom on the
-# attachment plus a density below it, or integrates that conditional when given mean=TRUE.
-# Every line printed must be TRUE.
+# getDivergenceTimes and getOriginationTimes, drawn and with mean=TRUE. Every line printed must be TRUE.
 seed(12345)
 
 taxa <- readTaxonData("data/fbdr_condition.tsv")
@@ -13,8 +8,7 @@ mu     ~ dnExponential(1); mu.setValue(0.1)
 psi    ~ dnExponential(1); psi.setValue(0.5)
 origin ~ dnUniform(8, 30);  origin.setValue(20)
 
-# Set by hand, so the candidate counts below are read off it rather than recomputed by the rule
-# under test. Columns are extinction, youngest appearance, oldest appearance and divergence.
+# columns are extinction, youngest appearance, oldest appearance and divergence
 config <- matrix( v( v(0.0, 0.0, 0.0, 10.0),
                      v(0.0, 0.0, 0.0,  8.0),
                      v(0.0, 0.0, 0.0,  6.0),
@@ -22,7 +16,7 @@ config <- matrix( v( v(0.0, 0.0, 0.0, 10.0),
                      v(3.0, 4.5, 4.5, 14.0),
                      v(5.0, 6.5, 6.5, 20.0) ) )
 
-# Reading the configuration: the ranges alive at each divergence number 3, 4, 5, 2, 1 and none.
+# the ranges alive at each divergence number 3, 4, 5, 2, 1 and none
 
 bd ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
              condition="time", origin=origin)
@@ -38,8 +32,7 @@ first <- bd.getFirstAppearances()
 divergence <- bd.getDivergenceTimes()
 death <- bd.getExtinctionTimes()
 
-# the origination sits within the range, at or below the divergence and above the oldest
-# appearance, which is where the record pins the species' identity
+# the origination sits at or below the divergence and above the oldest appearance
 bounded <- TRUE
 for (rep in 1:20)
 {
@@ -55,8 +48,7 @@ for (rep in 1:20)
 print(filename=out, "every draw sits between the oldest appearance and the divergence:\n")
 print(filename=out, append=TRUE, bounded, "\n")
 
-# the integrated mean must sit inside the same support, and must agree with the average of
-# many draws, which checks the quadrature and the inverse-CDF sampler against each other
+# the mean sits inside the same support and agrees with the average of many draws
 mean_s <- bd.getOriginationTimes(mean=TRUE)
 
 reps <- 4000
@@ -107,8 +99,7 @@ for (i in 1:n)
 print(filename=out, append=TRUE, "raising psi does not lower the mean origination:\n")
 print(filename=out, append=TRUE, rises, "\n")
 
-# intervals that share a rate must not move it: the composition check, which is what
-# exercises the accumulation of q and q_tilde across interval boundaries; 1E-6 because the mean is 64-step Simpson per interval
+# intervals that share a rate must not move it, to Simpson's accuracy
 timeline <- v(1.0, 2.0, 3.0, 4.0)
 lv := v(lambda, lambda, lambda, lambda, lambda)
 mv := v(mu, mu, mu, mu, mu)
@@ -131,8 +122,7 @@ for (i in 1:n)
 print(filename=out, append=TRUE, "five intervals of one rate match one interval:\n")
 print(filename=out, append=TRUE, composes, "\n")
 
-# the extant status marks a species the record cannot distinguish from one that went
-# extinct after its youngest occurrence, so it is on exactly when extinction sits at the present
+# the extant status is on exactly when extinction sits at the present
 alive <- bd.getExtantStatus()
 
 agrees <- TRUE
@@ -145,8 +135,7 @@ for (i in 1:n)
 print(filename=out, append=TRUE, "the extant status is on exactly at an extinction time of zero:\n")
 print(filename=out, append=TRUE, agrees, "\n")
 
-# under rho = 1 every survivor is sampled, so the three taxa the record reports extant are
-# the three the indicator marks
+# under rho = 1 the indicator marks the three taxa reported extant
 extant <- 0.0
 for (i in 1:n)
 {
