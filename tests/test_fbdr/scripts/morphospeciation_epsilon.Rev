@@ -1,7 +1,8 @@
 # dnPhyloMorphospeciation with epsilon. Exact identities, which hold whatever the tree and the latent
 # sets and counts, with no anagenesis so that every hidden event is a budding:
 #   - with every state missing, each character's likelihood is one whatever changed at a speciation,
-#     so the log density is the Poisson density of the hidden events on each branch;
+#     so the log density is the Poisson density of the hidden events on each branch not above a tip,
+#     where an unscored tip's counts are summed out;
 #   - a single species has no speciation and no branch, so it is its stationary frequencies, sum ln(1/K).
 # Every line printed must be TRUE.
 seed(1)
@@ -20,7 +21,7 @@ means = morph.getHiddenEventMeans()
 expected = 0.0
 for (i in 1:counts.size())
 {
-    if (means[i] > 0)
+    if (i > bd.ntips() && means[i] > 0)
     {
         x[i] ~ dnPoisson(means[i])
         x[i].clamp(counts[i])

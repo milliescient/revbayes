@@ -1679,6 +1679,8 @@ Which character changed at each speciation is a latent index, sampled by mvMorph
 
 With `epsilon`, a speciation changes each character independently with probability `epsilon`, so it can change several characters or none. Each branch then carries latent counts of hidden budding and anagenetic events, sampled by mvMorphospeciationEvents. `getNumberOfChanges()`, `getHiddenEventCounts()` and `getHiddenEventMeans()` report them, by node index.
 
+A subtree in which no taxon is coded for any character contributes nothing to the likelihood, so it is never computed, and the hidden counts on its branches are drawn from their Poisson prior without one. Above a taxon coded for no character the counts are summed out, so they are not sampled at all: there `getHiddenEventCounts()` draws them from their Poisson distribution, or with `mean=TRUE` gives its mean.
+
 With `epsilon_a`, an anagenetic speciation changes each character with probability `epsilon_a` and a budding with `epsilon`, so `epsilon / epsilon_a` measures the change carried by budding relative to anagenesis. `getChangeProbabilities()` gives the two probabilities, and `getSpeciationModes()` gives each species' origin: 1 for budding, 2 for anagenesis, 0 at the origin.
 
 With `coding="variable"`, the matrix is taken to hold only the characters that vary among the taxa scored for them, as most published matrices do, and each character's likelihood is divided by its probability of varying. A character is scored on its own taxa, so a taxon missing it does not count toward whether it varies. It needs `epsilon`, since with exactly one change per speciation the characters share their speciations, and dropping the invariant ones does not act on each character alone.)");

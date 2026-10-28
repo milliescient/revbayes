@@ -4,6 +4,7 @@
 #include <cmath>
 #include <map>
 
+#include "RbBoolean.h"
 #include "DiscreteTaxonData.h"
 #include "DistributionPoisson.h"
 #include "FossilizedBirthDeathSpeciationProcess.h"
@@ -270,6 +271,7 @@ void PhyloMorphospeciationProcess::buildTipPartials( void )
     }
 
     tip_partials.assign( t.getNumberOfTips(), std::vector<double>( total_states, 1.0 ) );
+    tip_coded.assign( t.getNumberOfTips(), 0 );
     for (size_t i = 0; i < t.getNumberOfTips(); i++)
     {
         const TopologyNode &tip = t.getTipNode( i );
@@ -279,6 +281,7 @@ void PhyloMorphospeciationProcess::buildTipPartials( void )
         {
             const DiscreteCharacterState &x = td.getCharacter( c );
             if ( x.isGapState() || x.isMissingState() ) continue;
+            tip_coded[ tip.getIndex() ] = 1;
 
             // every scored tip in state 0, with the same tips missing
             if ( variable ) for (size_t k = 1; k < num_states[c]; k++) v[ offset[ all_zero[c] ] + k ] = 0.0;
@@ -298,6 +301,11 @@ void PhyloMorphospeciationProcess::buildTipPartials( void )
     epoch++;
     max_states = 2;
     for (size_t K : columns) max_states = std::max( max_states, K );
+
+    ones.v.assign( total_states, 1.0 );
+    ones.ln_scale.assign( columns.size(), 0.0 );
+    ones.epoch = epoch;
+    ones.version = next_version++;
 }
 
 
@@ -384,6 +392,58 @@ void PhyloMorphospeciationProcess::prepareCache( void )
         cache.assign( nodes, std::vector<Slot>( 2 ) );
         current.assign( nodes, 0 );
     }
+    markCoded();
+}
+
+
+/** Each node has a coded tip below it, by node index, from which tips are coded. */
+std::vector<char> PhyloMorphospeciationProcess::codedNodes( const std::vector<char> &tips ) const
+{
+    const Tree &t = tree->getValue();
+    std::vector<char> out( t.getNumberOfNodes(), 0 );
+    std::vector<const TopologyNode*> order;
+    order.push_back( &t.getRoot() );
+    for (size_t k = 0; k < order.size(); k++)
+    {
+        for (size_t c = 0; c < order[k]->getNumberOfChildren(); c++) order.push_back( &order[k]->getChild(c) );
+    }
+    // children come after their parents, so the reverse order fills each node from its children
+    for (size_t k = order.size(); k-- > 0; )
+    {
+        const TopologyNode *n = order[k];
+        size_t idx = n->getIndex();
+        if ( n->isTip() )
+        {
+            out[idx] = ( idx < tips.size() ) ? tips[idx] : 0;
+            continue;
+        }
+        for (size_t c = 0; c < n->getNumberOfChildren(); c++) out[idx] |= out[ n->getChild(c).getIndex() ];
+    }
+    return out;
+}
+
+
+void PhyloMorphospeciationProcess::markCoded( void )
+{
+    coded = codedNodes( tip_coded );
+}
+
+
+/** Every kernel here has rows summing to one and every change sums to one over its states, so a subtree with
+    nothing coded has partial one, whatever its tree, ages or hidden counts, and is never computed. */
+/** Whether a node is coded can change with the tree, which would bring back a summed-out count from nothing, so
+    only a tip coded for no character, which never becomes coded, has its counts summed out. */
+bool PhyloMorphospeciationProcess::summedOut( const TopologyNode &node ) const
+{
+    return node.isTip() && node.getIndex() < tip_coded.size() && tip_coded[ node.getIndex() ] == 0;
+}
+
+
+const PhyloMorphospeciationProcess::Slot& PhyloMorphospeciationProcess::slotOf( const TopologyNode &node ) const
+{
+    size_t idx = node.getIndex();
+    if ( coded[idx] == 0 ) return ones;
+    return cache[idx][ current[idx] ];
 }
 
 
@@ -445,6 +505,7 @@ void PhyloMorphospeciationProcess::signature( const TopologyNode &node, Slot &si
 const PhyloMorphospeciationProcess::Slot& PhyloMorphospeciationProcess::evaluate( const TopologyNode &node )
 {
     size_t idx = node.getIndex();
+    if ( coded[idx] == 0 ) return ones;
     Slot sig;
     signature( node, sig );
     if ( node.isTip() == false )
@@ -476,8 +537,8 @@ const PhyloMorphospeciationProcess::Slot& PhyloMorphospeciationProcess::evaluate
     }
     else
     {
-        const Slot &a = cache[ node.getChild( sig.kept ).getIndex() ][ current[ node.getChild( sig.kept ).getIndex() ] ];
-        const Slot &b = cache[ node.getChild( 1 - sig.kept ).getIndex() ][ current[ node.getChild( 1 - sig.kept ).getIndex() ] ];
+        const Slot &a = slotOf( node.getChild( sig.kept ) );
+        const Slot &b = slotOf( node.getChild( 1 - sig.kept ) );
         combine( a, b, long( idx ), NONE, out );
     }
     carry( out.v, idx, AS_IS );
@@ -517,7 +578,7 @@ std::vector<double> PhyloMorphospeciationProcess::rootLnLikelihoods( const Slot 
 std::vector<double> PhyloMorphospeciationProcess::forcedLnLikelihoods( const Forced &f )
 {
     const Tree &t = tree->getValue();
-    if ( f.node < 0 ) return rootLnLikelihoods( cache[ t.getRoot().getIndex() ][ current[ t.getRoot().getIndex() ] ] );
+    if ( f.node < 0 ) return rootLnLikelihoods( slotOf( t.getRoot() ) );
     const TopologyNode *node = &t.getNode( size_t( f.node ) );
 
     Slot below, here;
@@ -535,8 +596,8 @@ std::vector<double> PhyloMorphospeciationProcess::forcedLnLikelihoods( const For
         else
         {
             size_t k = kept_child[idx];
-            const Slot *a = &cache[ node->getChild(k).getIndex() ][ current[ node->getChild(k).getIndex() ] ];
-            const Slot *b = &cache[ node->getChild(1-k).getIndex() ][ current[ node->getChild(1-k).getIndex() ] ];
+            const Slot *a = &slotOf( node->getChild(k) );
+            const Slot *b = &slotOf( node->getChild(1-k) );
             if ( from != NULL && node->getChild(k).getIndex() == from_idx ) a = from;
             if ( from != NULL && node->getChild(1-k).getIndex() == from_idx ) b = from;
             combine( *a, *b, long( idx ), start ? f.forcing : NONE, here );
@@ -582,12 +643,13 @@ double PhyloMorphospeciationProcess::computeLnProbability( void )
         return lnProb - double( m ) * std::log( double( num_states.size() ) );
     }
 
-    // the hidden events on each branch are Poisson, and a branch with no time above tau_1 holds none
+    // the hidden events on each branch are Poisson, and a branch with no time above tau_1 holds none. Above a tip
+    // coded for no character they never touch the likelihood, so they are summed out and their density with them
     for (int m = 0; m < 2; m++)
     {
         for (const TopologyNode *node : t.getNodes())
         {
-            if ( node->isRoot() ) continue;
+            if ( node->isRoot() || summedOut( *node ) ) continue;
             size_t k = node->getIndex();
             double mean = mean_events[m][k];
             if ( mean <= 0.0 )
@@ -685,7 +747,7 @@ double PhyloMorphospeciationProcess::resampleEvents( void )
     for (const TopologyNode *node : tree->getValue().getNodes())
     {
         size_t i = node->getIndex();
-        if ( node->isRoot() == false && ( mean_events[BUDDING][i] > 0.0 || mean_events[ANAGENESIS][i] > 0.0 ) ) eligible.push_back( i );
+        if ( node->isRoot() == false && summedOut( *node ) == false && ( mean_events[BUDDING][i] > 0.0 || mean_events[ANAGENESIS][i] > 0.0 ) ) eligible.push_back( i );
     }
     if ( eligible.empty() ) return 0.0;
 
@@ -715,6 +777,20 @@ double PhyloMorphospeciationProcess::drawEvents( size_t node )
     Mode other = ( m == BUDDING ) ? ANAGENESIS : BUDDING;
 
     double mean = mean_events[m][node];
+    long N_old = events[m][node];
+
+    // nothing below is coded, so the likelihood is one whatever the count and the conditional is its prior
+    if ( coded[node] == 0 )
+    {
+        long N_new = RbStatistics::Poisson::rv( mean, *rng );
+        undo        = UNDO_EVENTS;
+        undo_mode   = m;
+        undo_index  = node;
+        undo_events = N_old;
+        events[m][node] = N_new;
+        fresh = true;
+        return RbStatistics::Poisson::lnPdf( mean, int( N_old ) ) - RbStatistics::Poisson::lnPdf( mean, int( N_new ) );
+    }
 
     Forced one, zero;
     one.node = zero.node = long( node );
@@ -744,7 +820,6 @@ double PhyloMorphospeciationProcess::drawEvents( size_t node )
         }
     }
 
-    long N_old = events[m][node];
     double ln_mean = std::log( mean );
     std::vector<double> w;
     double total = RbConstants::Double::neginf;
@@ -1075,16 +1150,27 @@ void PhyloMorphospeciationProcess::executeMethod( const std::string &n, const st
 
         // by node index, so entry i is the branch above node i, both kinds of event together
         std::vector<double> b, a;
-        if ( n == "getHiddenEventMeans" )
+        std::vector<long> sp( t.getNumberOfNodes() );
+        for (size_t i = 0; i < sp.size(); i++) sp[i] = speciesOf( t.getNode( i ) );
+        RbVector<double> f;
+        process->executeMethod( "getFirstAppearances", std::vector<const DagNode*>(), f );
+        std::vector<double> tau( f.size() );
+        for (size_t i = 0; i < f.size(); i++) tau[i] = f[i];
+        hiddenIntegrals( sp, tau, b, a );
+
+        // where the counts are summed out, draw them from their Poisson marginal, or give its mean
+        bool mean = n == "getHiddenEventCounts" && args.size() > 0 && static_cast<const TypedDagNode<Boolean>* >( args[0] )->getValue();
+        std::vector<char> tip_has( T, 0 );
+        for (size_t i = 0; i < T; i++)
         {
-            std::vector<long> sp( t.getNumberOfNodes() );
-            for (size_t i = 0; i < sp.size(); i++) sp[i] = speciesOf( t.getNode( i ) );
-            RbVector<double> f;
-            process->executeMethod( "getFirstAppearances", std::vector<const DagNode*>(), f );
-            std::vector<double> tau( f.size() );
-            for (size_t i = 0; i < f.size(); i++) tau[i] = f[i];
-            hiddenIntegrals( sp, tau, b, a );
+            const AbstractDiscreteTaxonData &td = this->value->getTaxonData( t.getTipNode( i ).getName() );
+            for (size_t c = 0; c < td.getNumberOfCharacters() && tip_has[ t.getTipNode( i ).getIndex() ] == 0; c++)
+            {
+                const DiscreteCharacterState &x = td.getCharacter( c );
+                if ( x.isGapState() == false && x.isMissingState() == false ) tip_has[ t.getTipNode( i ).getIndex() ] = 1;
+            }
         }
+
         for (size_t i = 0; i < t.getNumberOfNodes(); i++)
         {
             const TopologyNode &node = t.getNode( i );
@@ -1092,9 +1178,17 @@ void PhyloMorphospeciationProcess::executeMethod( const std::string &n, const st
             {
                 rv.push_back( 0.0 );
             }
-            else if ( n == "getHiddenEventMeans" )
+            else if ( n == "getHiddenEventMeans" || ( node.isTip() && tip_has[i] == 0 && mean ) )
             {
                 rv.push_back( b[i] + a[i] );
+            }
+            else if ( node.isTip() && tip_has[i] == 0 )
+            {
+                RandomNumberGenerator *rng = GLOBAL_RNG;
+                double draw = 0.0;
+                if ( b[i] > 0.0 ) draw += RbStatistics::Poisson::rv( b[i], *rng );
+                if ( a[i] > 0.0 ) draw += RbStatistics::Poisson::rv( a[i], *rng );
+                rv.push_back( draw );
             }
             else
             {

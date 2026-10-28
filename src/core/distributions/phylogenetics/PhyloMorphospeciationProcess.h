@@ -86,6 +86,10 @@ namespace RevBayesCore {
         bool                            ready(void);                                            //!< Rates, tree, latent variables and cache brought up to date. False if impossible.
         double                          drawEvents(size_t node);
         void                            prepareCache(void);
+        void                            markCoded(void);                                        //!< Which nodes have a coded tip below them.
+        std::vector<char>               codedNodes(const std::vector<char> &tip_coded) const;
+        const Slot&                     slotOf(const TopologyNode &node) const;                 //!< A node's current partial, all ones where nothing below it is coded.
+        bool                            summedOut(const TopologyNode &node) const;              //!< A tip coded for no character, whose branch's hidden counts never touch the likelihood.
         void                            signature(const TopologyNode &node, Slot &sig) const;
         const Slot&                     evaluate(const TopologyNode &node);
         void                            combine(const Slot &a, const Slot &b, long j, Forcing forcing, Slot &out) const;
@@ -140,6 +144,10 @@ namespace RevBayesCore {
         size_t                          total_states = 0;
         size_t                          max_states = 2;
         std::vector< std::vector<double> > tip_partials;                                        //!< The observed states, by tip index.
+        std::vector<char>               tip_coded;                                              //!< Each tip has a state at some character, by tip index.
+        std::vector<char>               coded;                                                  //!< Each node has a coded tip below it, by node index. Elsewhere every
+                                                                                                //!< partial is all ones and the hidden counts above are drawn from their prior.
+        Slot                            ones;                                                   //!< The partial of a subtree with nothing coded.
         bool                            tips_stale = true;
 
         // two slots per node, so the state before a rejected proposal is usually still there

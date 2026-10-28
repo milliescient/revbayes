@@ -5,6 +5,7 @@
 #include "DistributionMemberFunction.h"
 #include "MethodTable.h"
 #include "ModelVector.h"
+#include "RlBoolean.h"
 #include "OptionRule.h"
 #include "RlString.h"
 #include "Natural.h"
@@ -95,6 +96,7 @@ MethodTable Dist_phyloMorphospeciation::getDistributionMethods( void ) const
     methods.addFunction( new DistributionMemberFunction<Dist_phyloMorphospeciation, ModelVector<RealPos> >( "getChangedCharacters", variable, changed_rules, true ) );
 
     ArgumentRules* events_rules = new ArgumentRules();
+    events_rules->push_back( new ArgumentRule( "mean", RlBoolean::getClassTypeSpec(), "Above a tip coded for no character the counts are summed out: give their mean there rather than drawing them?", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean(false) ) );
     methods.addFunction( new DistributionMemberFunction<Dist_phyloMorphospeciation, ModelVector<RealPos> >( "getHiddenEventCounts", variable, events_rules, true ) );
 
     ArgumentRules* modes_rules = new ArgumentRules();

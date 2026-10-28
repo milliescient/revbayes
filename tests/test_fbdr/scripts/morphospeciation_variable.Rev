@@ -3,14 +3,15 @@
 # character with t3 missing:
 #   - every state is as likely as any other to fill the scored tips;
 #   - the correction is -log(1 - P(invariant)), with P(invariant) = sum over the constant patterns of
-#     their likelihood, each divided by the all-missing one, which is the density of the hidden events.
+#     their likelihood, each divided by the density of the hidden events. With no anagenesis each count
+#     is one Poisson, and t3, coded for no character, has its counts summed out.
 # Every line printed must be TRUE.
 seed(1)
 out = "output/morphospeciation_variable.txt"
 
 eps = 0.2
 taxa <- readTaxonData("data/fbdsp_condition.tsv")
-bd ~ dnFBDSP(taxa=taxa, lambda=0.4, mu=0.1, psi=0.5, rho=1.0, lambda_a=0.2, origin=20.0, condition="time")
+bd ~ dnFBDSP(taxa=taxa, lambda=0.4, mu=0.1, psi=0.5, rho=1.0, lambda_a=0.0, origin=20.0, condition="time")
 
 all ~ dnPhyloMorphospeciation(tree=bd, nStates=v(2), epsilon=eps)
 all.clamp( readDiscreteCharacterData("data/morpho_variable.nex") )
@@ -20,13 +21,27 @@ zero ~ dnPhyloMorphospeciation(tree=bd, nStates=v(2), epsilon=eps)
 zero.clamp( readDiscreteCharacterData("data/morpho_variable_all0.nex") )
 one ~ dnPhyloMorphospeciation(tree=bd, nStates=v(2), epsilon=eps)
 one.clamp( readDiscreteCharacterData("data/morpho_variable_all1.nex") )
-none ~ dnPhyloMorphospeciation(tree=bd, nStates=v(2), epsilon=eps)
-none.clamp( readDiscreteCharacterData("data/morpho_variable_none.nex") )
+
+# the density of the hidden events on every branch but t3's, the same under every matrix here. The counts
+# start once the likelihood is first computed
+lnp_all = all.lnProbability()
+counts = all.getHiddenEventCounts()
+means = all.getHiddenEventMeans()
+events = 0.0
+for (i in 1:counts.size())
+{
+    if (i != 3 && means[i] > 0)
+    {
+        n[i] ~ dnPoisson(means[i])
+        n[i].clamp(counts[i])
+        events += n[i].lnProbability()
+    }
+}
 
 print(filename=out, "each constant pattern is as likely as the other:\n")
 print(filename=out, append=TRUE, abs(zero.lnProbability() - one.lnProbability()) < 1E-10, "\n")
 
-p_inv = exp(zero.lnProbability() - none.lnProbability()) + exp(one.lnProbability() - none.lnProbability())
+p_inv = exp(zero.lnProbability() - events) + exp(one.lnProbability() - events)
 print(filename=out, append=TRUE, "the correction is -log(1 - P(invariant)):\n")
 print(filename=out, append=TRUE, abs(var.lnProbability() - all.lnProbability() + ln(1 - p_inv)) < 1E-10, "\n")
 
