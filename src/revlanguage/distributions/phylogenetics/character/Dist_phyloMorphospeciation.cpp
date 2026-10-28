@@ -5,6 +5,8 @@
 #include "DistributionMemberFunction.h"
 #include "MethodTable.h"
 #include "ModelVector.h"
+#include "OptionRule.h"
+#include "RlString.h"
 #include "Natural.h"
 #include "Probability.h"
 #include "RealPos.h"
@@ -49,7 +51,9 @@ RevBayesCore::PhyloMorphospeciationProcess* Dist_phyloMorphospeciation::createDi
         eps_a = static_cast<const Probability &>( epsilon_a->getRevObject() ).getDagNode();
     }
 
-    return new RevBayesCore::PhyloMorphospeciationProcess( t, k, eps, eps_a );
+    bool variable = static_cast<const RlString &>( coding->getRevObject() ).getValue() == "variable";
+
+    return new RevBayesCore::PhyloMorphospeciationProcess( t, k, eps, eps_a, variable );
 }
 
 
@@ -107,6 +111,8 @@ const MemberRules& Dist_phyloMorphospeciation::getParameterRules(void) const
         dist_member_rules.push_back( new ArgumentRule( "nStates", ModelVector<Natural>::getClassTypeSpec(), "The number of states of each character. Left out, each character has as many as its largest observed state, and at least two.", ArgumentRule::BY_VALUE, ArgumentRule::ANY, NULL ) );
         dist_member_rules.push_back( new ArgumentRule( "epsilon", Probability::getClassTypeSpec(), "The probability that a speciation changes each character, independently, so that it may change several or none. Left out, every speciation changes exactly one character.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
         dist_member_rules.push_back( new ArgumentRule( "epsilon_a", Probability::getClassTypeSpec(), "The probability that an anagenetic speciation changes each character. Needs epsilon, which then applies to budding alone. Left out, anagenesis changes with probability epsilon too.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
+        std::vector<std::string> coding_options = { "all", "variable" };
+        dist_member_rules.push_back( new OptionRule( "coding", new RlString("all"), coding_options, "Which characters were kept: all of them, or only those that vary among the taxa scored for them. Variable needs epsilon." ) );
 
         rules_set = true;
     }
@@ -139,6 +145,10 @@ void Dist_phyloMorphospeciation::setConstParameter(const std::string& name, cons
     else if ( name == "epsilon_a" )
     {
         epsilon_a = var;
+    }
+    else if ( name == "coding" )
+    {
+        coding = var;
     }
     else
     {

@@ -1,0 +1,14 @@
+#NEXUS
+
+Begin data;
+Dimensions ntax=6 nchar=1;
+Format datatype=Standard symbols="01" missing=? gap=-;
+Matrix
+t1   0
+t2   0
+t3   ?
+t4   0
+t5   0
+t6   0
+;
+End;

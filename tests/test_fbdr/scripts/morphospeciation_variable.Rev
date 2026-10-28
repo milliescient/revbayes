@@ -1,0 +1,33 @@
+# dnPhyloMorphospeciation with coding="variable": each character conditioned on varying among the
+# taxa scored for it. Exact identities, whatever the tree and the hidden counts, for one binary
+# character with t3 missing:
+#   - every state is as likely as any other to fill the scored tips;
+#   - the correction is -log(1 - P(invariant)), with P(invariant) = sum over the constant patterns of
+#     their likelihood, each divided by the all-missing one, which is the density of the hidden events.
+# Every line printed must be TRUE.
+seed(1)
+out = "output/morphospeciation_variable.txt"
+
+eps = 0.2
+taxa <- readTaxonData("data/fbdsp_condition.tsv")
+bd ~ dnFBDSP(taxa=taxa, lambda=0.4, mu=0.1, psi=0.5, rho=1.0, lambda_a=0.2, origin=20.0, condition="time")
+
+all ~ dnPhyloMorphospeciation(tree=bd, nStates=v(2), epsilon=eps)
+all.clamp( readDiscreteCharacterData("data/morpho_variable.nex") )
+var ~ dnPhyloMorphospeciation(tree=bd, nStates=v(2), epsilon=eps, coding="variable")
+var.clamp( readDiscreteCharacterData("data/morpho_variable.nex") )
+zero ~ dnPhyloMorphospeciation(tree=bd, nStates=v(2), epsilon=eps)
+zero.clamp( readDiscreteCharacterData("data/morpho_variable_all0.nex") )
+one ~ dnPhyloMorphospeciation(tree=bd, nStates=v(2), epsilon=eps)
+one.clamp( readDiscreteCharacterData("data/morpho_variable_all1.nex") )
+none ~ dnPhyloMorphospeciation(tree=bd, nStates=v(2), epsilon=eps)
+none.clamp( readDiscreteCharacterData("data/morpho_variable_none.nex") )
+
+print(filename=out, "each constant pattern is as likely as the other:\n")
+print(filename=out, append=TRUE, abs(zero.lnProbability() - one.lnProbability()) < 1E-10, "\n")
+
+p_inv = exp(zero.lnProbability() - none.lnProbability()) + exp(one.lnProbability() - none.lnProbability())
+print(filename=out, append=TRUE, "the correction is -log(1 - P(invariant)):\n")
+print(filename=out, append=TRUE, abs(var.lnProbability() - all.lnProbability() + ln(1 - p_inv)) < 1E-10, "\n")
+
+q()

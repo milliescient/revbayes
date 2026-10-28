@@ -25,7 +25,7 @@ namespace RevBayesCore {
     class PhyloMorphospeciationProcess : public TypedDistribution<AbstractHomologousDiscreteCharacterData>, public MemberObject< RbVector<double> > {
 
     public:
-        PhyloMorphospeciationProcess(const TypedDagNode<Tree> *tree, const std::vector<size_t> &num_states, const TypedDagNode<double> *epsilon = NULL, const TypedDagNode<double> *epsilon_a = NULL);
+        PhyloMorphospeciationProcess(const TypedDagNode<Tree> *tree, const std::vector<size_t> &num_states, const TypedDagNode<double> *epsilon = NULL, const TypedDagNode<double> *epsilon_a = NULL, bool variable = false);
         virtual ~PhyloMorphospeciationProcess() {}
 
         PhyloMorphospeciationProcess*   clone(void) const override;
@@ -94,6 +94,7 @@ namespace RevBayesCore {
         void                            carry(std::vector<double> &v, size_t node, BranchForcing branch) const;
         void                            mix(std::vector<double> &v, size_t c, double e) const;
         double                          decay(size_t c, double e) const;                        //!< 1 - e K/(K-1), the eigenvalue of one event off the stationary direction.
+        double                          lnVariable(size_t c, double ln_all_zero) const;         //!< log P(character c varies), from the log probability its scored tips are all state 0.
         bool                            changesAt(size_t node, size_t c) const;
         long                            speciesOf(const TopologyNode &node) const;
         void                            buildTipPartials(void);
@@ -105,6 +106,7 @@ namespace RevBayesCore {
         FossilizedBirthDeathSpeciationProcess* process;
         std::vector<size_t>             num_states;                                             //!< K for each character.
         bool                            states_given;                                           //!< K stated, not read off the data.
+        bool                            variable;                                               //!< Only variable characters were kept, so each is conditioned on varying.
 
         std::vector<size_t>             changed;                                                //!< The character that changed at each interior node's speciation.
         size_t                          stored_node = 0;
@@ -129,7 +131,10 @@ namespace RevBayesCore {
         std::vector<long>               budded;                                                 //!< The species each internal node buds.
         std::vector<char>               anagenetic;                                             //!< Each interior node's speciation is an observed anagenesis.
 
-        // every character's states laid end to end, character c at offset[c]
+        // every column's states laid end to end, column c at offset[c]. The columns are the characters and,
+        // under variable coding, after them one per K and set of scored tips, with every scored tip in state 0
+        std::vector<size_t>             columns;                                                //!< K for each column.
+        std::vector<size_t>             all_zero;                                               //!< Under variable coding, the all-0 column each character shares.
         std::vector<size_t>             offset;
         size_t                          total_states = 0;
         size_t                          max_states = 2;

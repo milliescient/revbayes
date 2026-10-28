@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 
 #include "DiscreteTaxonData.h"
 #include "DistributionPoisson.h"
@@ -21,20 +22,28 @@
 using namespace RevBayesCore;
 
 
-PhyloMorphospeciationProcess::PhyloMorphospeciationProcess(const TypedDagNode<Tree> *t, const std::vector<size_t> &k, const TypedDagNode<double> *eps, const TypedDagNode<double> *eps_a) :
+PhyloMorphospeciationProcess::PhyloMorphospeciationProcess(const TypedDagNode<Tree> *t, const std::vector<size_t> &k, const TypedDagNode<double> *eps, const TypedDagNode<double> *eps_a, bool var) :
     TypedDistribution<AbstractHomologousDiscreteCharacterData>( new HomologousDiscreteCharacterData<StandardState>() ),
     tree( t ),
     epsilon( eps ),
     epsilon_a( eps_a ),
     process( NULL ),
     num_states( k ),
-    states_given( k.empty() == false )
+    states_given( k.empty() == false ),
+    variable( var )
 {
     resolveProcess();
 
     if ( epsilon_a != NULL && epsilon == NULL )
     {
         throw RbException("dnPhyloMorphospeciation: epsilon_a needs epsilon.");
+    }
+
+    // with one change per speciation the characters share their speciations, so dropping the invariant
+    // ones is not a condition on each character alone
+    if ( variable && epsilon == NULL )
+    {
+        throw RbException("dnPhyloMorphospeciation: coding=\"variable\" needs epsilon.");
     }
 
     addParameter( tree );
@@ -225,15 +234,39 @@ void PhyloMorphospeciationProcess::initializeLatents( void )
 void PhyloMorphospeciationProcess::buildTipPartials( void )
 {
     size_t N = num_states.size();
-    offset.assign( N, 0 );
+    const Tree &t = tree->getValue();
+
+    // characters with the same K scored on the same tips share their probability of being invariant
+    columns = num_states;
+    all_zero.assign( N, 0 );
+    if ( variable )
+    {
+        std::map<std::string, size_t> seen;
+        for (size_t c = 0; c < N; c++)
+        {
+            std::string key = StringUtilities::toString( num_states[c] ) + ":";
+            for (size_t i = 0; i < t.getNumberOfTips(); i++)
+            {
+                const DiscreteCharacterState &x = this->value->getTaxonData( t.getTipNode( i ).getName() ).getCharacter( c );
+                key += ( x.isGapState() || x.isMissingState() ) ? '0' : '1';
+            }
+            auto it = seen.find( key );
+            if ( it == seen.end() )
+            {
+                it = seen.insert( std::make_pair( key, columns.size() ) ).first;
+                columns.push_back( num_states[c] );
+            }
+            all_zero[c] = it->second;
+        }
+    }
+    offset.assign( columns.size(), 0 );
     total_states = 0;
-    for (size_t c = 0; c < N; c++)
+    for (size_t c = 0; c < columns.size(); c++)
     {
         offset[c] = total_states;
-        total_states += num_states[c];
+        total_states += columns[c];
     }
 
-    const Tree &t = tree->getValue();
     tip_partials.assign( t.getNumberOfTips(), std::vector<double>( total_states, 1.0 ) );
     for (size_t i = 0; i < t.getNumberOfTips(); i++)
     {
@@ -244,6 +277,10 @@ void PhyloMorphospeciationProcess::buildTipPartials( void )
         {
             const DiscreteCharacterState &x = td.getCharacter( c );
             if ( x.isGapState() || x.isMissingState() ) continue;
+
+            // every scored tip in state 0, with the same tips missing
+            if ( variable ) for (size_t k = 1; k < num_states[c]; k++) v[ offset[ all_zero[c] ] + k ] = 0.0;
+
             RbBitSet bits = x.getState();
             for (size_t k = 0; k < num_states[c]; k++) v[ offset[c] + k ] = 0.0;
             for (size_t k = 0; k < bits.size(); k++)
@@ -258,26 +295,34 @@ void PhyloMorphospeciationProcess::buildTipPartials( void )
     tips_stale = false;
     epoch++;
     max_states = 2;
-    for (size_t K : num_states) max_states = std::max( max_states, K );
+    for (size_t K : columns) max_states = std::max( max_states, K );
 }
 
 
 /** Apply P = e I + (1 - e) 11'/K to character c. Every Mk transition matrix has this form. */
 void PhyloMorphospeciationProcess::mix( std::vector<double> &v, size_t c, double e ) const
 {
-    double K = double( num_states[c] );
+    double K = double( columns[c] );
     double *x = &v[ offset[c] ];
     double mean = 0.0;
-    for (size_t k = 0; k < num_states[c]; k++) mean += x[k];
+    for (size_t k = 0; k < columns[c]; k++) mean += x[k];
     mean *= (1.0 - e) / K;
-    for (size_t k = 0; k < num_states[c]; k++) x[k] = e * x[k] + mean;
+    for (size_t k = 0; k < columns[c]; k++) x[k] = e * x[k] + mean;
 }
 
 
 double PhyloMorphospeciationProcess::decay( size_t c, double e ) const
 {
-    double K = double( num_states[c] );
+    double K = double( columns[c] );
     return 1.0 - e * K / (K - 1.0);
+}
+
+
+/** By symmetry every state is as likely to fill the scored tips as state 0, so P(invariant) = K P(all 0). */
+double PhyloMorphospeciationProcess::lnVariable( size_t c, double ln_all_zero ) const
+{
+    double p_inv = double( num_states[c] ) * std::exp( ln_all_zero );
+    return ( p_inv < 1.0 ) ? std::log1p( -p_inv ) : RbConstants::Double::neginf;
 }
 
 
@@ -287,7 +332,7 @@ void PhyloMorphospeciationProcess::carry( std::vector<double> &v, size_t node, B
     if ( branch == IDENTITY ) return;
     if ( branch == RANDOMIZED )
     {
-        for (size_t c = 0; c < num_states.size(); c++) mix( v, c, 0.0 );
+        for (size_t c = 0; c < columns.size(); c++) mix( v, c, 0.0 );
         return;
     }
 
@@ -295,9 +340,9 @@ void PhyloMorphospeciationProcess::carry( std::vector<double> &v, size_t node, B
     {
         double length = stem[node];
         if ( length <= 0.0 ) return;
-        for (size_t c = 0; c < num_states.size(); c++)
+        for (size_t c = 0; c < columns.size(); c++)
         {
-            double K = double( num_states[c] );
+            double K = double( columns[c] );
             mix( v, c, std::exp( -length * K / (K - 1.0) ) );
         }
         return;
@@ -309,9 +354,9 @@ void PhyloMorphospeciationProcess::carry( std::vector<double> &v, size_t node, B
     // the decay depends on a character only through its number of states
     std::vector<double> by_K( max_states + 1, 0.0 );
     std::vector<char> done( max_states + 1, 0 );
-    for (size_t c = 0; c < num_states.size(); c++)
+    for (size_t c = 0; c < columns.size(); c++)
     {
-        size_t K = num_states[c];
+        size_t K = columns[c];
         if ( done[K] == 0 )
         {
             by_K[K] = std::pow( decay( c, change_prob[BUDDING] ), double( nb ) ) * std::pow( decay( c, change_prob[ANAGENESIS] ), double( na ) );
@@ -344,13 +389,13 @@ void PhyloMorphospeciationProcess::prepareCache( void )
 void PhyloMorphospeciationProcess::combine( const Slot &a, const Slot &b, long j, Forcing forcing, Slot &out ) const
 {
     out.v.resize( total_states );
-    out.ln_scale.resize( num_states.size() );
+    out.ln_scale.resize( columns.size() );
     double e = ( epsilon != NULL ) ? change_prob[ anagenetic[j] ? ANAGENESIS : BUDDING ] : 0.0;
-    for (size_t c = 0; c < num_states.size(); c++)
+    for (size_t c = 0; c < columns.size(); c++)
     {
         // the weight on a change at this character
         double w = ( forcing != NONE ) ? double( forcing == CHANGED ) : ( epsilon != NULL ? e : double( changesAt( j, c ) ) );
-        size_t o = offset[c], K = num_states[c];
+        size_t o = offset[c], K = columns[c];
         double total = 0.0;
         if ( w > 0.0 ) for (size_t k = 0; k < K; k++) total += b.v[o+k];
 
@@ -425,7 +470,7 @@ const PhyloMorphospeciationProcess::Slot& PhyloMorphospeciationProcess::evaluate
     if ( node.isTip() )
     {
         out.v = tip_partials[idx];
-        out.ln_scale.assign( num_states.size(), 0.0 );
+        out.ln_scale.assign( columns.size(), 0.0 );
     }
     else
     {
@@ -455,12 +500,12 @@ const PhyloMorphospeciationProcess::Slot& PhyloMorphospeciationProcess::evaluate
 std::vector<double> PhyloMorphospeciationProcess::rootLnLikelihoods( const Slot &root ) const
 {
     // the root starts from the stationary distribution, uniform for Mk, so its stem drops out
-    std::vector<double> out( num_states.size() );
-    for (size_t c = 0; c < num_states.size(); c++)
+    std::vector<double> out( columns.size() );
+    for (size_t c = 0; c < columns.size(); c++)
     {
         double total = 0.0;
-        for (size_t k = 0; k < num_states[c]; k++) total += root.v[ offset[c] + k ];
-        out[c] = std::log( total / double( num_states[c] ) ) + root.ln_scale[c];
+        for (size_t k = 0; k < columns[c]; k++) total += root.v[ offset[c] + k ];
+        out[c] = std::log( total / double( columns[c] ) ) + root.ln_scale[c];
     }
     return out;
 }
@@ -483,7 +528,7 @@ std::vector<double> PhyloMorphospeciationProcess::forcedLnLikelihoods( const For
         if ( node->isTip() )
         {
             here.v = tip_partials[idx];
-            here.ln_scale.assign( num_states.size(), 0.0 );
+            here.ln_scale.assign( columns.size(), 0.0 );
         }
         else
         {
@@ -519,7 +564,13 @@ double PhyloMorphospeciationProcess::computeLnProbability( void )
 
     const Tree &t = tree->getValue();
     double lnProb = 0.0;
-    for (double x : rootLnLikelihoods( evaluate( t.getRoot() ) )) lnProb += x;
+    std::vector<double> ln_l = rootLnLikelihoods( evaluate( t.getRoot() ) );
+    size_t N = num_states.size();
+    for (size_t c = 0; c < N; c++)
+    {
+        lnProb += ln_l[c];
+        if ( variable ) lnProb -= lnVariable( c, ln_l[ all_zero[c] ] );
+    }
 
     // every interior node is one speciation
     if ( epsilon == NULL )
@@ -680,6 +731,15 @@ double PhyloMorphospeciationProcess::drawEvents( size_t node )
         x[c] = std::pow( decay( c, change_prob[other] ), double( events[other][node] ) );
         // x lies in [-1/(K-1), 1], so L(N) is at most L1 or K/(K-1) L0
         ln_bound += std::max( l1[c], l0[c] + std::log( K / (K - 1.0) ) );
+
+        // and P(all 0), linear in x too, is largest at an end of that interval
+        if ( variable )
+        {
+            double z0 = std::exp( l0[ all_zero[c] ] ), z1 = std::exp( l1[ all_zero[c] ] );
+            double worst = std::max( z1, ( K * z0 - z1 ) / (K - 1.0) );
+            double ln_var = lnVariable( c, std::log( std::max( worst, 0.0 ) ) );
+            if ( RbMath::isFinite( ln_var ) ) ln_bound -= ln_var;
+        }
     }
 
     long N_old = events[m][node];
@@ -694,6 +754,11 @@ double PhyloMorphospeciationProcess::drawEvents( size_t node )
             double top = std::max( l0[c], l1[c] );
             double v = RbMath::isFinite( top ) ? ( 1.0 - x[c] ) * std::exp( l0[c] - top ) + x[c] * std::exp( l1[c] - top ) : 0.0;
             lw += ( v > 0.0 ) ? top + std::log( v ) : RbConstants::Double::neginf;
+            if ( variable && RbMath::isFinite( lw ) )
+            {
+                double z = ( 1.0 - x[c] ) * std::exp( l0[ all_zero[c] ] ) + x[c] * std::exp( l1[ all_zero[c] ] );
+                lw -= lnVariable( c, std::log( std::max( z, 0.0 ) ) );
+            }
         }
         if ( std::isnan( lw ) ) lw = RbConstants::Double::neginf;
         w.push_back( lw );
@@ -891,6 +956,35 @@ void PhyloMorphospeciationProcess::redrawValue( void )
     for (size_t c = 0; c < N; c++) root[c] = size_t( rng->uniform01() * num_states[c] );
     std::vector< std::vector<size_t> > tips( t.getNumberOfNodes() );
     simulateDown( t.getRoot(), root, tips );
+
+    // under variable coding, a character drawn invariant is drawn again until it varies
+    for (size_t tries = 0; variable && tries < 100000; tries++)
+    {
+        std::vector<size_t> invariant;
+        for (size_t c = 0; c < N; c++)
+        {
+            bool same = true;
+            long first_state = -1;
+            for (const TopologyNode *tip : t.getNodes())
+            {
+                if ( tip->isTip() == false ) continue;
+                long x = long( tips[tip->getIndex()][c] );
+                if ( first_state < 0 ) first_state = x;
+                else if ( x != first_state ) same = false;
+            }
+            if ( same ) invariant.push_back( c );
+        }
+        if ( invariant.empty() ) break;
+        if ( tries + 1 == 100000 ) throw RbException("dnPhyloMorphospeciation: a character stayed invariant in 100000 draws, so coding=\"variable\" cannot be simulated here.");
+
+        for (size_t c = 0; c < N; c++) root[c] = size_t( rng->uniform01() * num_states[c] );
+        std::vector< std::vector<size_t> > again( t.getNumberOfNodes() );
+        simulateDown( t.getRoot(), root, again );
+        for (size_t c : invariant)
+        {
+            for (const TopologyNode *tip : t.getNodes()) if ( tip->isTip() ) tips[tip->getIndex()][c] = again[tip->getIndex()][c];
+        }
+    }
 
     static const std::string labels = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     HomologousDiscreteCharacterData<StandardState> *data = new HomologousDiscreteCharacterData<StandardState>();
