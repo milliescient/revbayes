@@ -38,6 +38,7 @@ namespace RevLanguage {
         RevPtr<const RevVariable>                       epsilon;
         RevPtr<const RevVariable>                       epsilon_a;
         RevPtr<const RevVariable>                       coding;
+        RevPtr<const RevVariable>                       retention;
     };
 
 }

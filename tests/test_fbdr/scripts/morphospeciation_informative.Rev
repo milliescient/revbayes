@@ -1,0 +1,148 @@
+# dnPhyloMorphospeciation with coding="informative", with and without retention, against brute force. For one
+# character with K states on the scored taxa, every pattern's likelihood under coding="all", divided by the
+# density of the hidden events, gives its probability. These sum to one, and split into the invariant
+# patterns, those varying only by autapomorphies, and the parsimony informative ones. Then:
+#   - "informative" divides by 1 - P(uninformative);
+#   - with retention it divides by 1 - P(invariant) - (1 - retention) P(autapomorphies only), and multiplies a
+#     character varying only by autapomorphies by retention;
+#   - "variable" divides by 1 - P(invariant);
+#   - a character the coding makes impossible is excluded.
+# K = 4 on 4 taxa reaches the patterns in which every taxon differs, any of which could be the background.
+# With no anagenesis each count is one Poisson, and a taxon coded for nothing has its counts summed out.
+# Every line printed must be TRUE.
+seed(1)
+out = "output/morphospeciation_informative.txt"
+write("", filename=out)
+
+eps = 0.2
+r = 0.3
+taxa <- readTaxonData("data/fbdsp_condition.tsv")
+bd ~ dnFBDSP(taxa=taxa, lambda=0.4, mu=0.1, psi=0.5, rho=1.0, lambda_a=0.0, origin=20.0, condition="time")
+names = ["t1", "t2", "t3", "t4", "t5", "t6"]
+head = "#NEXUS\nBegin data;\nDimensions ntax=6 nchar=1;\nFormat datatype=Standard symbols=\"0123\" missing=? gap=-;\nMatrix\n"
+f = "output/morphospeciation_informative.nex"
+f_inf = "output/morphospeciation_informative_inf.nex"
+f_aut = "output/morphospeciation_informative_aut.nex"
+f_both = "output/morphospeciation_informative_both.nex"
+
+for (cfg in 1:2) {
+    if (cfg == 1) {
+        K = 3
+        scored = [1, 2, 4, 5, 6]
+    } else {
+        K = 4
+        scored = [1, 2, 4, 6]
+    }
+    n = scored.size()
+
+    p_inv = 0.0
+    p_aut = 0.0
+    p_inf = 0.0
+    for (i in 1:6) inf_cells[i] = ""
+    for (i in 1:6) aut_cells[i] = ""
+    for (p in 0:(K^n - 1)) {
+        # pattern p in base K, one digit per scored taxon
+        # Rev's = shares a vector, so each is reset element by element
+        rest = p
+        for (k in 1:K) counts[k] = 0
+        for (i in 1:6) cell[i] = "?"
+        for (k in 1:n) {
+            x = rest - K * floor(rest / K)
+            rest = floor(rest / K)
+            cell[scored[k]] = "" + x
+            counts[x + 1] = counts[x + 1] + 1
+        }
+        s = head
+        for (i in 1:6) s = s + names[i] + " " + cell[i] + "\n"
+        write(s + ";\nEnd;\n", filename=f)
+
+        pat ~ dnPhyloMorphospeciation(tree=bd, nStates=K, epsilon=eps)
+        pat.clamp( readDiscreteCharacterData(f) )
+        lnp = pat.lnProbability()
+
+        # the density of the hidden events, on every branch but those of the taxa coded for nothing, is the same
+        # under every pattern
+        if (p == 0) {
+            counts_n = pat.getHiddenEventCounts()
+            means = pat.getHiddenEventMeans()
+            events = 0.0
+            for (i in 1:counts_n.size()) {
+                coded = i > 6
+                for (k in 1:n) if (scored[k] == i) coded = TRUE
+                if (coded && means[i] > 0) {
+                    m[i] ~ dnPoisson(means[i])
+                    m[i].clamp(counts_n[i])
+                    events += m[i].lnProbability()
+                }
+            }
+        }
+
+        present = 0
+        repeated = 0
+        for (k in 1:K) {
+            if (counts[k] > 0) present += 1
+            if (counts[k] > 1) repeated += 1
+        }
+        if (present == 1) {
+            p_inv += exp(lnp - events)
+        } else if (repeated < 2) {
+            p_aut += exp(lnp - events)
+            if (aut_cells[1] == "") for (i in 1:6) aut_cells[i] = cell[i]
+        } else {
+            p_inf += exp(lnp - events)
+            if (inf_cells[1] == "") for (i in 1:6) inf_cells[i] = cell[i]
+        }
+    }
+
+    print(filename=out, append=TRUE, "K = " + K + " on " + n + " taxa, the probabilities of the patterns sum to one:\n")
+    print(filename=out, append=TRUE, abs(p_inv + p_aut + p_inf - 1) < 1E-10, "\n")
+
+    # an informative character
+    s = head
+    for (i in 1:6) s = s + names[i] + " " + inf_cells[i] + "\n"
+    write(s + ";\nEnd;\n", filename=f_inf)
+    all ~ dnPhyloMorphospeciation(tree=bd, nStates=K, epsilon=eps)
+    all.clamp( readDiscreteCharacterData(f_inf) )
+    inf ~ dnPhyloMorphospeciation(tree=bd, nStates=K, epsilon=eps, coding="informative")
+    inf.clamp( readDiscreteCharacterData(f_inf) )
+    est ~ dnPhyloMorphospeciation(tree=bd, nStates=K, epsilon=eps, coding="informative", retention=r)
+    est.clamp( readDiscreteCharacterData(f_inf) )
+    var ~ dnPhyloMorphospeciation(tree=bd, nStates=K, epsilon=eps, coding="variable")
+    var.clamp( readDiscreteCharacterData(f_inf) )
+
+    print(filename=out, append=TRUE, "informative divides by 1 - P(uninformative):\n")
+    print(filename=out, append=TRUE, abs(inf.lnProbability() - all.lnProbability() + ln(p_inf)) < 1E-10, "\n")
+    print(filename=out, append=TRUE, "with retention it divides by 1 - P(invariant) - (1 - retention) P(autapomorphies only):\n")
+    print(filename=out, append=TRUE, abs(est.lnProbability() - all.lnProbability() + ln(p_inf + r * p_aut)) < 1E-10, "\n")
+    print(filename=out, append=TRUE, "variable divides by 1 - P(invariant):\n")
+    print(filename=out, append=TRUE, abs(var.lnProbability() - all.lnProbability() + ln(p_inf + p_aut)) < 1E-10, "\n")
+
+    if (cfg == 1) {
+        for (i in 1:6) inf_3[i] = inf_cells[i]
+        for (i in 1:6) aut_3[i] = aut_cells[i]
+        kept_3 = p_inf + r * p_aut
+        ln_inf_3 = inf.lnProbability()
+    }
+}
+
+# with K = 3, a character varying only by autapomorphies: retention over the same normalizer
+s = head
+for (i in 1:6) s = s + names[i] + " " + aut_3[i] + "\n"
+write(s + ";\nEnd;\n", filename=f_aut)
+all ~ dnPhyloMorphospeciation(tree=bd, nStates=3, epsilon=eps)
+all.clamp( readDiscreteCharacterData(f_aut) )
+est ~ dnPhyloMorphospeciation(tree=bd, nStates=3, epsilon=eps, coding="informative", retention=r)
+est.clamp( readDiscreteCharacterData(f_aut) )
+print(filename=out, append=TRUE, "retention multiplies a character varying only by autapomorphies:\n")
+print(filename=out, append=TRUE, abs(est.lnProbability() - all.lnProbability() - ln(r) + ln(kept_3)) < 1E-10, "\n")
+
+# and beside the informative character, excluded under "informative"
+s = "#NEXUS\nBegin data;\nDimensions ntax=6 nchar=2;\nFormat datatype=Standard symbols=\"0123\" missing=? gap=-;\nMatrix\n"
+for (i in 1:6) s = s + names[i] + " " + inf_3[i] + aut_3[i] + "\n"
+write(s + ";\nEnd;\n", filename=f_both)
+both ~ dnPhyloMorphospeciation(tree=bd, nStates=3, epsilon=eps, coding="informative")
+both.clamp( readDiscreteCharacterData(f_both) )
+print(filename=out, append=TRUE, "a character impossible under the coding is excluded:\n")
+print(filename=out, append=TRUE, abs(both.lnProbability() - ln_inf_3) < 1E-10, "\n")
+
+q()

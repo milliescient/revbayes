@@ -25,7 +25,11 @@ namespace RevBayesCore {
     class PhyloMorphospeciationProcess : public TypedDistribution<AbstractHomologousDiscreteCharacterData>, public MemberObject< RbVector<double> > {
 
     public:
-        PhyloMorphospeciationProcess(const TypedDagNode<Tree> *tree, const std::vector<size_t> &num_states, const TypedDagNode<double> *epsilon = NULL, const TypedDagNode<double> *epsilon_a = NULL, bool variable = false, size_t shared_states = 0);
+        // which characters the matrix kept: all, those that vary, or those that are parsimony informative, with
+        // retention each character varying only by autapomorphies too, with that probability
+        enum Coding { ALL, VARIABLE, INFORMATIVE };
+
+        PhyloMorphospeciationProcess(const TypedDagNode<Tree> *tree, const std::vector<size_t> &num_states, const TypedDagNode<double> *epsilon = NULL, const TypedDagNode<double> *epsilon_a = NULL, Coding coding = ALL, const TypedDagNode<double> *retention = NULL, size_t shared_states = 0);
         virtual ~PhyloMorphospeciationProcess() {}
 
         PhyloMorphospeciationProcess*   clone(void) const override;
@@ -68,6 +72,8 @@ namespace RevBayesCore {
             size_t                      child_version[2] = {0, 0};
             std::vector<double>         v;
             std::vector<double>         ln_scale;                                               //!< Per character, summed over the subtree.
+            std::vector<double>         u;                                                      //!< Each group's partial over the patterns the coding drops.
+            std::vector<double>         u_scale;                                                //!< Per group, summed over the subtree.
         };
 
         // a likelihood with the change at one node's speciation, or the matrix of the branch above it, overridden
@@ -95,10 +101,12 @@ namespace RevBayesCore {
         void                            combine(const Slot &a, const Slot &b, long j, Forcing forcing, Slot &out) const;
         std::vector<double>             rootLnLikelihoods(const Slot &root) const;
         std::vector<double>             forcedLnLikelihoods(const Forced &f);
-        void                            carry(std::vector<double> &v, size_t node, BranchForcing branch) const;
+        void                            carry(Slot &s, size_t node, BranchForcing branch) const;
         void                            mix(std::vector<double> &v, size_t c, double e) const;
+        void                            mixGroup(std::vector<double> &u, size_t g, double e) const;
         double                          decay(size_t c, double e) const;                        //!< 1 - e K/(K-1), the eigenvalue of one event off the stationary direction.
-        double                          lnVariable(size_t c, double ln_all_zero) const;         //!< log P(character c varies), from the log probability its scored tips are all state 0.
+        double                          lnDropped(const Slot &root, size_t g) const;            //!< log P(a pattern the coding drops), for group g's characters.
+        void                            selectCharacters(void);
         bool                            changesAt(size_t node, size_t c) const;
         long                            speciesOf(const TopologyNode &node) const;
         void                            buildTipPartials(void);
@@ -111,7 +119,11 @@ namespace RevBayesCore {
         std::vector<size_t>             num_states;                                             //!< K for each character.
         bool                            states_given;                                           //!< K stated, not read off the data.
         size_t                          shared_states;                                          //!< K shared by every character, the count read off the data; 0 if not.
-        bool                            variable;                                               //!< Only variable characters were kept, so each is conditioned on varying.
+        Coding                          coding;
+        const TypedDagNode<double>*     retention;                                              //!< Under coding="informative", the chance a character varying only by autapomorphies was kept, or NULL for none.
+        std::vector<size_t>             chars;                                                  //!< The characters the likelihood uses, by index in the matrix: all but those the coding makes impossible.
+        std::vector<char>               autapomorphic;                                          //!< With retention, each used character varies only by autapomorphies.
+        bool                            warned = false;
 
         std::vector<size_t>             changed;                                                //!< The character that changed at each interior node's speciation.
         size_t                          stored_node = 0;
@@ -136,14 +148,24 @@ namespace RevBayesCore {
         std::vector<long>               budded;                                                 //!< The species each internal node buds.
         std::vector<char>               anagenetic;                                             //!< Each interior node's speciation is an observed anagenesis.
 
-        // every column's states laid end to end, column c at offset[c]. The columns are the characters and,
-        // under variable coding, after them one per K and set of scored tips, with every scored tip in state 0
-        std::vector<size_t>             columns;                                                //!< K for each column.
-        std::vector<size_t>             all_zero;                                               //!< Under variable coding, the all-0 column each character shares.
+        // every used character's states laid end to end, character c at offset[c]
+        std::vector<size_t>             columns;                                                //!< K for each used character.
         std::vector<size_t>             offset;
         size_t                          total_states = 0;
         size_t                          max_states = 2;
         std::vector< std::vector<double> > tip_partials;                                        //!< The observed states, by tip index.
+
+        // under a coding that drops characters, those with the same K scored on the same tips share a group. Its partial
+        // holds, for each j, the probability that every scored tip below is in state 0 or one of j labels, each label at
+        // exactly one tip, given the node's state: 0, one of the labels, or another state, at [3j], [3j+1] and [3j+2]
+        std::vector<size_t>             group;                                                  //!< The group of each used character.
+        std::vector<size_t>             group_states;                                           //!< K of each group.
+        std::vector<size_t>             group_scored;                                           //!< The number of scored tips of each group.
+        std::vector<size_t>             group_top;                                              //!< The largest j each group needs.
+        std::vector<size_t>             group_offset;
+        size_t                          group_total = 0;
+        std::vector< std::vector<double> > tip_groups;                                          //!< The groups' partials at each tip, by tip index.
+        std::vector< std::vector<double> > binomial;
         std::vector<char>               tip_coded;                                              //!< Each tip has a state at some character, by tip index.
         std::vector<char>               coded;                                                  //!< Each node has a coded tip below it, by node index. Elsewhere every
                                                                                                 //!< partial is all ones and the hidden counts above are drawn from their prior.

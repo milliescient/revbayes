@@ -1671,7 +1671,7 @@ with independent and identically distributed sites)");
 	help_strings[string("dnPhyloMorphospeciation")][string("description")] = string(R"(Discrete morphological characters on a tree drawn from dnFBDSP, under a model in which every change of morphology is a speciation. By default every speciation changes the new species at exactly one character; with `epsilon` it changes each character independently.)");
 	help_strings[string("dnPhyloMorphospeciation")][string("details")] = string(R"(Species are morphospecies: a species is a stretch of a lineage over which its morphology does not change. At each speciation, budding or anagenetic, one character chosen uniformly changes to a state drawn uniformly from the others (the Mk kernel). Along a species' stem, from its origination to its first appearance, a character evolves as a Markov chain whose length is set by the rate of hidden speciation, `lambda * p(t) + lambda_a`, divided by the number of characters. The morphology does not change over a species' sampled range. With the characters marginalized, the tree density is that of dnFBDSP.
 
-The number of characters counts every scored character, invariant ones included. For a matrix with its invariant characters dropped, use `coding="variable"`.
+The number of characters counts every scored character, invariant ones included. For a matrix with its invariant characters dropped, use `coding="variable"`, and for one with its uninformative characters dropped, `coding="informative"`.
 
 Each character has its own number of states K, which sets its change kernel, its starting frequencies 1/K and, under `coding="variable"`, its chance to vary. Left out, `nStates` gives each character as many states as its largest observed state, as `setNumStatesPartition` partitions a matrix for dnPhyloCTMC. One number shares K across every character, which is what an unpartitioned Mk analysis assumes; it takes the number of characters from the data, so it cannot be simulated from before data are clamped. A vector states K for each character, for instance a matrix's declared states where some are never observed.
 
@@ -1683,7 +1683,9 @@ A subtree in which no taxon is coded for any character contributes nothing to th
 
 With `epsilon_a`, an anagenetic speciation changes each character with probability `epsilon_a` and a budding with `epsilon`, so `epsilon / epsilon_a` measures the change carried by budding relative to anagenesis. `getChangeProbabilities()` gives the two probabilities, and `getSpeciationModes()` gives each species' origin: 1 for budding, 2 for anagenesis, 0 at the origin.
 
-With `coding="variable"`, the matrix is taken to hold only the characters that vary among the taxa scored for them, as most published matrices do, and each character's likelihood is divided by its probability of varying. A character is scored on its own taxa, so a taxon missing it does not count toward whether it varies. It needs `epsilon`, since with exactly one change per speciation the characters share their speciations, and dropping the invariant ones does not act on each character alone.)");
+With `coding="variable"`, the matrix is taken to hold only the characters that vary among the taxa scored for them, as most published matrices do, and each character's likelihood is divided by its probability of varying. With `coding="informative"` it holds only the parsimony-informative characters, those with at least two states each at two taxa or more, and each likelihood is divided by the probability of being informative. With `coding="informative"` and `retention`, it holds the informative characters and each character that varies only by autapomorphies with probability `retention`, which can be estimated: each likelihood is divided by the probability of being kept, and a character varying only by autapomorphies is multiplied by `retention`. A matrix that dropped some of its autapomorphies but not all lies between `coding="variable"`, which is `retention` 1, and `coding="informative"` alone, which is `retention` 0. `retention` with any other coding is an error.
+
+A character is scored on its own taxa, so a taxon missing it does not count toward whether it varies or is informative. The probability of being dropped is computed by pruning over the patterns a coding drops, shared by the characters with the same number of states scored on the same taxa. A character the coding makes impossible, such as one varying only by autapomorphies under `coding="informative"` without `retention`, is excluded with a warning, as dnPhyloCTMC does. The codings other than `"all"` need `epsilon`, since with exactly one change per speciation the characters share their speciations, and dropping some of them does not act on each character alone.)");
 	help_strings[string("dnPhyloMorphospeciation")][string("example")] = string(R"(bd ~ dnFBDSP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=rho, lambda_a=lambda_a, origin=origin)
 rec ~ dnFossilRecord(ranges=bd, reporting="complete")
 rec.clamp(taxa)
@@ -1708,7 +1710,13 @@ ratio := epsilon / epsilon_a
 
 # a matrix that kept only its variable characters
 morph ~ dnPhyloMorphospeciation(tree=bd, epsilon=epsilon, coding="variable")
-morph.clamp(matrix))");
+morph.clamp(matrix)
+
+# or its informative characters and some of its autapomorphies
+retention ~ dnBeta(1, 1)
+morph ~ dnPhyloMorphospeciation(tree=bd, epsilon=epsilon, coding="informative", retention=retention)
+morph.clamp(matrix)
+moves.append( mvSlide(retention, weight=2) ))");
 	help_strings[string("dnPhyloMorphospeciation")][string("name")] = string(R"(dnPhyloMorphospeciation)");
 	help_references[string("dnPhyloMorphospeciation")].push_back(RbHelpReference(R"(The fossilized birth-death model for the analysis of stratigraphic range data under different speciation modes. Stadler, Tanja et al. Journal of theoretical biology, 447:41-55.)",R"()",R"(https://www.sciencedirect.com/science/article/pii/S002251931830119X )"));
 	help_arrays[string("dnPhyloMorphospeciation")][string("see_also")].push_back(string(R"(dnFBDSP)"));
