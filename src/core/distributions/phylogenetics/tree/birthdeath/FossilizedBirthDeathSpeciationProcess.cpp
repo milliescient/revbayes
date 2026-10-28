@@ -214,7 +214,11 @@ double FossilizedBirthDeathSpeciationProcess::rangeEndTerm( size_t i, size_t di,
     // lambda*beta, less the lambda each daughter already carries
     if ( species[i].ends_symmetric == true ) return log( symmetric[di] ) - log( birth[di] );
 
-    if ( extended == true ) return log( death[di] );
+    // computeLnProbabilityTimes cancels log(mu) at a sampled ancestor
+    if ( extended == true && species[i].ends_at_sa == true ) return log( death[di] );
+
+    // extinction, or an anagenetic change to a species that leaves no sampled descendant
+    if ( extended == true ) return log( death[di] + anagenetic[di] * p( di, d ) );
 
     if ( species[i].ends_at_sa == true ) return 0.0;
 
