@@ -1673,6 +1673,8 @@ with independent and identically distributed sites)");
 
 The number of characters counts every scored character, invariant ones included. For a matrix with its invariant characters dropped, use `coding="variable"`.
 
+Each character has its own number of states K, which sets its change kernel, its starting frequencies 1/K and, under `coding="variable"`, its chance to vary. Left out, `nStates` gives each character as many states as its largest observed state, as `setNumStatesPartition` partitions a matrix for dnPhyloCTMC. One number shares K across every character, which is what an unpartitioned Mk analysis assumes; it takes the number of characters from the data, so it cannot be simulated from before data are clamped. A vector states K for each character, for instance a matrix's declared states where some are never observed.
+
 Which character changed at each speciation is a latent index, sampled by mvMorphospeciationAllocation and reported by `getChangedCharacters()` (0 for the species at the origin). Symmetric speciation is not part of the model.
 
 With `epsilon`, a speciation changes each character independently with probability `epsilon`, so it can change several characters or none. Each branch then carries latent counts of hidden budding and anagenetic events, sampled by mvMorphospeciationEvents. `getNumberOfChanges()`, `getHiddenEventCounts()` and `getHiddenEventMeans()` report them, by node index.

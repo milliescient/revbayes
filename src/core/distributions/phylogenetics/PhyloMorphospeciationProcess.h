@@ -25,7 +25,7 @@ namespace RevBayesCore {
     class PhyloMorphospeciationProcess : public TypedDistribution<AbstractHomologousDiscreteCharacterData>, public MemberObject< RbVector<double> > {
 
     public:
-        PhyloMorphospeciationProcess(const TypedDagNode<Tree> *tree, const std::vector<size_t> &num_states, const TypedDagNode<double> *epsilon = NULL, const TypedDagNode<double> *epsilon_a = NULL, bool variable = false);
+        PhyloMorphospeciationProcess(const TypedDagNode<Tree> *tree, const std::vector<size_t> &num_states, const TypedDagNode<double> *epsilon = NULL, const TypedDagNode<double> *epsilon_a = NULL, bool variable = false, size_t shared_states = 0);
         virtual ~PhyloMorphospeciationProcess() {}
 
         PhyloMorphospeciationProcess*   clone(void) const override;
@@ -106,6 +106,7 @@ namespace RevBayesCore {
         FossilizedBirthDeathSpeciationProcess* process;
         std::vector<size_t>             num_states;                                             //!< K for each character.
         bool                            states_given;                                           //!< K stated, not read off the data.
+        size_t                          shared_states;                                          //!< K shared by every character, the count read off the data; 0 if not.
         bool                            variable;                                               //!< Only variable characters were kept, so each is conditioned on varying.
 
         std::vector<size_t>             changed;                                                //!< The character that changed at each interior node's speciation.

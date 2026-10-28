@@ -1,0 +1,6 @@
+one number is that K for every character:
+TRUE	
+left out, each character's K is its largest observed state:
+TRUE	
+and sharing K changes the likelihood:
+TRUE	

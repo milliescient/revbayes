@@ -22,7 +22,7 @@
 using namespace RevBayesCore;
 
 
-PhyloMorphospeciationProcess::PhyloMorphospeciationProcess(const TypedDagNode<Tree> *t, const std::vector<size_t> &k, const TypedDagNode<double> *eps, const TypedDagNode<double> *eps_a, bool var) :
+PhyloMorphospeciationProcess::PhyloMorphospeciationProcess(const TypedDagNode<Tree> *t, const std::vector<size_t> &k, const TypedDagNode<double> *eps, const TypedDagNode<double> *eps_a, bool var, size_t shared) :
     TypedDistribution<AbstractHomologousDiscreteCharacterData>( new HomologousDiscreteCharacterData<StandardState>() ),
     tree( t ),
     epsilon( eps ),
@@ -30,6 +30,7 @@ PhyloMorphospeciationProcess::PhyloMorphospeciationProcess(const TypedDagNode<Tr
     process( NULL ),
     num_states( k ),
     states_given( k.empty() == false ),
+    shared_states( shared ),
     variable( var )
 {
     resolveProcess();
@@ -55,6 +56,7 @@ PhyloMorphospeciationProcess::PhyloMorphospeciationProcess(const TypedDagNode<Tr
     {
         if ( K < 2 ) throw RbException("dnPhyloMorphospeciation: every character needs at least two states.");
     }
+    if ( shared_states == 1 ) throw RbException("dnPhyloMorphospeciation: every character needs at least two states.");
 
     changed = std::vector<size_t>( tree->getValue().getNumberOfNodes(), 0 );
 
@@ -845,8 +847,13 @@ void PhyloMorphospeciationProcess::setValue( AbstractHomologousDiscreteCharacter
         return;
     }
 
-    // K for each character: its largest observed state, and at least two
+    // K for each character: the one shared, or its largest observed state and at least two
     size_t N = this->value->getNumberOfCharacters();
+    if ( shared_states > 0 )
+    {
+        num_states.assign( N, shared_states );
+        return;
+    }
     num_states.assign( N, 2 );
     for (size_t i = 0; i < this->value->getNumberOfTaxa(); i++)
     {

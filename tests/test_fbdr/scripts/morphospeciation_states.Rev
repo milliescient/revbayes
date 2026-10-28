@@ -1,0 +1,27 @@
+# dnPhyloMorphospeciation's nStates: one number shares K across every character, so it must equal the
+# same K written once per character, and differ from the default, which reads each character's K off
+# its largest observed state (2, 3 and 3 here). Every line printed must be TRUE.
+seed(1)
+out = "output/morphospeciation_states.txt"
+
+taxa <- readTaxonData("data/fbdsp_condition.tsv")
+bd ~ dnFBDSP(taxa=taxa, lambda=0.4, mu=0.1, psi=0.5, rho=1.0, lambda_a=0.2, origin=20.0, condition="time")
+m = readDiscreteCharacterData("data/morpho_states.nex")
+
+shared ~ dnPhyloMorphospeciation(tree=bd, nStates=3, epsilon=0.2)
+shared.clamp(m)
+each ~ dnPhyloMorphospeciation(tree=bd, nStates=v(3, 3, 3), epsilon=0.2)
+each.clamp(m)
+read ~ dnPhyloMorphospeciation(tree=bd, epsilon=0.2)
+read.clamp(m)
+stated ~ dnPhyloMorphospeciation(tree=bd, nStates=v(2, 3, 3), epsilon=0.2)
+stated.clamp(m)
+
+print(filename=out, "one number is that K for every character:\n")
+print(filename=out, append=TRUE, abs(shared.lnProbability() - each.lnProbability()) < 1E-10, "\n")
+print(filename=out, append=TRUE, "left out, each character's K is its largest observed state:\n")
+print(filename=out, append=TRUE, abs(read.lnProbability() - stated.lnProbability()) < 1E-10, "\n")
+print(filename=out, append=TRUE, "and sharing K changes the likelihood:\n")
+print(filename=out, append=TRUE, abs(shared.lnProbability() - read.lnProbability()) > 1E-6, "\n")
+
+q()

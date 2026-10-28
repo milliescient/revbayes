@@ -33,10 +33,20 @@ RevBayesCore::PhyloMorphospeciationProcess* Dist_phyloMorphospeciation::createDi
 {
     RevBayesCore::TypedDagNode<RevBayesCore::Tree>* t = static_cast<const TimeTree &>( tree->getRevObject() ).getDagNode();
 
+    // one number is K for every character, a vector K for each
     std::vector<size_t> k;
-    if ( num_states->getRevObject() != RevNullObject::getInstance() )
+    size_t shared = 0;
+    const RevObject &ns = num_states->getRevObject();
+    if ( ns != RevNullObject::getInstance() )
     {
-        for (long x : static_cast<const ModelVector<Natural> &>( num_states->getRevObject() ).getValue()) k.push_back( size_t( x ) );
+        if ( ns.isType( Natural::getClassTypeSpec() ) )
+        {
+            shared = size_t( static_cast<const Natural &>( ns ).getValue() );
+        }
+        else
+        {
+            for (long x : static_cast<const ModelVector<Natural> &>( ns ).getValue()) k.push_back( size_t( x ) );
+        }
     }
 
     RevBayesCore::TypedDagNode<double>* eps = NULL;
@@ -53,7 +63,7 @@ RevBayesCore::PhyloMorphospeciationProcess* Dist_phyloMorphospeciation::createDi
 
     bool variable = static_cast<const RlString &>( coding->getRevObject() ).getValue() == "variable";
 
-    return new RevBayesCore::PhyloMorphospeciationProcess( t, k, eps, eps_a, variable );
+    return new RevBayesCore::PhyloMorphospeciationProcess( t, k, eps, eps_a, variable, shared );
 }
 
 
@@ -108,7 +118,8 @@ const MemberRules& Dist_phyloMorphospeciation::getParameterRules(void) const
     if ( rules_set == false )
     {
         dist_member_rules.push_back( new ArgumentRule( "tree", TimeTree::getClassTypeSpec(), "A tree drawn from dnFBDSP, whose speciation events the characters carry.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::STOCHASTIC ) );
-        dist_member_rules.push_back( new ArgumentRule( "nStates", ModelVector<Natural>::getClassTypeSpec(), "The number of states of each character. Left out, each character has as many as its largest observed state, and at least two.", ArgumentRule::BY_VALUE, ArgumentRule::ANY, NULL ) );
+        std::vector<TypeSpec> num_states_types = { ModelVector<Natural>::getClassTypeSpec(), Natural::getClassTypeSpec() };
+        dist_member_rules.push_back( new ArgumentRule( "nStates", num_states_types, "The number of states: one per character, or one number shared by every character. Left out, each character has as many as its largest observed state, and at least two.", ArgumentRule::BY_VALUE, ArgumentRule::ANY, NULL ) );
         dist_member_rules.push_back( new ArgumentRule( "epsilon", Probability::getClassTypeSpec(), "The probability that a speciation changes each character, independently, so that it may change several or none. Left out, every speciation changes exactly one character.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
         dist_member_rules.push_back( new ArgumentRule( "epsilon_a", Probability::getClassTypeSpec(), "The probability that an anagenetic speciation changes each character. Needs epsilon, which then applies to budding alone. Left out, anagenesis changes with probability epsilon too.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
         std::vector<std::string> coding_options = { "all", "variable" };
