@@ -2,10 +2,13 @@
 
 ## Backwards-incompatible changes
   * Remove `fnChronoToPhylo`, which was unused.
+  * Stop monitors on a topology from reporting the assembled branch lengths.
 
 ## Features
+  * Allow `fnTreeAssembly` on a time tree, and more than once on the same tree.
 
 ## Bug fixes
+  * Fix `fnTreeAssembly` writing the assembled branch lengths into the input tree.
 
 ## Documentation improvements
 
