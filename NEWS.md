@@ -1,6 +1,7 @@
 # RevBayes 1.4.2 (unreleased)
 
 ## Backwards-incompatible changes
+  * Remove `fnChronoToPhylo`, which was unused.
 
 ## Features
 
