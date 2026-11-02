@@ -1,4 +1,0 @@
-each constant pattern is as likely as the other:
-TRUE	
-the correction is -log(1 - P(invariant)):
-TRUE	

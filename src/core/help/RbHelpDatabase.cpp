@@ -1667,63 +1667,6 @@ x.lnProbability())");
 	help_strings[string("dnPhyloCTMCDASiteIID")][string("title")] = string(R"(Data augmentation-based phylogenetic continuous-time Markov chain distribution
 with independent and identically distributed sites)");
 	help_strings[string("dnPhyloDistanceGamma")][string("name")] = string(R"(dnPhyloDistanceGamma)");
-	help_arrays[string("dnPhyloMorphospeciation")][string("authors")].push_back(string(R"(June Walker)"));
-	help_strings[string("dnPhyloMorphospeciation")][string("description")] = string(R"(Discrete morphological characters on a tree drawn from dnFBDSP, under a model in which every change of morphology is a speciation. By default every speciation changes the new species at exactly one character; with `epsilon` it changes each character independently.)");
-	help_strings[string("dnPhyloMorphospeciation")][string("details")] = string(R"(Species are morphospecies: a species is a stretch of a lineage over which its morphology does not change. At each speciation, budding or anagenetic, one character chosen uniformly changes to a state drawn uniformly from the others (the Mk kernel). Along a species' stem, from its origination to its first appearance, a character evolves as a Markov chain whose length is set by the rate of hidden speciation, `lambda * p(t) + lambda_a`, divided by the number of characters. The morphology does not change over a species' sampled range. With the characters marginalized, the tree density is that of dnFBDSP.
-
-The number of characters counts every scored character, invariant ones included. For a matrix with its invariant characters dropped, use `coding="variable"`, and for one with its uninformative characters dropped, `coding="informative"`.
-
-Each character has its own number of states K, which sets its change kernel, its starting frequencies 1/K and, under `coding="variable"`, its chance to vary. Left out, `nStates` gives each character as many states as its largest observed state, as `setNumStatesPartition` partitions a matrix for dnPhyloCTMC. One number shares K across every character, which is what an unpartitioned Mk analysis assumes; it takes the number of characters from the data, so it cannot be simulated from before data are clamped. A vector states K for each character, for instance a matrix's declared states where some are never observed.
-
-Which character changed at each speciation is a latent index, sampled by mvMorphospeciationAllocation and reported by `getChangedCharacters()` (0 for the species at the origin). Symmetric speciation is not part of the model.
-
-With `epsilon`, a speciation changes each character independently with probability `epsilon`, so it can change several characters or none. Each branch then carries latent counts of hidden budding and anagenetic events, sampled by mvMorphospeciationEvents. `getNumberOfChanges()`, `getHiddenEventCounts()` and `getHiddenEventMeans()` report them, by node index.
-
-A subtree in which no taxon is coded for any character contributes nothing to the likelihood, so it is never computed, and the hidden counts on its branches are drawn from their Poisson prior without one. Above a taxon coded for no character the counts are summed out, so they are not sampled at all: there `getHiddenEventCounts()` draws them from their Poisson distribution, or with `mean=TRUE` gives its mean.
-
-With `epsilon_a`, an anagenetic speciation changes each character with probability `epsilon_a` and a budding with `epsilon`, so `epsilon / epsilon_a` measures the change carried by budding relative to anagenesis. `getChangeProbabilities()` gives the two probabilities, and `getSpeciationModes()` gives each species' origin: 1 for budding, 2 for anagenesis, 0 at the origin.
-
-With `coding="variable"`, the matrix is taken to hold only the characters that vary among the taxa scored for them, as most published matrices do, and each character's likelihood is divided by its probability of varying. With `coding="informative"` it holds only the parsimony-informative characters, those with at least two states each at two taxa or more, and each likelihood is divided by the probability of being informative. With `coding="informative"` and `retention`, it holds the informative characters and each character that varies only by autapomorphies with probability `retention`, which can be estimated: each likelihood is divided by the probability of being kept, and a character varying only by autapomorphies is multiplied by `retention`. A matrix that dropped some of its autapomorphies but not all lies between `coding="variable"`, which is `retention` 1, and `coding="informative"` alone, which is `retention` 0. `retention` with any other coding is an error.
-
-A character is scored on its own taxa, so a taxon missing it does not count toward whether it varies or is informative. The probability of being dropped is computed by pruning over the patterns a coding drops, shared by the characters with the same number of states scored on the same taxa. A character the coding makes impossible, such as one varying only by autapomorphies under `coding="informative"` without `retention`, is excluded with a warning, as dnPhyloCTMC does. The codings other than `"all"` need `epsilon`, since with exactly one change per speciation the characters share their speciations, and dropping some of them does not act on each character alone.)");
-	help_strings[string("dnPhyloMorphospeciation")][string("example")] = string(R"(bd ~ dnFBDSP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=rho, lambda_a=lambda_a, origin=origin)
-rec ~ dnFossilRecord(ranges=bd, reporting="complete")
-rec.clamp(taxa)
-
-morph ~ dnPhyloMorphospeciation(tree=bd)
-morph.clamp(matrix)
-
-moves.append( mvMorphospeciationAllocation(morph, weight=taxa.size()) )
-changed := morph.getChangedCharacters()
-
-# any number of characters per speciation, and a separate rate of change at anagenesis
-epsilon ~ dnBeta(1, 9)
-epsilon_a ~ dnBeta(1, 9)
-morph ~ dnPhyloMorphospeciation(tree=bd, epsilon=epsilon, epsilon_a=epsilon_a)
-morph.clamp(matrix)
-
-moves.append( mvMorphospeciationEvents(morph, weight=2 * taxa.size()) )
-moves.append( mvMorphospeciationAllocation(morph, weight=taxa.size()) )
-moves.append( mvSlide(epsilon, weight=5) )
-moves.append( mvSlide(epsilon_a, weight=5) )
-ratio := epsilon / epsilon_a
-
-# a matrix that kept only its variable characters
-morph ~ dnPhyloMorphospeciation(tree=bd, epsilon=epsilon, coding="variable")
-morph.clamp(matrix)
-
-# or its informative characters and some of its autapomorphies
-retention ~ dnBeta(1, 1)
-morph ~ dnPhyloMorphospeciation(tree=bd, epsilon=epsilon, coding="informative", retention=retention)
-morph.clamp(matrix)
-moves.append( mvSlide(retention, weight=2) ))");
-	help_strings[string("dnPhyloMorphospeciation")][string("name")] = string(R"(dnPhyloMorphospeciation)");
-	help_references[string("dnPhyloMorphospeciation")].push_back(RbHelpReference(R"(The fossilized birth-death model for the analysis of stratigraphic range data under different speciation modes. Stadler, Tanja et al. Journal of theoretical biology, 447:41-55.)",R"()",R"(https://www.sciencedirect.com/science/article/pii/S002251931830119X )"));
-	help_arrays[string("dnPhyloMorphospeciation")][string("see_also")].push_back(string(R"(dnFBDSP)"));
-	help_arrays[string("dnPhyloMorphospeciation")][string("see_also")].push_back(string(R"(mvMorphospeciationAllocation)"));
-	help_arrays[string("dnPhyloMorphospeciation")][string("see_also")].push_back(string(R"(mvMorphospeciationEvents)"));
-	help_arrays[string("dnPhyloMorphospeciation")][string("see_also")].push_back(string(R"(dnPhyloCTMC)"));
-	help_strings[string("dnPhyloMorphospeciation")][string("title")] = string(R"(Morphological characters whose changes are speciation events)");
 	help_strings[string("dnPhyloMultiSampleOrnsteinUhlenbeck")][string("name")] = string(R"(dnPhyloMultiSampleOrnsteinUhlenbeck)");
 	help_strings[string("dnPhyloMultiSampleOrnsteinUhlenbeckREML")][string("name")] = string(R"(dnPhyloMultiSampleOrnsteinUhlenbeckREML)");
 	help_strings[string("dnPhyloMultivariateBrownianMultiSampleREML")][string("name")] = string(R"(dnPhyloMultivariateBrownianMultiSampleREML)");
@@ -4140,32 +4083,6 @@ moves.append( mvMatrixElementSwap(x, col=2, weight=1) ))");
 	help_strings[string("mvMirrorMultiplier")][string("description")] = string(R"(The adaptive mirror multiplier (normal) proposal of Thawornwattana et al. 2017, uses MCMC samples to find posterior mean and variance on the log-scale. After user-defined waiting time, proposes moves (on the log-scale) on opposite side of posterior mean from current location using a normal distribution with the learned posterior standard deviation (scaled by lambda). Before this time, the move uses mu0 as the mean, and lambda as the standard deviation. WARNING: Disabling tuning disables both tuning of proposal variance and learning of empirical mean and variance. To learn the empirical mean and variance without tuning sigma, set adaptOnly=true.)");
 	help_strings[string("mvMirrorMultiplier")][string("name")] = string(R"(mvMirrorMultiplier)");
 	help_strings[string("mvMixtureAllocation")][string("name")] = string(R"(mvMixtureAllocation)");
-	help_arrays[string("mvMorphospeciationAllocation")][string("authors")].push_back(string(R"(June Walker)"));
-	help_strings[string("mvMorphospeciationAllocation")][string("description")] = string(R"(Draws the character that changed at one species' speciation from its full conditional distribution.)");
-	help_strings[string("mvMorphospeciationAllocation")][string("details")] = string(R"(Under dnPhyloMorphospeciation, each species carries the index of the character that changed when it arose, or with `epsilon` a set of changed characters. This is the only move that changes them. Each proposal picks a speciation at random and draws from the full conditional, so every proposal is accepted.)");
-	help_strings[string("mvMorphospeciationAllocation")][string("example")] = string(R"(morph ~ dnPhyloMorphospeciation(tree=bd)
-morph.clamp(matrix)
-
-moves.append( mvMorphospeciationAllocation(morph, weight=taxa.size()) ))");
-	help_strings[string("mvMorphospeciationAllocation")][string("name")] = string(R"(mvMorphospeciationAllocation)");
-	help_arrays[string("mvMorphospeciationAllocation")][string("see_also")].push_back(string(R"(dnPhyloMorphospeciation)"));
-	help_arrays[string("mvMorphospeciationAllocation")][string("see_also")].push_back(string(R"(mvMorphospeciationEvents)"));
-	help_arrays[string("mvMorphospeciationAllocation")][string("see_also")].push_back(string(R"(mvGibbsMixtureAllocation)"));
-	help_strings[string("mvMorphospeciationAllocation")][string("title")] = string(R"(Gibbs sampling of the character that changed at a speciation)");
-	help_arrays[string("mvMorphospeciationEvents")][string("authors")].push_back(string(R"(June Walker)"));
-	help_strings[string("mvMorphospeciationEvents")][string("description")] = string(R"(Draws the count of hidden speciation events of one kind on one branch from its full conditional distribution, under dnPhyloMorphospeciation with epsilon.)");
-	help_strings[string("mvMorphospeciationEvents")][string("details")] = string(R"(With epsilon, each branch carries latent Poisson counts of hidden budding and anagenetic events. This is the only move that changes them. Each proposal picks a branch and one kind of event on it and draws the count from its full conditional, so every proposal is accepted.)");
-	help_strings[string("mvMorphospeciationEvents")][string("example")] = string(R"(epsilon ~ dnBeta(1, 9)
-morph ~ dnPhyloMorphospeciation(tree=bd, epsilon=epsilon)
-morph.clamp(matrix)
-
-moves.append( mvMorphospeciationEvents(morph, weight=2 * taxa.size()) )
-moves.append( mvMorphospeciationAllocation(morph, weight=taxa.size()) )
-moves.append( mvSlide(epsilon, weight=5) ))");
-	help_strings[string("mvMorphospeciationEvents")][string("name")] = string(R"(mvMorphospeciationEvents)");
-	help_arrays[string("mvMorphospeciationEvents")][string("see_also")].push_back(string(R"(dnPhyloMorphospeciation)"));
-	help_arrays[string("mvMorphospeciationEvents")][string("see_also")].push_back(string(R"(mvMorphospeciationAllocation)"));
-	help_strings[string("mvMorphospeciationEvents")][string("title")] = string(R"(Gibbs sampling of the hidden speciation events on a branch)");
 	help_strings[string("mvMultiValueEventBirthDeath")][string("name")] = string(R"(mvMultiValueEventBirthDeath)");
 	help_strings[string("mvMultiValueEventScale")][string("name")] = string(R"(mvMultiValueEventScale)");
 	help_strings[string("mvMultiValueEventSlide")][string("name")] = string(R"(mvMultiValueEventSlide)");

@@ -1,8 +1,7 @@
-# psiMixtureRates on dnFBDSP. With all weight on one of two equal components, the tree, record and
-# morphospeciation densities are the plain process, with and without sampled ancestors, and a
-# checkpoint carries each species' component. Every line printed must be TRUE.
+# psiMixtureRates on dnFBDSP. With all weight on one of two equal components, the tree and record
+# densities are the plain process, with and without sampled ancestors, and a checkpoint carries
+# each species' component. Every line printed must be TRUE.
 taxa <- readTaxonData("data/fbdsp_condition.tsv")
-data <- readDiscreteCharacterData("data/morpho_missing.nex")
 sa_tree <- readTrees("data/fbdsp_sampled_ancestors.tre", treetype="clock")[1]
 
 out = "output/psi_mixture_fbdsp.txt"
@@ -25,16 +24,10 @@ for (tree in v("drawn", "sampled ancestors")) {
         rec_plain.clamp(taxa)
         rec_mix ~ dnFossilRecord(ranges=mix, reporting="complete")
         rec_mix.clamp(taxa)
-        morph_plain ~ dnPhyloMorphospeciation(tree=plain, nStates=v(2, 3, 2, 4), epsilon=0.3)
-        morph_plain.clamp(data)
-        morph_mix ~ dnPhyloMorphospeciation(tree=mix, nStates=v(2, 3, 2, 4), epsilon=0.3)
-        morph_mix.clamp(data)
-
         print(filename=out, append=TRUE, tree + ", " + cond + ": the same tree, and the plain densities:\n")
         print(filename=out, append=TRUE, plain == mix && (tree == "drawn" || mix.numSampledAncestors() == 2)
               && abs(plain.lnProbability() - mix.lnProbability()) < 1E-10
-              && abs(rec_plain.lnProbability() - rec_mix.lnProbability()) < 1E-10
-              && abs(morph_plain.lnProbability() - morph_mix.lnProbability()) < 1E-10, "\n")
+              && abs(rec_plain.lnProbability() - rec_mix.lnProbability()) < 1E-10, "\n")
     }
 }
 
