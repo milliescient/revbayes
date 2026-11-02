@@ -809,6 +809,108 @@ std::vector<const DagNode*> FossilizedBirthDeathSpeciationProcess::getRateParame
 }
 
 
+/** The species whose lineage runs through this node: follow the continuing children to a tip. */
+static long speciesBelow( const TopologyNode &node )
+{
+    const TopologyNode *n = &node;
+    while ( n->isTip() == false )
+    {
+        const TopologyNode *next = NULL;
+        for (size_t c = 0; c < n->getNumberOfChildren(); c++)
+        {
+            if ( n->getChild(c).continuesParentSpecies() ) next = &n->getChild(c);
+        }
+        if ( next == NULL ) return -1;
+        n = next;
+    }
+    return long( n->getIndex() );
+}
+
+
+/**
+ * By node index, the Poisson means of the hidden speciations on each branch and the observed event that began
+ * its species. A hidden budding is one whose new species left no sample, so the observed lineage continues as
+ * the new species; it and the hidden anagenetic events are counted only above the species' tau_1, since a
+ * sampled species does not change. A branch whose node does not continue its parent's species begins with the
+ * observed event that made it, a budding unless the continuing sibling is a sampled ancestor.
+ */
+void FossilizedBirthDeathSpeciationProcess::branchEvents( std::vector<double> &hidden_budding, std::vector<double> &hidden_anagenetic, std::vector<double> &observed_budding, std::vector<double> &observed_anagenetic ) const
+{
+    const_cast<FossilizedBirthDeathSpeciationProcess *>( this )->updateRanges();
+
+    const Tree &t = *value;
+    size_t nodes = t.getNumberOfNodes();
+    hidden_budding.assign( nodes, 0.0 );
+    hidden_anagenetic.assign( nodes, 0.0 );
+    observed_budding.assign( nodes, 0.0 );
+    observed_anagenetic.assign( nodes, 0.0 );
+
+    std::vector<size_t> at;
+    std::vector<std::pair<double,double> > spans;
+    for (const TopologyNode *node : t.getNodes())
+    {
+        if ( node->isRoot() ) continue;
+        size_t idx = node->getIndex();
+
+        if ( node->continuesParentSpecies() == false )
+        {
+            // the sibling that carries the parent's species: a sampled ancestor there makes this an anagenesis
+            const TopologyNode &parent = node->getParent();
+            bool anagenetic = false;
+            for (size_t c = 0; c < parent.getNumberOfChildren(); c++)
+            {
+                const TopologyNode &sib = parent.getChild(c);
+                if ( &sib != node && sib.continuesParentSpecies() && sib.isSampledAncestorTip() ) anagenetic = true;
+            }
+            ( anagenetic ? observed_anagenetic : observed_budding )[idx] = 1.0;
+        }
+
+        long s = speciesBelow( *node );
+        if ( s < 0 || size_t( s ) >= ranges.size() ) continue;
+        double lo = std::max( node->getAge(), ranges[s].first );
+        double hi = node->getParent().getAge();
+        if ( hi > lo )
+        {
+            at.push_back( idx );
+            spans.push_back( std::make_pair( lo, hi ) );
+        }
+    }
+
+    std::vector<double> all = hiddenSpeciationIntegrals( spans );
+    std::vector<double> ana = anageneticIntegrals( spans );
+    for (size_t k = 0; k < at.size(); k++)
+    {
+        hidden_budding[ at[k] ]    = all[k] - ana[k];
+        hidden_anagenetic[ at[k] ] = ana[k];
+    }
+}
+
+
+/** The per-branch speciation events, then the range methods of the base class. */
+void FossilizedBirthDeathSpeciationProcess::executeMethod( const std::string &n, const std::vector<const DagNode *> &args, RbVector<double> &rv ) const
+{
+    if ( n == "getHiddenBuddings" || n == "getHiddenAnageneses" || n == "getObservedBuddings" || n == "getObservedAnageneses" )
+    {
+        std::vector<double> hb, ha, ob, oa;
+        branchEvents( hb, ha, ob, oa );
+        const std::vector<double> &want = ( n == "getHiddenBuddings"  ? hb :
+                                          ( n == "getHiddenAnageneses" ? ha :
+                                          ( n == "getObservedBuddings" ? ob : oa ) ) );
+        // indexed as dnPhyloCTMC's branchRates are, with no entry for the root
+        if ( value->getRoot().getIndex() + 1 != want.size() )
+        {
+            throw RbException("dnFBDSP: the root is not the last node, so a per-branch vector cannot drop it.");
+        }
+        rv.clear();
+        for (size_t i = 0; i + 1 < want.size(); i++) rv.push_back( want[i] );
+    }
+    else
+    {
+        AbstractFossilizedBirthDeathRangeProcess::executeMethod( n, args, rv );
+    }
+}
+
+
 bool FossilizedBirthDeathSpeciationProcess::hasAnagenesis( void ) const
 {
     if ( homogeneous_lambda_a != NULL )

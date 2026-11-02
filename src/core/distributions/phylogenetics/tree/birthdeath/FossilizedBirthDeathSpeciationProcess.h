@@ -82,6 +82,8 @@ namespace RevBayesCore {
         std::vector<double>                             hiddenSpeciationIntegrals(const std::vector<std::pair<double,double> > &spans) const;  //!< The same over many spans, preparing the rates once.
         std::vector<double>                             anageneticIntegrals(const std::vector<std::pair<double,double> > &spans) const;        //!< int lambda_a dt over each span, the anagenetic part of the above.
         std::vector<const DagNode*>                     getRateParameters(void) const;                                      //!< Every node the rates and p(t) depend on.
+        void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const override;  //!< The per-branch speciation events, then the base's range methods.
+        void                                            branchEvents(std::vector<double> &hidden_budding, std::vector<double> &hidden_anagenetic, std::vector<double> &observed_budding, std::vector<double> &observed_anagenetic) const;  //!< By node index: the Poisson means of the hidden speciations above each species' tau_1, and the observed event that began the species.
 
     protected:
         bool                                            marginalizesExtinction(void) const override { return extended == false; }

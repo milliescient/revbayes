@@ -314,5 +314,12 @@ RevLanguage::MethodTable Dist_FBDSP::getDistributionMethods( void ) const
     ArgumentRules* component_arg_rules = new ArgumentRules();
     methods.addFunction( new DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> >( "getPsiMixtureComponents", variable, component_arg_rules, true ) );
 
+    // by branch, as dnPhyloCTMC's branchRates are: the Poisson means of the hidden speciations above each
+    // species' tau_1, and the observed event that began the species
+    for (const std::string &name : { "getHiddenBuddings", "getHiddenAnageneses", "getObservedBuddings", "getObservedAnageneses" })
+    {
+        methods.addFunction( new DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> >( name, variable, new ArgumentRules(), true ) );
+    }
+
     return methods;
 }
