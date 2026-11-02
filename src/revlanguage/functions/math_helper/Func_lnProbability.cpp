@@ -37,9 +37,9 @@ Func_lnProbability* Func_lnProbability::clone( void ) const
 RevBayesCore::TypedFunction<double>* Func_lnProbability::createFunction( void ) const
 {
     
-    RevBayesCore::TypedDagNode<double>* x = static_cast<const Real&>( this->args[0].getVariable()->getRevObject() ).getDagNode();
-    RevBayesCore::StochasticNode<double>* y = static_cast<RevBayesCore::StochasticNode<double>* >(x);
-    RevBayesCore::LnProbabilityFunction* f = new RevBayesCore::LnProbabilityFunction( y );
+    // any stochastic variable, whatever its type
+    RevBayesCore::DagNode* x = this->args[0].getVariable()->getRevObject().getDagNode();
+    RevBayesCore::LnProbabilityFunction* f = new RevBayesCore::LnProbabilityFunction( x );
     
     return f;
 }
@@ -54,7 +54,7 @@ const ArgumentRules& Func_lnProbability::getArgumentRules( void ) const
     if ( !rules_set )
     {
         
-        argumentRules.push_back( new ArgumentRule( "x", Real::getClassTypeSpec(), "The value.", ArgumentRule::BY_REFERENCE, ArgumentRule::STOCHASTIC ) );
+        argumentRules.push_back( new ArgumentRule( "x", RevObject::getClassTypeSpec(), "The value.", ArgumentRule::BY_REFERENCE, ArgumentRule::STOCHASTIC ) );
         
         rules_set = true;
     }

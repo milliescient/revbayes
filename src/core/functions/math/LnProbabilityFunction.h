@@ -19,7 +19,7 @@ template <class variableType> class StochasticNode;
     class LnProbabilityFunction : public ContinuousFunction {
         
     public:
-        LnProbabilityFunction(const StochasticNode<double> *a);
+        LnProbabilityFunction(const DagNode *a);
         
         LnProbabilityFunction*              clone(void) const;                                                  //!< Create a clon.
         void                                update(void);                                                       //!< Recompute the value
@@ -28,7 +28,7 @@ template <class variableType> class StochasticNode;
         void                                swapParameterInternal(const DagNode *oldP, const DagNode *newP);    //!< Implementation of swaping parameters
         
     private:
-        const StochasticNode<double>*       a;
+        const DagNode*                      a;
     };
 }
 

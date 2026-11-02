@@ -11,10 +11,12 @@ using namespace RevBayesCore;
  * @param x the value of type double
  *
  */
-LnProbabilityFunction::LnProbabilityFunction(const StochasticNode<double> *x) : ContinuousFunction( new double(0.0) ),
+LnProbabilityFunction::LnProbabilityFunction(const DagNode *x) : ContinuousFunction( new double(0.0) ),
 a( x )
 {
     addParameter( a );
+    // the probability changes with the parents too, not only with the value
+    for (const DagNode *p : a->getParents()) addParameter( p );
 }
 
 
@@ -29,7 +31,7 @@ void LnProbabilityFunction::swapParameterInternal(const DagNode *oldP, const Dag
     
     if (oldP == a)
     {
-        a = static_cast<const StochasticNode<double>* >( newP );
+        a = newP;
     }
     
 }
@@ -37,7 +39,7 @@ void LnProbabilityFunction::swapParameterInternal(const DagNode *oldP, const Dag
 void LnProbabilityFunction::update( void )
 {
 //    *value = a->
-    *value = const_cast<StochasticNode<double>* >(a)->getLnProbability();
+    *value = const_cast<DagNode* >(a)->getLnProbability();
 }
 
 
