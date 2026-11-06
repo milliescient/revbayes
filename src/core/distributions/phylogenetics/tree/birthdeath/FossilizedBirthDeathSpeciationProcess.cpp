@@ -9,6 +9,7 @@
 #include <string>
 #include <type_traits>
 #include <vector>
+#include <map>
 
 #include "AbstractBirthDeathProcess.h"
 #include "AbstractFossilizedBirthDeathRangeProcess.h"
@@ -859,6 +860,42 @@ std::vector<double> FossilizedBirthDeathSpeciationProcess::anageneticIntegrals(c
 }
 
 
+/**
+ * Over each span of ages t0 <= t1, the Poisson means of the hidden events that change an observed lineage's
+ * species: buddings whose parent side leaves no sample, lambda (1-beta) p; symmetric speciations whose other
+ * daughter leaves none, 2 lambda beta p; and anageneses, lambda_a.
+ */
+void FossilizedBirthDeathSpeciationProcess::hiddenEventIntegrals(const std::vector<std::pair<double,double> > &spans, std::vector<double> &budding, std::vector<double> &bifurcation, std::vector<double> &anagenesis) const
+{
+    std::vector<double> all = hiddenSpeciationIntegrals( spans );
+    anagenesis = anageneticIntegrals( spans );
+    budding.assign( spans.size(), 0.0 );
+    bifurcation.assign( spans.size(), 0.0 );
+
+    for (size_t k = 0; k < spans.size(); k++)
+    {
+        double t0 = spans[k].first, t1 = spans[k].second;
+
+        // the mixture is refused with symmetric speciation, so all of it is budding
+        if ( num_components > 1 )
+        {
+            budding[k] = all[k] - anagenesis[k];
+            continue;
+        }
+
+        // int lambda p dt, split by each interval's beta
+        for (size_t i = findIndex(t0); t0 < t1; i++)
+        {
+            double end = ( i + 1 < num_intervals ) ? std::min( t1, times[i+1] ) : t1;
+            double lp  = 0.5 * ( q(i, end) - q(i, t0) + (birth[i] + death[i] + fossil[i]) * (end - t0) );
+            budding[k]     += ( 1.0 - symmetric[i] ) * lp;
+            bifurcation[k] += 2.0 * symmetric[i] * lp;
+            t0 = end;
+        }
+    }
+}
+
+
 /** The range parameters, with the anagenetic and symmetric rates the base class does not hold. */
 std::vector<const DagNode*> FossilizedBirthDeathSpeciationProcess::getRateParameters( void ) const
 {
@@ -879,7 +916,8 @@ static long speciesBelow( const TopologyNode &node )
         const TopologyNode *next = NULL;
         for (size_t c = 0; c < n->getNumberOfChildren(); c++)
         {
-            if ( n->getChild(c).continuesParentSpecies() ) next = &n->getChild(c);
+            // a sampled ancestor tip names the range, past which only a symmetric node at its age continues
+            if ( n->getChild(c).continuesParentSpecies() && ( next == NULL || n->getChild(c).isSampledAncestorTip() ) ) next = &n->getChild(c);
         }
         if ( next == NULL ) return -1;
         n = next;
@@ -890,23 +928,23 @@ static long speciesBelow( const TopologyNode &node )
 
 /**
  * By node index, the Poisson means of the hidden speciations on each branch and the observed event that began
- * its species. A hidden budding is one whose new species left no sample, so the observed lineage continues as
- * the new species; it and the hidden anagenetic events are counted only above the species' tau_1, since a
- * sampled species does not change. A branch whose node does not continue its parent's species begins with the
- * observed event that made it, a budding unless the continuing sibling is a sampled ancestor.
+ * its species. A hidden event is one that changes the observed lineage's species and leaves the rest unsampled;
+ * on a sampled range they are counted only above its tau_1, since a sampled species does not change, and on a
+ * range no taxon samples along the whole branch. A branch whose node does not continue its parent's species
+ * begins with the observed event that made it: an anagenesis where the continuing sibling is a sampled
+ * ancestor, a symmetric speciation where no sibling continues, and otherwise a budding.
  */
-void FossilizedBirthDeathSpeciationProcess::branchEvents( std::vector<double> &hidden_budding, std::vector<double> &hidden_anagenetic, std::vector<double> &observed_budding, std::vector<double> &observed_anagenetic ) const
+void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e ) const
 {
-    if ( hasSymmetricSpeciation() == true ) throw RbException("The per-branch speciation event counts do not yet count symmetric speciation, so they need beta = 0.");
-
     const_cast<FossilizedBirthDeathSpeciationProcess *>( this )->updateRanges();
 
     const Tree &t = *value;
     size_t nodes = t.getNumberOfNodes();
-    hidden_budding.assign( nodes, 0.0 );
-    hidden_anagenetic.assign( nodes, 0.0 );
-    observed_budding.assign( nodes, 0.0 );
-    observed_anagenetic.assign( nodes, 0.0 );
+    for (std::vector<double> *v : { &e.hidden_budding, &e.hidden_bifurcation, &e.hidden_anagenetic,
+                                    &e.observed_budding, &e.observed_bifurcation, &e.observed_anagenetic })
+    {
+        v->assign( nodes, 0.0 );
+    }
 
     std::vector<size_t> at;
     std::vector<std::pair<double,double> > spans;
@@ -914,24 +952,27 @@ void FossilizedBirthDeathSpeciationProcess::branchEvents( std::vector<double> &h
     {
         if ( node->isRoot() ) continue;
         size_t idx = node->getIndex();
+        const TopologyNode &parent = node->getParent();
 
         if ( node->continuesParentSpecies() == false )
         {
-            // the sibling that carries the parent's species: a sampled ancestor there makes this an anagenesis
-            const TopologyNode &parent = node->getParent();
-            bool anagenetic = false;
+            bool sa_sibling = false, any_continues = false;
             for (size_t c = 0; c < parent.getNumberOfChildren(); c++)
             {
                 const TopologyNode &sib = parent.getChild(c);
-                if ( &sib != node && sib.continuesParentSpecies() && sib.isSampledAncestorTip() ) anagenetic = true;
+                if ( sib.continuesParentSpecies() == false ) continue;
+                any_continues = true;
+                if ( sib.isSampledAncestorTip() ) sa_sibling = true;
             }
-            ( anagenetic ? observed_anagenetic : observed_budding )[idx] = 1.0;
+            if ( sa_sibling )               e.observed_anagenetic[idx]  = 1.0;
+            else if ( any_continues == false ) e.observed_bifurcation[idx] = 1.0;
+            else                            e.observed_budding[idx]     = 1.0;
         }
 
         long s = speciesBelow( *node );
-        if ( s < 0 || size_t( s ) >= ranges.size() ) continue;
-        double lo = std::max( node->getAge(), ranges[s].first );
-        double hi = node->getParent().getAge();
+        if ( s >= long( ranges.size() ) ) continue;
+        double lo = ( s < 0 ? node->getAge() : std::max( node->getAge(), ranges[s].first ) );
+        double hi = parent.getAge();
         if ( hi > lo )
         {
             at.push_back( idx );
@@ -939,12 +980,13 @@ void FossilizedBirthDeathSpeciationProcess::branchEvents( std::vector<double> &h
         }
     }
 
-    std::vector<double> all = hiddenSpeciationIntegrals( spans );
-    std::vector<double> ana = anageneticIntegrals( spans );
+    std::vector<double> hb, hs, ha;
+    hiddenEventIntegrals( spans, hb, hs, ha );
     for (size_t k = 0; k < at.size(); k++)
     {
-        hidden_budding[ at[k] ]    = all[k] - ana[k];
-        hidden_anagenetic[ at[k] ] = ana[k];
+        e.hidden_budding[ at[k] ]     = hb[k];
+        e.hidden_bifurcation[ at[k] ] = hs[k];
+        e.hidden_anagenetic[ at[k] ]  = ha[k];
     }
 }
 
@@ -952,13 +994,16 @@ void FossilizedBirthDeathSpeciationProcess::branchEvents( std::vector<double> &h
 /** The per-branch speciation events, then the range methods of the base class. */
 void FossilizedBirthDeathSpeciationProcess::executeMethod( const std::string &n, const std::vector<const DagNode *> &args, RbVector<double> &rv ) const
 {
-    if ( n == "getHiddenBuddings" || n == "getHiddenAnageneses" || n == "getObservedBuddings" || n == "getObservedAnageneses" )
+    const std::map<std::string, std::vector<double> BranchEvents::*> events = {
+        { "getHiddenBuddings", &BranchEvents::hidden_budding }, { "getHiddenBifurcations", &BranchEvents::hidden_bifurcation },
+        { "getHiddenAnageneses", &BranchEvents::hidden_anagenetic }, { "getObservedBuddings", &BranchEvents::observed_budding },
+        { "getObservedBifurcations", &BranchEvents::observed_bifurcation }, { "getObservedAnageneses", &BranchEvents::observed_anagenetic } };
+
+    if ( events.count( n ) == 1 )
     {
-        std::vector<double> hb, ha, ob, oa;
-        branchEvents( hb, ha, ob, oa );
-        const std::vector<double> &want = ( n == "getHiddenBuddings"  ? hb :
-                                          ( n == "getHiddenAnageneses" ? ha :
-                                          ( n == "getObservedBuddings" ? ob : oa ) ) );
+        BranchEvents e;
+        branchEvents( e );
+        const std::vector<double> &want = e.*( events.at( n ) );
         // indexed as dnPhyloCTMC's branchRates are, with no entry for the root
         if ( value->getRoot().getIndex() + 1 != want.size() )
         {

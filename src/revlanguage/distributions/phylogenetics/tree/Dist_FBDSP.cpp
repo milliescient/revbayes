@@ -336,7 +336,8 @@ RevLanguage::MethodTable Dist_FBDSP::getDistributionMethods( void ) const
 
     // by branch, as dnPhyloCTMC's branchRates are: the Poisson means of the hidden speciations above each
     // species' tau_1, and the observed event that began the species
-    for (const std::string &name : { "getHiddenBuddings", "getHiddenAnageneses", "getObservedBuddings", "getObservedAnageneses" })
+    for (const std::string &name : { "getHiddenBuddings", "getHiddenBifurcations", "getHiddenAnageneses",
+                                     "getObservedBuddings", "getObservedBifurcations", "getObservedAnageneses" })
     {
         methods.addFunction( new DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> >( name, variable, new ArgumentRules(), true ) );
     }
