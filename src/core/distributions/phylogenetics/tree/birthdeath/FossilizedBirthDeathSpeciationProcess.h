@@ -105,8 +105,10 @@ namespace RevBayesCore {
         struct RangeFlow { int species; double end_age; };
         RangeFlow                                       updateRanges(const TopologyNode & );
 
-        //!< A range no taxon samples, from where it began to the symmetric speciation that ended it.
-        struct UnsampledRange { double top; double end; bool anagenetic; };
+        //!< A range no taxon samples, from where it began to the symmetric speciation that ended it. At a sampled
+        //!< ancestor it begins by anagenesis in an extended tree, and in a sampled tree it carries on that lineage.
+        enum class RangeStart { SPECIATION, ANAGENESIS, SAMPLED_ANCESTOR };
+        struct UnsampledRange { double top; double end; RangeStart start; };
         double                                          speciationModeLnProb(void) const;                        //!< The mode of each speciation, and the ranges no taxon samples.
 
         double                                          pSurvival(double start, double end) const override;             //!< Compute the probability of survival of the process (without incomplete taxon sampling).

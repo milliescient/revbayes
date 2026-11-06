@@ -1,0 +1,20 @@
+budding:
+TRUE	
+a symmetric speciation ending a range no taxon samples:
+TRUE	
+a range no taxon samples beginning at the origin:
+TRUE	
+a range no taxon samples running through a budding:
+TRUE	
+a sampled successor of a sampled ancestor:
+TRUE	
+a successor no taxon samples, ending at a symmetric speciation:
+TRUE	
+a successor no taxon samples, through a budding:
+TRUE	
+a sampled ancestor's range carried past it is rejected:
+TRUE	
+two children continuing one range is rejected:
+TRUE	
+a checkpoint keeps a successor no taxon samples:
+TRUE	

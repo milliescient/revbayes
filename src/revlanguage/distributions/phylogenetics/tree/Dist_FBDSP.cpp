@@ -137,7 +137,6 @@ RevBayesCore::FossilizedBirthDeathSpeciationProcess* Dist_FBDSP::createDistribut
         if ( hb != NULL ) budding_only = ( hb->getValue() == 0.0 );
         if ( vb != NULL ) for (double x : vb->getValue()) budding_only = budding_only && ( x == 0.0 );
     }
-    if ( budding_only == false && ext == false ) throw RbException("dnFBDSP has symmetric speciation only on an extended tree, so beta needs extended=TRUE.");
     if ( budding_only == false && mr != NULL ) throw RbException("dnFBDSP cannot yet combine symmetric speciation with a psi mixture.");
 
     RevBayesCore::FossilizedBirthDeathSpeciationProcess* d = new RevBayesCore::FossilizedBirthDeathSpeciationProcess(sa, l, m, p, r, la, b, rt, cond, t, true, ext, pres, mr, mw);
@@ -237,7 +236,7 @@ const MemberRules& Dist_FBDSP::getParameterRules(void) const
         std::vector<TypeSpec> betaTypes;
         betaTypes.push_back( Probability::getClassTypeSpec() );
         betaTypes.push_back( ModelVector<Probability>::getClassTypeSpec() );
-        dist_member_rules.push_back( new ArgumentRule( "beta",  betaTypes, "The probability that a speciation is symmetric, ending its parent species with two new ones, rather than budding. Needs extended=TRUE.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, new Probability(0.0) ) );
+        dist_member_rules.push_back( new ArgumentRule( "beta",  betaTypes, "The probability that a speciation is symmetric, ending its parent species with two new ones, rather than budding.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, new Probability(0.0) ) );
 
         dist_member_rules.push_back( new ArgumentRule( "extended",  RlBoolean::getClassTypeSpec(), "Are the tips extinction times? If false the extinction times are marginalized out and each range ends at min(tau_K, youngest child birth).", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean(true) ) );
 

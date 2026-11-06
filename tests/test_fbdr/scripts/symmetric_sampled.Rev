@@ -1,0 +1,54 @@
+# Symmetric speciation on a sampled (extended=FALSE) dnFBDSP tree, whose tips are last appearances. The
+# expected differences come from an independent R implementation checked by simulation: below a sampled
+# ancestor the range is a successor, named or sampled by no taxon, and never the ancestor carried past
+# its sample. Differences cancel the tree-shape constant. Every line printed must be TRUE.
+taxa <- readTaxonData("data/fbdsp_symmetric.tsv")
+trees <- readTrees("data/fbdsp_symmetric_sampled.tre", treetype="clock")
+out = "output/symmetric_sampled.txt"
+
+expected = v(0.0, 0.2876820725, 0.2876820725, 0.2876820725, 2.6121356307, 3.8507973096, 6.3810052275)
+names = v("budding", "a symmetric speciation ending a range no taxon samples",
+          "a range no taxon samples beginning at the origin", "a range no taxon samples running through a budding",
+          "a sampled successor of a sampled ancestor", "a successor no taxon samples, ending at a symmetric speciation",
+          "a successor no taxon samples, through a budding")
+
+x ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=0.5, rho=1.0, lambda_a=0.2, beta=0.4,
+            origin=10.0, condition="time", extended=FALSE)
+rec ~ dnFossilRecord(ranges=x, reporting="complete")
+rec.clamp(taxa)
+
+x.setValue(trees[1])
+base <- x.lnProbability()
+for (i in 1:expected.size()) {
+    x.setValue(trees[i])
+    print(filename=out, append=(i > 1), names[i] + ":\n")
+    print(filename=out, append=TRUE, abs(x.lnProbability() - base - expected[i]) < 1E-8, "\n")
+}
+
+x.setValue(trees[8])
+print(filename=out, append=TRUE, "a sampled ancestor's range carried past it is rejected:\n")
+print(filename=out, append=TRUE, x.lnProbability() < -1E300, "\n")
+x.setValue(trees[9])
+print(filename=out, append=TRUE, "two children continuing one range is rejected:\n")
+print(filename=out, append=TRUE, x.lnProbability() < -1E300, "\n")
+
+# A chain moving only z resumes at the posterior it stopped at, so a checkpoint keeps the modes.
+print(filename=out, append=TRUE, "a checkpoint keeps a successor no taxon samples:\n")
+z ~ dnUniform(0, 1)
+x.setValue(trees[7])
+for (pass in 1:2) {
+    log = "output/symmetric_sampled_" + pass + ".log"
+    m = mcmc(model(x, z), [ mnModel(filename=log, printgen=1) ], [ mvSlide(z, weight=1) ])
+    if (pass == 1) {
+        m.run(generations=100, checkpointFile="output/symmetric_sampled.state", checkpointInterval=100)
+        stopped = readTrace(log, burnin=0)
+    } else {
+        m.initializeFromCheckpoint("output/symmetric_sampled.state")
+        m.run(generations=20)
+        resumed = readTrace(log, burnin=0)
+    }
+}
+last = stopped[2].getValues().size()
+print(filename=out, append=TRUE, resumed[2].getValues()[1] == stopped[2].getValues()[last] && stopped[2].getValues()[last] > -1E300, "\n")
+
+q()

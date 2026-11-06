@@ -184,10 +184,12 @@ double FossilizedBirthDeathSpeciationProcess::speciationModeLnProb( void ) const
         size_t ti = findIndex(r.top);
         size_t ei = findIndex(r.end);
 
-        lnProb += log( birth[ti] ) + lnQFromPresent( ti, r.top ) - lnQFromPresent( ei, r.end );
+        lnProb += lnQFromPresent( ti, r.top ) - lnQFromPresent( ei, r.end );
 
-        // begun by anagenesis where its ancestor was sampled, as computeLnProbabilityTimes does for a taxon
-        if ( r.anagenetic == true ) lnProb += log( anagenetic[ti] ) - log( birth[ti] ) - log( death[ti] );
+        if ( r.start == RangeStart::SPECIATION ) lnProb += log( birth[ti] );
+
+        // the ancestor's end was charged mu, as computeLnProbabilityTimes cancels for a taxon
+        if ( r.start == RangeStart::ANAGENESIS ) lnProb += log( anagenetic[ti] ) - log( death[ti] );
     }
 
     return lnProb;
@@ -1523,8 +1525,9 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
     if ( sa_tip == true && n_cont == 1 )
     {
         // a range carries on past its sampled ancestor only into the symmetric speciation that ends it,
-        // and in an extended tree its tip is its end, so that event sits at the tip's age
-        if ( hasSymmetricSpeciation() == false ) invalid_continuation = true;
+        // and in an extended tree its tip is its end, so that event sits at the tip's age. A sampled tree
+        // cannot tell that range from a successor that no taxon samples, which stands for both.
+        if ( hasSymmetricSpeciation() == false || extended == false ) invalid_continuation = true;
 
         if ( extended == true && invalid_continuation == false )
         {
@@ -1578,7 +1581,8 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
             else
             {
                 // a range no taxon samples begins here
-                unsampled.push_back( UnsampledRange{ node.getAge(), sub.end_age, sa && extended } );
+                RangeStart start = ( sa == false ? RangeStart::SPECIATION : ( extended ? RangeStart::ANAGENESIS : RangeStart::SAMPLED_ANCESTOR ) );
+                unsampled.push_back( UnsampledRange{ node.getAge(), sub.end_age, start } );
             }
             continue;
         }
@@ -1754,7 +1758,7 @@ void FossilizedBirthDeathSpeciationProcess::updateRanges( void )
 
     // the range that begins at the origin may be one no taxon samples
     origin_unsampled = ( invalid_continuation == false && root.isTip() == false && top.species < 0 );
-    if ( origin_unsampled == true ) unsampled.push_back( UnsampledRange{ getOriginAge(), top.end_age, false } );
+    if ( origin_unsampled == true ) unsampled.push_back( UnsampledRange{ getOriginAge(), top.end_age, RangeStart::SPECIATION } );
 
     // an entry that moved is dirty
     for (size_t i = 0; i < taxa.size(); ++i)
