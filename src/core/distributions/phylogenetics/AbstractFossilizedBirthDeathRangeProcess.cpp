@@ -584,7 +584,7 @@ double AbstractFossilizedBirthDeathRangeProcess::conditionLnProb( void ) const
     {
         std::vector<double> p;
         double lambda_pbar = 0.0;
-        mixture_solution.at( origin, p, lambda_pbar );
+        mixtureAt( origin, p, lambda_pbar );
 
         double pbar = 0.0;
         for (size_t h = 0; h < num_components; h++) pbar += mixture_weights[h] * p[h];
@@ -1724,7 +1724,18 @@ void AbstractFossilizedBirthDeathRangeProcess::prepareProbComputation( void ) co
         }
         mixture_weights = ( psi_mixture_weights != NULL ) ? std::vector<double>( psi_mixture_weights->getValue() ) : std::vector<double>(H, 1.0 / H);
 
-        mixture_solution.update( times, birth, death, fossil, mixture_rates, mixture_weights, homogeneous_rho->getValue() );
+        // the closed form rests on a linearisation that symmetric speciation breaks
+        mixtureSymmetric( mix_beta );
+        mixture_numeric_on = false;
+        for (double x : mix_beta) mixture_numeric_on = mixture_numeric_on || x > 0.0;
+        if ( mixture_numeric_on == true )
+        {
+            mixture_numeric.update( times, birth, death, fossil, mixture_rates, mixture_weights, homogeneous_rho->getValue(), mix_beta );
+        }
+        else
+        {
+            mixture_solution.update( times, birth, death, fossil, mixture_rates, mixture_weights, homogeneous_rho->getValue() );
+        }
     }
 }
 
@@ -1759,10 +1770,10 @@ void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, st
 
     std::vector<double> &p = mix_p;
     double lambda_pbar_o = 0.0;
-    mixture_solution.at( o, p, lambda_pbar_o );
+    mixtureAt( o, p, lambda_pbar_o );
 
     std::vector<double> &Q = mix_Q, &Q_scale = mix_Q_scale;
-    mixture_solution.sensitivity( o, b, columns, Q, Q_scale );
+    mixtureSensitivity( o, b, columns, Q, Q_scale );
 
     ln_probs.assign( H, RbConstants::Double::neginf );
 
@@ -1778,7 +1789,9 @@ void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, st
     if ( taxa[i].getMaxAge() == times.front() ) return;
 
     double lambda_pbar_d = 0.0;
-    mixture_solution.at( d, p, lambda_pbar_d );
+    mixtureAt( d, p, lambda_pbar_d );
+    double pbar_d = 0.0;
+    for (size_t h = 0; h < H; h++) pbar_d += mixture_weights[h] * p[h];
 
     // the exposure from d_i up to tau_1, without and with psi
     double birth_death = 0.0, sampling = 0.0;
@@ -1798,8 +1811,9 @@ void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, st
 
         ln_probs[h] += -( birth_death + mixture_rates[h]*sampling ) + ( lambda_pbar_o - lambda_pbar_d );
 
-        // the lineage stays in its component through an anagenesis, so it leaves no sample with p_h
-        if ( ranges[i].survived == false ) ln_probs[h] += rangeEndTerm( i, di, d, p[h] );
+        // the lineage stays in its component through an anagenesis, so it leaves no sample with p_h; the
+        // daughters of a symmetric speciation draw afresh
+        if ( ranges[i].survived == false ) ln_probs[h] += rangeEndTerm( i, di, d, p[h], pbar_d );
     }
 }
 
@@ -1812,6 +1826,26 @@ void AbstractFossilizedBirthDeathRangeProcess::mixtureStemSource( size_t i, std:
 
 
 /** Taxon i's log-density under each component: its range, and its record where one is scored. */
+void AbstractFossilizedBirthDeathRangeProcess::mixtureAt( double t, std::vector<double> &p, double &lambda_pbar ) const
+{
+    if ( mixture_numeric_on == true ) mixture_numeric.at( t, p, lambda_pbar );
+    else                              mixture_solution.at( t, p, lambda_pbar );
+}
+
+
+void AbstractFossilizedBirthDeathRangeProcess::mixtureSensitivity( double s, double t, const std::vector<size_t> &columns, std::vector<double> &Q, std::vector<double> &Q_scale ) const
+{
+    if ( mixture_numeric_on == true ) mixture_numeric.sensitivity( s, t, columns, Q, Q_scale );
+    else                              mixture_solution.sensitivity( s, t, columns, Q, Q_scale );
+}
+
+
+double AbstractFossilizedBirthDeathRangeProcess::mixtureLambdaPbarIntegral( double t0, double t1 ) const
+{
+    return ( mixture_numeric_on == true ) ? mixture_numeric.lambdaPbarIntegral( t0, t1 ) : mixture_solution.lambdaPbarIntegral( t0, t1 );
+}
+
+
 std::vector<double> AbstractFossilizedBirthDeathRangeProcess::psiMixtureComponentLnProbs( size_t i ) const
 {
     prepareProbComputation();
@@ -1831,6 +1865,8 @@ std::vector<double> AbstractFossilizedBirthDeathRangeProcess::psiMixtureComponen
             ln_probs[h] += lp[hj];
         }
     }
+
+    mixtureExtraLnProbs( i, ln_probs );
 
     if ( has_reporting_node == true && taxa[i].getMaxAge() != times.front() )
     {

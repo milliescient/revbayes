@@ -10,6 +10,7 @@
 #include <type_traits>
 #include <vector>
 #include <map>
+#include <limits>
 
 #include "AbstractBirthDeathProcess.h"
 #include "AbstractFossilizedBirthDeathRangeProcess.h"
@@ -185,7 +186,21 @@ double FossilizedBirthDeathSpeciationProcess::speciationModeLnProb( void ) const
         size_t ti = findIndex(r.top);
         size_t ei = findIndex(r.end);
 
-        lnProb += lnQFromPresent( ti, r.top ) - lnQFromPresent( ei, r.end );
+        if ( num_components > 1 )
+        {
+            // its lineage starts in a fresh draw, or in the component of the sampled ancestor it continues
+            std::vector<double> source = mixture_weights;
+            if ( r.start == RangeStart::ANAGENESIS && r.sa_species >= 0 )
+            {
+                source.assign( num_components, 0.0 );
+                source[ ranges[r.sa_species].component ] = 1.0;
+            }
+            lnProb += unsampledMixtureLnProb( r, source );
+        }
+        else
+        {
+            lnProb += lnQFromPresent( ti, r.top ) - lnQFromPresent( ei, r.end );
+        }
 
         if ( r.start == RangeStart::SPECIATION ) lnProb += log( birth[ti] );
 
@@ -246,7 +261,7 @@ double FossilizedBirthDeathSpeciationProcess::computeLnProbabilityTimes( void ) 
 
 
 /** Close range i at d: an extinction, a symmetric speciation, or the marginalization limit. */
-double FossilizedBirthDeathSpeciationProcess::rangeEndTerm( size_t i, size_t di, double d, double p_d ) const
+double FossilizedBirthDeathSpeciationProcess::rangeEndTerm( size_t i, size_t di, double d, double p_d, double pbar_d ) const
 {
     // the symmetric node pays
     if ( species[i].ends_symmetric == true ) return 0.0;
@@ -257,10 +272,11 @@ double FossilizedBirthDeathSpeciationProcess::rangeEndTerm( size_t i, size_t di,
     // extinction, or an anagenetic or symmetric speciation that leaves no sampled descendant
     if ( extended == true )
     {
-        // under a psi mixture the anagenetic successor keeps the component, whose p the caller passes;
-        // symmetric speciation, whose daughters draw afresh, is refused with a mixture
+        // under a psi mixture the anagenetic successor keeps the component, and a symmetric speciation's
+        // daughters each draw one, so the caller passes both p's
         double pd = ( p_d >= 0.0 ? p_d : p( di, d ) );
-        return log( death[di] + anagenetic[di] * pd + birth[di] * symmetric[di] * pd * pd );
+        double pb = ( pbar_d >= 0.0 ? pbar_d : pd );
+        return log( death[di] + anagenetic[di] * pd + birth[di] * symmetric[di] * pb * pb );
     }
 
     if ( species[i].ends_at_sa == true ) return 0.0;
@@ -813,7 +829,7 @@ std::vector<double> FossilizedBirthDeathSpeciationProcess::hiddenSpeciationInteg
         // a hidden daughter draws its own component, so it goes unsampled with probability pbar
         if ( num_components > 1 && t0 < t1 )
         {
-            total = mixture_solution.lambdaPbarIntegral( t0, t1 );
+            total = mixtureLambdaPbarIntegral( t0, t1 );
             for (size_t i = findIndex(t0); t0 < t1; i++)
             {
                 double end = ( i + 1 < num_intervals ) ? std::min( t1, times[i+1] ) : t1;
@@ -898,6 +914,57 @@ void FossilizedBirthDeathSpeciationProcess::hiddenEventIntegrals(const std::vect
 }
 
 
+/** Each interval's beta for the psi mixture's solution, empty where there is no symmetric speciation. */
+void FossilizedBirthDeathSpeciationProcess::mixtureSymmetric( std::vector<double> &beta ) const
+{
+    beta.clear();
+    if ( hasSymmetricSpeciation() == true ) beta = symmetric;
+}
+
+
+/**
+ * An unsampled range's lineage from its top to the symmetric node that ends it, starting in source: the stem matrix
+ * summed over the component it ends in, since nothing is observed of it.
+ */
+double FossilizedBirthDeathSpeciationProcess::unsampledMixtureLnProb( const UnsampledRange &r, const std::vector<double> &source ) const
+{
+    size_t H = num_components;
+    std::vector<size_t> columns( H );
+    for (size_t c = 0; c < H; c++) columns[c] = c;
+    std::vector<double> Q, Q_scale;
+    mixtureSensitivity( r.end, r.top, columns, Q, Q_scale );
+
+    // sum over the end component c, each column on its own scale
+    double top_scale = -std::numeric_limits<double>::infinity();
+    for (size_t c = 0; c < H; c++) top_scale = std::max( top_scale, Q_scale[c] );
+    double total = 0.0;
+    for (size_t c = 0; c < H; c++)
+    {
+        double s = 0.0;
+        for (size_t e = 0; e < H; e++) s += source[e] * Q[c*H + e];
+        total += s * exp( Q_scale[c] - top_scale );
+    }
+    return log( total ) + top_scale;
+}
+
+
+/** An unsampled range begun by anagenesis at taxon i keeps i's component, so it enters i's conditional. */
+void FossilizedBirthDeathSpeciationProcess::mixtureExtraLnProbs( size_t i, std::vector<double> &ln_probs ) const
+{
+    for (const UnsampledRange &r : unsampled)
+    {
+        if ( r.start != RangeStart::ANAGENESIS || r.sa_species != int(i) ) continue;
+        std::vector<double> source( num_components, 0.0 );
+        for (size_t h = 0; h < num_components; h++)
+        {
+            source.assign( num_components, 0.0 );
+            source[h] = 1.0;
+            ln_probs[h] += unsampledMixtureLnProb( r, source );
+        }
+    }
+}
+
+
 /** The range parameters, with the anagenetic and symmetric rates the base class does not hold. */
 std::vector<const DagNode*> FossilizedBirthDeathSpeciationProcess::getRateParameters( void ) const
 {
@@ -938,6 +1005,11 @@ static long speciesBelow( const TopologyNode &node )
  */
 void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e ) const
 {
+    if ( num_components > 1 && hasSymmetricSpeciation() == true )
+    {
+        throw RbException("The per-branch speciation event counts do not yet combine a psi mixture with symmetric speciation.");
+    }
+
     const_cast<FossilizedBirthDeathSpeciationProcess *>( this )->updateRanges();
 
     const Tree &t = *value;
@@ -1734,7 +1806,7 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
             {
                 // a range no taxon samples begins here
                 RangeStart start = ( sa == false ? RangeStart::SPECIATION : ( extended ? RangeStart::ANAGENESIS : RangeStart::SAMPLED_ANCESTOR ) );
-                unsampled.push_back( UnsampledRange{ node.getAge(), sub.end_age, start } );
+                unsampled.push_back( UnsampledRange{ node.getAge(), sub.end_age, start, sa ? sa_species : -1 } );
             }
             continue;
         }
@@ -1821,8 +1893,7 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
  */
 void FossilizedBirthDeathSpeciationProcess::prepareProbComputation( void ) const 
 {
-    AbstractFossilizedBirthDeathRangeProcess::prepareProbComputation();
-
+    // beta first, since the base class solves the psi mixture with it
     if ( homogeneous_lambda_a != NULL )
     {
         anagenetic = std::vector<double>(num_intervals, homogeneous_lambda_a->getValue() );
@@ -1839,6 +1910,8 @@ void FossilizedBirthDeathSpeciationProcess::prepareProbComputation( void ) const
     {
         symmetric = heterogeneous_beta->getValue();
     }
+
+    AbstractFossilizedBirthDeathRangeProcess::prepareProbComputation();
 
     for (size_t i = 0; i < num_intervals; i++)
     {
@@ -1910,7 +1983,7 @@ void FossilizedBirthDeathSpeciationProcess::updateRanges( void )
 
     // the range that begins at the origin may be one no taxon samples
     origin_unsampled = ( invalid_continuation == false && root.isTip() == false && top.species < 0 );
-    if ( origin_unsampled == true ) unsampled.push_back( UnsampledRange{ getOriginAge(), top.end_age, RangeStart::SPECIATION } );
+    if ( origin_unsampled == true ) unsampled.push_back( UnsampledRange{ getOriginAge(), top.end_age, RangeStart::SPECIATION, -1 } );
 
     // an entry that moved is dirty
     for (size_t i = 0; i < taxa.size(); ++i)

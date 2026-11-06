@@ -137,7 +137,6 @@ RevBayesCore::FossilizedBirthDeathSpeciationProcess* Dist_FBDSP::createDistribut
         if ( hb != NULL ) budding_only = ( hb->getValue() == 0.0 );
         if ( vb != NULL ) for (double x : vb->getValue()) budding_only = budding_only && ( x == 0.0 );
     }
-    if ( budding_only == false && mr != NULL && mr->getValue().size() > 1 ) throw RbException("dnFBDSP cannot yet combine symmetric speciation with a psi mixture.");
 
     RevBayesCore::FossilizedBirthDeathSpeciationProcess* d = new RevBayesCore::FossilizedBirthDeathSpeciationProcess(sa, l, m, p, r, la, b, rt, cond, t, true, ext, pres, mr, mw);
 

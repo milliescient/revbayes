@@ -1,2 +1,4 @@
 a mixture of equal rates is the single rate, less the component weights:
 TRUE	
+with symmetric speciation, through a range no taxon samples and a sampled ancestor at a symmetric speciation:
+TRUE	

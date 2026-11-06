@@ -91,7 +91,9 @@ namespace RevBayesCore {
 
     protected:
         bool                                            marginalizesExtinction(void) const override { return extended == false; }
-        double                                          rangeEndTerm(size_t i, size_t di, double d, double p_d = -1.0) const override;
+        double                                          rangeEndTerm(size_t i, size_t di, double d, double p_d = -1.0, double pbar_d = -1.0) const override;
+        void                                            mixtureSymmetric(std::vector<double> &beta) const override;
+        void                                            mixtureExtraLnProbs(size_t i, std::vector<double> &ln_probs) const override;
         void                                            mixtureStemSource(size_t i, std::vector<double> &w) const override;  //!< An anagenetic species starts in its ancestor's component.
         std::vector<size_t>                             mixtureDependents(size_t i) const override;
         double                                          observedRangeRate(size_t j) const override { return anagenetic[j]; }  //!< No anagenesis inside an observed range.
@@ -112,8 +114,9 @@ namespace RevBayesCore {
         //!< A range no taxon samples, from where it began to the symmetric speciation that ended it. At a sampled
         //!< ancestor it begins by anagenesis in an extended tree, and in a sampled tree it carries on that lineage.
         enum class RangeStart { SPECIATION, ANAGENESIS, SAMPLED_ANCESTOR };
-        struct UnsampledRange { double top; double end; RangeStart start; };
+        struct UnsampledRange { double top; double end; RangeStart start; int sa_species; };  //!< sa_species: the sampled ancestor it begins at, else -1
         double                                          speciationModeLnProb(void) const;                        //!< The mode of each speciation, and the ranges no taxon samples.
+        double                                          unsampledMixtureLnProb(const UnsampledRange &r, const std::vector<double> &source) const;  //!< An unsampled range's path under the mixture, starting in source.
 
         double                                          pSurvival(double start, double end) const override;             //!< Compute the probability of survival of the process (without incomplete taxon sampling).
 

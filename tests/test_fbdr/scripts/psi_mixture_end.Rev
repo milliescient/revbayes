@@ -16,4 +16,19 @@ mixed.setValue(trees[1])
 
 print(filename=out, "a mixture of equal rates is the single rate, less the component weights:\n")
 print(filename=out, append=TRUE, abs( mixed.lnProbability() - plain.lnProbability() - 5 * ln(0.5) ) < 1E-8, "\n")
+# With symmetric speciation the mixture is solved numerically, and the daughters of a symmetric speciation, and a
+# range no taxon samples, each draw their component afresh. Equal rates are still one psi, to the solver's tolerance.
+plain_b ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=1.0, rho=1.0, lambda_a=0.2, beta=0.4, origin=10.0, condition="time", extended=TRUE)
+mixed_b ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=0.5, rho=1.0, lambda_a=0.2, beta=0.4, origin=10.0, condition="time", extended=TRUE,
+                  psiMixtureRates=v(2.0, 2.0), psiMixtureWeights=simplex(1, 1))
+rpb ~ dnFossilRecord(ranges=plain_b, reporting="complete"); rpb.clamp(taxa)
+rmb ~ dnFossilRecord(ranges=mixed_b, reporting="complete"); rmb.clamp(taxa)
+print(filename=out, append=TRUE, "with symmetric speciation, through a range no taxon samples and a sampled ancestor at a symmetric speciation:\n")
+ok = TRUE
+for (k in v(5, 8)) {
+    plain_b.setValue(trees[k])
+    mixed_b.setValue(trees[k])
+    ok = ok && abs( mixed_b.lnProbability() - plain_b.lnProbability() - 5 * ln(0.5) ) < 1E-6
+}
+print(filename=out, append=TRUE, ok, "\n")
 q()
