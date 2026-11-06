@@ -1,4 +1,5 @@
 #include <optional>
+#include <functional>
 #include <sstream>
 #include <cstdlib>
 #include <algorithm>
@@ -1416,6 +1417,126 @@ double FossilizedBirthDeathSpeciationProcess::redrawFirstChange( size_t i )
 bool FossilizedBirthDeathSpeciationProcess::isExtended( void ) const { return representation->extended(); }
 bool FossilizedBirthDeathSpeciationProcess::marginalizesExtinction( void ) const { return representation->extended() == false; }
 bool FossilizedBirthDeathSpeciationProcess::tipAgeConstrainedToRange( const Taxon &t ) const { return representation->tipIsLastAppearance( t ); }
+
+
+/**
+ * The sampled tree an extended tree projects to. Each extinct species is cut back to its last appearance: its tip
+ * moves there, or, where its lineage leads on to something below it, a sampled ancestor sits there and the lineage
+ * carries on to the youngest node it leads to, the node at the old tip suppressed.
+ */
+Tree FossilizedBirthDeathSpeciationProcess::sampledTree( void ) const
+{
+    Tree t = *value;
+
+    size_t unsampled_count = 0;
+    labelSpecies( t.getRoot(), rangeLabel( t.getRoot(), unsampled_count ), unsampled_count );
+
+    if ( representation->extended() == false ) return t;
+
+    std::vector<TopologyNode*> tips;
+    for (size_t i = 0; i < taxa.size(); i++) tips.push_back( &t.getNode(i) );
+    TopologyNode *root = &t.getRoot();
+
+    for (size_t i = 0; i < taxa.size(); i++)
+    {
+        TopologyNode *tip = tips[i];
+        if ( ranges[i].survived == true || tip == root ) continue;
+
+        double tk = ranges[i].last;
+
+        // the edge holding the last appearance, on the species' own lineage; above the root, on its stem
+        TopologyNode *n = tip;
+        while ( n != root && n->getParent().getAge() < tk ) n = &n->getParent();
+
+        if ( n == tip )
+        {
+            tip->setAge( tk );
+            continue;
+        }
+
+        // below its sample the lineage leads to a successor: the child it changed into, or a range no taxon samples
+        // where it ended at a symmetric speciation. Its path takes the successor's label.
+        TopologyNode *p0 = &tip->getParent();
+        TopologyNode *c  = ( &p0->getChild(0) == tip ? &p0->getChild(1) : &p0->getChild(0) );
+        std::string mine = StringUtilities::to_string( i );
+        std::string successor = *c->getNodeParameter( "range" );
+        if ( successor == mine ) successor = "u" + StringUtilities::to_string( unsampled_count++ );
+        for (TopologyNode *k = n; k != p0 && k != NULL; )
+        {
+            k->setNodeParameter( "range", successor );
+            TopologyNode *next = NULL;
+            for (size_t j = 0; j < k->getNumberOfChildren(); j++)
+            {
+                if ( *k->getChild(j).getNodeParameter( "range" ) == mine ) next = &k->getChild(j);
+            }
+            k = next;
+        }
+        c->setNodeParameter( "range", successor );
+
+        // drop the old tip, and the node it hung from
+        p0->removeChild( tip );
+        p0->removeChild( c );
+        if ( p0 == root )
+        {
+            p0->setParent( NULL, false );
+            c->setParent( NULL, false );
+            root = c;
+        }
+        else
+        {
+            TopologyNode *gp = &p0->getParent();
+            gp->addChild( c );
+            c->setParent( gp );
+        }
+        if ( n == p0 ) n = c;
+        // which takes it off its parent; setRoot deletes an old root itself
+        if ( p0 != &t.getRoot() ) delete p0;
+
+        // and a sampled ancestor at the last appearance, above what the lineage leads to
+        TopologyNode *a = new TopologyNode();
+        a->setTree( &t );
+        if ( n == root )
+        {
+            root = a;
+        }
+        else
+        {
+            TopologyNode *q = &n->getParent();
+            q->removeChild( n );
+            q->addChild( a );
+            a->setParent( q );
+        }
+        a->setAge( tk );
+        a->setNodeParameter( "range", StringUtilities::to_string( i ) );
+        a->addChild( tip );
+        tip->setParent( a );
+        a->addChild( n );
+        n->setParent( a );
+        tip->setAge( tk );
+        tip->setSampledAncestor( true );
+    }
+
+    // tips by taxon, as the process reads them, then the internal nodes; the tree's own node list is stale
+    size_t next = taxa.size();
+    std::function<void(TopologyNode&)> index = [&]( TopologyNode &node ) {
+        if ( node.isTip() == true ) node.setIndex( std::find( taxa.begin(), taxa.end(), node.getTaxon() ) - taxa.begin() );
+        else                        node.setIndex( next++ );
+        for (size_t c = 0; c < node.getNumberOfChildren(); c++) index( node.getChild(c) );
+    };
+    index( *root );
+    t.setRoot( root, false );
+
+    return t;
+}
+
+
+void FossilizedBirthDeathSpeciationProcess::executeMethod( const std::string &n, const std::vector<const DagNode *> &args, Tree &rv ) const
+{
+    if ( n != "getSampledTree" ) throw RbException( "dnFBDSP has no tree method " + n + "." );
+
+    const_cast<FossilizedBirthDeathSpeciationProcess *>( this )->updateRanges();
+    rv = sampledTree();
+}
 
 
 /** The per-branch speciation events, then the range methods of the base class. */

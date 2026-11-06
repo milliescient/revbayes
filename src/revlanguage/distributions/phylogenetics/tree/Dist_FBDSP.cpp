@@ -363,5 +363,9 @@ RevLanguage::MethodTable Dist_FBDSP::getDistributionMethods( void ) const
         methods.addFunction( new EventAccessor( name, variable ) );
     }
 
+    // the tree an extended tree projects to, for viewing: each species cut back to its last appearance. Not
+    // forced, so it is projected only when something reads it, as a monitor does at each print
+    methods.addFunction( new DistributionMemberFunction<Dist_FBDSP, TimeTree>( "getSampledTree", variable, new ArgumentRules(), false ) );
+
     return methods;
 }

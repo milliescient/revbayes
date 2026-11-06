@@ -11,7 +11,9 @@ Every age in the tree needs a move. Tips are extinction times, sampled by `mvFos
 
 Fossil sampling rates can vary among species, as in `dnFBDRP`. An anagenetic species keeps its ancestor's component. `mvPsiMixtureAllocation` samples the components and `getPsiMixtureComponents()` reports them. The mixture needs `extended=TRUE`.
 
-Symmetric (bifurcating) speciation is not yet available.
+With `beta > 0` a speciation may also be symmetric (bifurcating): the ancestral species ends and both daughters begin new ones.
+
+On an extended tree, `getSampledTree()` returns the sampled tree it projects to: each extinct species cut back to its last appearance, with a sampled ancestor there where its lineage leads on, and each node's `range` label. It is computed only when something reads it, so a monitor can log it for viewing without slowing the chain.
 
 ## authors
 June Walker

@@ -1,0 +1,4 @@
+a child budded below a species' last appearance makes it a sampled ancestor:
+TRUE	
+a last appearance above the root is a sampled ancestor at a new root:
+TRUE	

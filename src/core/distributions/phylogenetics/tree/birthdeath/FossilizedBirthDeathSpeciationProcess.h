@@ -42,9 +42,10 @@ namespace RevBayesCore {
      * @since 2014-03-18, version 1.0
      *
      */
-    class FossilizedBirthDeathSpeciationProcess : public AbstractBirthDeathProcess, public AbstractFossilizedBirthDeathRangeProcess {
+    class FossilizedBirthDeathSpeciationProcess : public AbstractBirthDeathProcess, public AbstractFossilizedBirthDeathRangeProcess, public MemberObject<Tree> {
         
         using AbstractFossilizedBirthDeathRangeProcess::taxa;
+        using AbstractFossilizedBirthDeathRangeProcess::executeMethod;
 
     public:
         FossilizedBirthDeathSpeciationProcess (const TypedDagNode<double>* ra,
@@ -83,6 +84,8 @@ namespace RevBayesCore {
         std::vector<double>                             anageneticIntegrals(const std::vector<std::pair<double,double> > &spans) const;        //!< int lambda_a dt over each span, the anagenetic part of the above.
         std::vector<const DagNode*>                     getRateParameters(void) const;                                      //!< Every node the rates and p(t) depend on.
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const override;  //!< The per-branch speciation events, then the base's range methods.
+        void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, Tree &rv) const override;              //!< getSampledTree.
+        Tree                                            sampledTree(void) const;                                 //!< The tree cut back to each species' last appearance, with range labels.
         //!< By node index: the Poisson means of the hidden speciations on each branch, and the observed event that began the species.
         struct BranchEvents { std::vector<double> hidden_budding, hidden_bifurcation, hidden_anagenetic, observed_budding, observed_bifurcation, observed_anagenetic; };
         void                                            branchEvents(BranchEvents &e, bool hidden = true) const;
