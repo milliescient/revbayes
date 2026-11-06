@@ -422,6 +422,7 @@ void FossilizedBirthDeathSpeciationProcess::redrawValue(SimulationCondition c)
 void FossilizedBirthDeathSpeciationProcess::setValue(Tree *v, bool force)
 {
     AbstractBirthDeathProcess::setValue(v, force);
+    cached_events_level = 0;
 
     // the per-taxon terms are read by tip index
     const std::vector<TopologyNode*> nodes = this->getValue().getNodes();
@@ -1010,6 +1011,13 @@ void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e, bool 
         throw RbException("The hidden speciation counts do not yet combine a psi mixture with symmetric speciation.");
     }
 
+    // six accessors read one tree state, so compute it once
+    if ( cached_events_level >= ( hidden ? 2 : 1 ) )
+    {
+        e = cached_events;
+        return;
+    }
+
     const_cast<FossilizedBirthDeathSpeciationProcess *>( this )->updateRanges();
 
     const Tree &t = *value;
@@ -1054,7 +1062,12 @@ void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e, bool 
         }
     }
 
-    if ( hidden == false ) return;
+    if ( hidden == false )
+    {
+        cached_events = e;
+        cached_events_level = 1;
+        return;
+    }
 
     std::vector<double> hb, hs, ha;
     hiddenEventIntegrals( spans, hb, hs, ha );
@@ -1064,6 +1077,9 @@ void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e, bool 
         e.hidden_bifurcation[ at[k] ] = hs[k];
         e.hidden_anagenetic[ at[k] ]  = ha[k];
     }
+
+    cached_events = e;
+    cached_events_level = 2;
 }
 
 
@@ -2028,6 +2044,7 @@ void FossilizedBirthDeathSpeciationProcess::keepSpecialization(const DagNode *to
 void FossilizedBirthDeathSpeciationProcess::restoreSpecialization(const DagNode *toucher)
 {
     species = stored_species;
+    cached_events_level = 0;
 
     AbstractFossilizedBirthDeathRangeProcess::restoreSpecialization(toucher);
 }
@@ -2054,6 +2071,9 @@ void FossilizedBirthDeathSpeciationProcess::touchSpecialization(const DagNode *t
     }
 
     if ( first_touch == true ) stored_species = species;
+
+    // a parameter or the tree moved, so the per-branch events are stale
+    cached_events_level = 0;
 
     prepareProbComputation();
     updateRanges();
