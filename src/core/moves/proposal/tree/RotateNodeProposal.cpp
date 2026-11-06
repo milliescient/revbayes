@@ -14,12 +14,11 @@
 using namespace RevBayesCore;
 
 
-RotateNodeProposal::RotateNodeProposal( StochasticNode<Tree> *n, bool sym, double sf ) : Proposal(),
+RotateNodeProposal::RotateNodeProposal( StochasticNode<Tree> *n ) : Proposal(),
     tree( n ),
     node_index( 0 ),
-    symmetric( sym ),
+    symmetric( false ),
     failed( false ),
-    successor_fraction( sf ),
     redrew( false )
 {
     addNode( tree );
@@ -51,7 +50,37 @@ double RotateNodeProposal::getProposalTuningParameter( void ) const
 }
 
 
-/** Move the continuation at a random internal node to another child, or with symmetric speciation to none. */
+/** The named successor of each sampled ancestor: follow its sibling's continuation down to a tip. */
+static std::vector<size_t> namedSuccessors( const Tree &tau )
+{
+    std::vector<size_t> s;
+    for (size_t i = 0; i < tau.getNumberOfTips(); i++)
+    {
+        const TopologyNode &tip = tau.getNode(i);
+        if ( tip.isSampledAncestorTip() == false || tip.isRoot() == true ) continue;
+
+        const TopologyNode &sa_node = tip.getParent();
+        const TopologyNode *n = &sa_node.getChild( &sa_node.getChild(0) == &tip ? 1 : 0 );
+        while ( n->isTip() == false )
+        {
+            const TopologyNode *next = NULL;
+            for (size_t c = 0; c < n->getNumberOfChildren(); c++)
+            {
+                if ( n->getChild(c).continuesParentSpecies() ) next = &n->getChild(c);
+            }
+            if ( next == NULL ) break;
+            n = next;
+        }
+        if ( n->isTip() == true ) s.push_back( n->getIndex() );
+    }
+    return s;
+}
+
+
+/**
+ * Pick uniformly among the internal nodes that can flip and, once dnFBDSP holds them, the named successors. A node
+ * moves its continuation to another child, or with symmetric speciation to none; a successor redraws its first change.
+ */
 double RotateNodeProposal::doProposal( void )
 {
     RandomNumberGenerator* rng = GLOBAL_RNG;
@@ -62,12 +91,10 @@ double RotateNodeProposal::doProposal( void )
     redrew = false;
 
     FossilizedBirthDeathSpeciationProcess *fbdsp = dynamic_cast<FossilizedBirthDeathSpeciationProcess *>( &tree->getDistribution() );
-    if ( fbdsp != NULL && fbdsp->hasFirstChanges() == true && rng->uniform01() < successor_fraction )
-    {
-        redrew = true;
-        size_t n = tau.getNumberOfTips();
-        return fbdsp->redrawFirstChange( std::min( n - 1, size_t( rng->uniform01() * n ) ) );
-    }
+    symmetric = ( fbdsp != NULL && fbdsp->hasSymmetricSpeciation() == true );
+    bool latents = ( fbdsp != NULL && fbdsp->hasFirstChanges() == true );
+    std::vector<size_t> successors;
+    if ( latents == true ) successors = namedSuccessors( tau );
 
     // a sampled ancestor node is skipped: its continuation is forced onto the tip. A flip leaves the
     // set unchanged, so its size cancels.
@@ -87,14 +114,22 @@ double RotateNodeProposal::doProposal( void )
         if ( n_cont == 1 || ( symmetric == true && n_cont == 0 ) ) candidates.push_back( i );
     }
 
-    if ( candidates.empty() == true )
+    size_t total = candidates.size() + successors.size();
+    if ( total == 0 )
     {
         failed = true;
         // reject, so a move that could not act is not counted as accepted
         return RbConstants::Double::neginf;
     }
 
-    node_index = candidates[ size_t( rng->uniform01() * candidates.size() ) ];
+    size_t k = size_t( rng->uniform01() * total );
+    if ( k >= candidates.size() )
+    {
+        redrew = true;
+        return fbdsp->redrawFirstChange( successors[ k - candidates.size() ] );
+    }
+
+    node_index = candidates[k];
     TopologyNode& node = tau.getNode( node_index );
 
     stored_children = node.getChildren();
@@ -117,7 +152,9 @@ double RotateNodeProposal::doProposal( void )
         stored_children[c]->setContinuesParentSpecies( c == pick );
     }
 
-    return 0.0;
+    // a flip can name a successor or unname one, which changes the reverse pick's chance
+    if ( latents == false ) return 0.0;
+    return log( double( total ) ) - log( double( candidates.size() + namedSuccessors( tau ).size() ) );
 }
 
 

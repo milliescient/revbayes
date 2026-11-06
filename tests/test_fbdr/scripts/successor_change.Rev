@@ -44,7 +44,7 @@ for (pass in 1:2) {
     log = "output/successor_change_" + pass + ".log"
     # the resumed generation all but surely moves z alone
     w = ifelse(pass == 1, 1.0, 1E-12)
-    mv = [ mvSlide(z, weight=1), mvSpeciationMode(x, symmetric=TRUE, weight=4*w) ]
+    mv = [ mvSlide(z, weight=1), mvSpeciationMode(x, weight=4*w) ]
     for (i in 1:hb.size()) mv.append( mvRandomNaturalWalk(k[i], weight=w) )
     m = mcmc(model(x, z), [ mnFile(filename=log, printgen=1, hb, ob, os, oa) ], mv, moveschedule="single")
     if (pass == 1) {

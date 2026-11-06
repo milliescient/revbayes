@@ -3590,10 +3590,10 @@ moves.append( mvCharacterHistory(ctmc=X, qmap_site=Q, graph="tip",
 
 The expansion picks which daughter buds second, and draws that budding's age uniformly between the daughter and the first budding and the extinction uniformly between the present and the second budding. The collapse is determined. Candidates are all extinct fossil tips, so their number cancels.
 
-Use it with mvSpeciationMode(symmetric=TRUE) and mvCollapseExpandFossilBranch.)");
+Use it with mvSpeciationMode and mvCollapseExpandFossilBranch.)");
 	help_strings[string("mvCollapseExpandSymmetric")][string("example")] = string(R"(beta ~ dnBeta(1, 1)
 tr ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, beta=beta, taxa=taxa)
-moves.append( mvSpeciationMode(tr, symmetric=TRUE, weight=taxa.size()) )
+moves.append( mvSpeciationMode(tr, weight=taxa.size()) )
 moves.append( mvCollapseExpandSymmetric(tr, weight=taxa.size()/5) ))");
 	help_strings[string("mvCollapseExpandSymmetric")][string("name")] = string(R"(mvCollapseExpandSymmetric)");
 	help_arrays[string("mvCollapseExpandSymmetric")][string("see_also")].push_back(string(R"(mvSpeciationMode)"));
@@ -4397,18 +4397,18 @@ moves.append( mvSlideBactrian(x, tune=TRUE, weight=1) ))");
 	help_strings[string("mvSpeciationMode")][string("description")] = string(R"(Moves the continuation of an ancestral species between the children of a random internal node, leaving every node age and the topology unchanged. On a sampled tree whose per-branch event counts are read, it also redraws where a sampled ancestor's successor changed species. Also available as mvRotateNode.)");
 	help_strings[string("mvSpeciationMode")][string("details")] = string(R"(Under budding (asymmetric) speciation exactly one child of each node continues its ancestor's species, and the others begin new species there. Which one continues is a free parameter, separate from the topology and the node ages, and this move samples it. The new continuing child is drawn uniformly among the others.
 
-With symmetric=TRUE, for a tree with symmetric speciation (beta > 0), a node may also have no continuing child: its species ends there and both children begin new ones. The move then draws uniformly among the node's other states, one per child plus symmetric, so the proposal is its own reverse. Nodes with a sampled ancestor are left alone.
+Where beta > 0, a node may also have no continuing child: its species ends there and both children begin new ones. The move then draws uniformly among the node's other states, one per child plus symmetric, so the proposal is its own reverse. Nodes with a sampled ancestor are left alone.
 
-On a sampled tree (extended=FALSE), a sampled ancestor's named successor first appears below it, so its lineage changed species at least once on the way down, unobserved. Once any of the per-branch event accessors (getHiddenBuddings and the others) is created, dnFBDSP holds the first of those changes as a latent: its age, and whether it was an anagenesis, a budding whose parent side left no sample, or a symmetric speciation whose other daughter left none. The accessors report it as that branch's observed event, and count hidden events only below it, so the same model reads both tree types. A fraction successorFraction (by default 0.5) of this move's proposals then redraw one taxon's first change exactly from its density given the tree, so only what reads the counts decides their acceptance. Without the accessors there is no latent and the move only moves continuations.)");
+On a sampled tree (extended=FALSE), a sampled ancestor's named successor first appears below it, so its lineage changed species at least once on the way down, unobserved. Once any of the per-branch event accessors (getHiddenBuddings and the others) is created, dnFBDSP holds the first of those changes as a latent: its age, and whether it was an anagenesis, a budding whose parent side left no sample, or a symmetric speciation whose other daughter left none. The accessors report it as that branch's observed event, and count hidden events only below it, so the same model reads both tree types. Each named successor then joins the nodes the move picks from, and picking one redraws its first change exactly from its density given the tree, so only what reads the counts decides its acceptance. Without the accessors there is no latent and the move only moves continuations.)");
 	help_strings[string("mvSpeciationMode")][string("example")] = string(R"(tr ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, timeline=timeline, taxa=taxa)
 
 # which lineage continues the ancestral species at each speciation event
 moves.append( mvSpeciationMode(tr, weight=taxa.size()/2) )
 
-# with symmetric speciation, also between budding and symmetric
+# with beta > 0 it also moves nodes between budding and symmetric
 beta ~ dnBeta(1, 1)
 tr_sym ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, beta=beta, taxa=taxa)
-moves.append( mvSpeciationMode(tr_sym, symmetric=TRUE, weight=taxa.size()/2) ))");
+moves.append( mvSpeciationMode(tr_sym, weight=taxa.size()/2) ))");
 	help_strings[string("mvSpeciationMode")][string("name")] = string(R"(mvSpeciationMode)");
 	help_arrays[string("mvSpeciationMode")][string("see_also")].push_back(string(R"(dnFossilizedBirthDeathSpeciation)"));
 	help_arrays[string("mvSpeciationMode")][string("see_also")].push_back(string(R"(mvBuddingTopologyRedraw)"));

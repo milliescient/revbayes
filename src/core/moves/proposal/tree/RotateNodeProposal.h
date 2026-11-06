@@ -15,11 +15,11 @@ namespace RevBayesCore {
 
     /**
      * Move the continuation of the parent's species to another child of a random internal node,
-     * leaving every age and the topology alone. With symmetric speciation, a node's three states are
-     * either child continuing or neither, and the move proposes one of the other two uniformly.
+     * leaving every age and the topology alone. Where beta > 0, a node's three states are either child
+     * continuing or neither, and the move proposes one of the other two uniformly.
      *
-     * Once dnFBDSP holds the first changes of species on a sampled tree, a fraction of the proposals instead
-     * redraw one taxon's from its density given the tree, which only the characters then judge.
+     * Once dnFBDSP holds the first changes of species on a sampled tree, each named successor joins the
+     * nodes it picks from, and picking one redraws its first change from its density given the tree.
      *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (June Walker)
@@ -29,7 +29,7 @@ namespace RevBayesCore {
     class RotateNodeProposal : public Proposal {
 
     public:
-        RotateNodeProposal( StochasticNode<Tree> *n, bool sym = false, double sf = 0.5 );                              //!< constructor
+        RotateNodeProposal( StochasticNode<Tree> *n );                              //!< constructor
 
         // Basic utility functions
         void                                    cleanProposal(void);                                            //!< Clean up proposal
@@ -53,11 +53,10 @@ namespace RevBayesCore {
         StochasticNode<Tree>*                   tree;                                                           //!< The variable the Proposal is working on
 
         size_t                                  node_index;
-        bool                                    symmetric;                                                      //!< Whether a node may also be left with no continuing child
+        bool                                    symmetric;                                                      //!< Whether a node may also be left with no continuing child, from beta
         std::vector<TopologyNode*>              stored_children;
         std::vector<bool>                       stored_flags;                                                   //!< Each child's continuation before the proposal
         bool                                    failed;
-        double                                  successor_fraction;                                             //!< The share of proposals that redraw a first change, once there are any
         bool                                    redrew;                                                         //!< The distribution undoes a redrawn first change itself
     };
 

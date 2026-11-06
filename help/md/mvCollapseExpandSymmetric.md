@@ -12,7 +12,7 @@ On an extended tree a tip is a species' extinction. A sampled species that ends 
 
 The expansion picks which daughter buds second, and draws that budding's age uniformly between the daughter and the first budding and the extinction uniformly between the present and the second budding. The collapse is determined. Candidates are all extinct fossil tips, so their number cancels.
 
-Use it with mvSpeciationMode(symmetric=TRUE) and mvCollapseExpandFossilBranch.
+Use it with mvSpeciationMode and mvCollapseExpandFossilBranch.
 
 ## authors
 June Walker
@@ -24,7 +24,7 @@ mvCollapseExpandFossilBranch
 ## example
 beta ~ dnBeta(1, 1)
 tr ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, beta=beta, taxa=taxa)
-moves.append( mvSpeciationMode(tr, symmetric=TRUE, weight=taxa.size()) )
+moves.append( mvSpeciationMode(tr, weight=taxa.size()) )
 moves.append( mvCollapseExpandSymmetric(tr, weight=taxa.size()/5) )
 
 ## references

@@ -1,4 +1,4 @@
-# mvRotateNode(symmetric=TRUE) samples a node's speciation mode: with two taxa the root is budding with
+# mvSpeciationMode samples a node's speciation mode: with two taxa the root is budding with
 # either child continuing, or symmetric, and a chain moving only the mode must visit symmetric in proportion
 # to its density. Every line printed must be TRUE.
 seed(3)
@@ -15,7 +15,7 @@ bud <- x.lnProbability()
 # two budding states, one per continuing child, and one symmetric
 expected <- exp(sym) / (exp(sym) + 2 * exp(bud))
 
-m = mcmc(model(x), [ mnModel(filename="output/symmetric_move.log", printgen=1) ], [ mvRotateNode(x, symmetric=TRUE, weight=1) ])
+m = mcmc(model(x), [ mnModel(filename="output/symmetric_move.log", printgen=1) ], [ mvSpeciationMode(x, weight=1) ])
 m.run(generations=100000)
 trace = readTrace("output/symmetric_move.log", burnin=0)
 # the density takes two values, so its mean gives the share of symmetric; a Rev loop over the samples is quadratic
