@@ -24,13 +24,17 @@ namespace RevBayesCore {
      * object extracts all DAG nodes that are connected to these provided nodes.
      * An independent copy of these nodes is then obtained. 
      * The model object simply provides access to these DAG nodes.
+     * Built with AdoptGraph, it holds the caller's nodes themselves instead of a copy.
      *
      */
     class Model : public Cloneable, public Parallelizable {
         
         public:
-                                                                    Model(const DagNode* source);                                   //!< Constructor from a single DAG node from which the model graph is extracted.
+        struct AdoptGraph {};                                                                                                       //!< Tag for building a model on the caller's nodes instead of a copy.
+
+                                                                    Model(const DagNode* source);                                 //!< Constructor from a single DAG node from which the model graph is extracted.
                                                                     Model(const std::set<const DagNode*> &sources);                 //!< Constructor from a set of DAG nodes from each of which the model graph is extracted.
+                                                                    Model(DagNode* source, AdoptGraph);                             //!< Constructor holding the graph connected to source itself, without copying it.
                                                                     Model(const Model &m);                                          //!< Copy constructor.
         virtual                                                    ~Model();                                                    //!< Destructor.
     
@@ -56,6 +60,7 @@ namespace RevBayesCore {
         
         // private methods
         void                                                        addSourceNode(const DagNode *sourceNode);                       //!< Add a source node, extract the model graph and create and indepedent copy of it.
+        void                                                        adoptSourceNode(DagNode *sourceNode);                           //!< Add a source node and hold the model graph connected to it.
 
 
         // members

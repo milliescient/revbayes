@@ -54,13 +54,27 @@ using namespace RevBayesCore;
  * \param[in]    mvs  The vector of moves.
  * \param[in]    mons The vector of monitors.
  */
-Mcmc::Mcmc(const Model& m, const RbVector<Move> &mvs, const RbVector<Monitor> &mons, size_t ntries) : MonteCarloSampler(),
+Mcmc::Mcmc(const Model& m, const RbVector<Move> &mvs, const RbVector<Monitor> &mons, size_t ntries) : Mcmc( m.clone(), mvs, mons, ntries )
+{
+
+}
+
+
+/**
+ * Constructor taking ownership of the model rather than copying it, for a caller with no further
+ * use for the model.
+ *
+ * \param[in]    m    The model containing all DAG nodes. The Mcmc deletes it.
+ * \param[in]    mvs  The vector of moves.
+ * \param[in]    mons The vector of monitors.
+ */
+Mcmc::Mcmc(Model *m, const RbVector<Move> &mvs, const RbVector<Monitor> &mons, size_t ntries) : MonteCarloSampler(),
     chain_active( true ),
     chain_likelihood_heat( 1.0 ),
     chain_posterior_heat( 1.0 ),
     chain_prior_heat( 1.0 ),
     chain_idx( 0 ),
-    model( m.clone() ),
+    model( m ),
     monitors( mons ),
     moves( mvs ),
     num_init_attempts(ntries),

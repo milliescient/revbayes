@@ -24,6 +24,7 @@ namespace RevBayesCore {
     
     public:
         Mcmc(const Model &m, const RbVector<Move> &moves, const RbVector<Monitor> &mons, size_t ntries=1000);
+        Mcmc(Model *m, const RbVector<Move> &moves, const RbVector<Monitor> &mons, size_t ntries=1000);         //!< Takes ownership of m rather than copying it
         Mcmc(const Mcmc &m);
         virtual                                            ~Mcmc(void);                                                                             //!< Virtual destructor
         

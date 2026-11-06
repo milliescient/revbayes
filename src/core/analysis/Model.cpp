@@ -52,6 +52,19 @@ Model::Model(const std::set<const DagNode*> &s) : Parallelizable(),
 
 
 /**
+ * Constructor holding the graph connected to the source node itself rather than a copy of it.
+ * The model shares ownership of the nodes through their reference counts, so a caller that
+ * runs one analysis on its graph needs no second copy.
+ *
+ * \param[in]    source    The DAG node from which the model graph is extracted.
+ */
+Model::Model(DagNode *source, AdoptGraph) : Parallelizable()
+{
+    adoptSourceNode( source );
+}
+
+
+/**
  * Copy constructor. We instantiate the model from the previously stored source nodes. 
  *
  * \param[in]    m    The model object to copy.
@@ -222,6 +235,48 @@ void Model::addSourceNode(const DagNode *sourceNode)
     }
     
 }
+
+/**
+ * Add a source node and hold every node connected to it, each mapped to itself.
+ *
+ * \param[in]    sourceNode    The DAG node from which the model graph is extracted.
+ */
+void Model::adoptSourceNode(DagNode *sourceNode)
+{
+    if (sourceNode == NULL)
+    {
+        throw RbException("Cannot instantiate a model with a NULL DAG node.");
+    }
+
+    sourceNode->incrementReferenceCount();
+    sources.push_back( sourceNode );
+
+    std::queue<DagNode*> pending;
+    pending.push( sourceNode );
+    while ( pending.empty() == false )
+    {
+        DagNode *the_node = pending.front();
+        pending.pop();
+        if ( nodesMap.find( the_node ) != nodesMap.end() )
+        {
+            continue;
+        }
+
+        nodesMap[ the_node ] = the_node;
+        the_node->incrementReferenceCount();
+        nodes.push_back( the_node );
+
+        for (const DagNode *p : the_node->getParents())
+        {
+            pending.push( const_cast<DagNode*>( p ) );
+        }
+        for (DagNode *c : the_node->getChildren())
+        {
+            pending.push( c );
+        }
+    }
+}
+
 
 /**
  * The clone function is a convenience function to create proper copies of inherited objected.
