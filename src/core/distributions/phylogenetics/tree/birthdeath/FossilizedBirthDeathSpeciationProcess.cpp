@@ -1415,6 +1415,59 @@ double FossilizedBirthDeathSpeciationProcess::redrawFirstChange( size_t i )
 }
 
 
+/** Where tip i's extinction may lie: above the present, below its last appearance and its parent. */
+bool FossilizedBirthDeathSpeciationProcess::extinctionWindow( size_t i, double &lo, double &hi ) const
+{
+    const TopologyNode &tip = getValue().getNode(i);
+    if ( representation->extended() == false || tip.isRoot() == true || tip.isSampledAncestorTip() == true || ranges[i].survived == true ) return false;
+
+    lo = getPresent();
+    hi = std::min( ranges[i].last, tip.getParent().getAge() );
+    return hi > lo;
+}
+
+
+// the mass of an end below s, up to a constant: q~(tau_K -> s) p(s), which is p(tau_K) at tau_K
+static double lnEndMassBelow( double ln_qt_s, double p_s ) { return ( p_s > 0.0 ? log( p_s ) - ln_qt_s : RbConstants::Double::neginf ); }
+
+
+double FossilizedBirthDeathSpeciationProcess::drawExtinctionTime( size_t i ) const
+{
+    double lo, hi;
+    if ( extinctionWindow( i, lo, hi ) == false ) return RbConstants::Double::nan;
+
+    auto ln_mass = [&]( double s ) { size_t si = findIndex( s ); return lnEndMassBelow( lnQTildeFromPresent( si, s ), p( si, s ) ); };
+    double m_lo = ln_mass( lo ), m_hi = ln_mass( hi );
+
+    // inverse of the mass between lo and hi
+    double u = GLOBAL_RNG->uniform01();
+    double target = ( m_lo == RbConstants::Double::neginf ? log( u ) + m_hi : m_lo + log1p( u * expm1( m_hi - m_lo ) ) );
+
+    double a = lo, b = hi;
+    for (size_t k = 0; k < 200 && b - a > 1E-12*(1.0 + hi); ++k)
+    {
+        double mid = 0.5 * (a + b);
+        if ( ln_mass( mid ) < target ) a = mid; else b = mid;
+    }
+    return 0.5 * (a + b);
+}
+
+
+/** The density of the draw above at d: the derivative of that mass, q~(tau_K -> d) times the end term. */
+double FossilizedBirthDeathSpeciationProcess::extinctionTimeLnDensity( size_t i, double d ) const
+{
+    double lo, hi;
+    if ( extinctionWindow( i, lo, hi ) == false || d <= lo || d > hi ) return RbConstants::Double::neginf;
+
+    auto ln_mass = [&]( double s ) { size_t si = findIndex( s ); return lnEndMassBelow( lnQTildeFromPresent( si, s ), p( si, s ) ); };
+    double m_lo = ln_mass( lo ), m_hi = ln_mass( hi );
+    double ln_total = ( m_lo == RbConstants::Double::neginf ? m_hi : m_hi + log( -expm1( m_lo - m_hi ) ) );
+
+    size_t di = findIndex( d );
+    return representation->endTerm( *this, di, d, -1.0, -1.0 ) - lnQTildeFromPresent( di, d ) - ln_total;
+}
+
+
 bool FossilizedBirthDeathSpeciationProcess::isExtended( void ) const { return representation->extended(); }
 bool FossilizedBirthDeathSpeciationProcess::marginalizesExtinction( void ) const { return representation->extended() == false; }
 bool FossilizedBirthDeathSpeciationProcess::tipAgeConstrainedToRange( const Taxon &t ) const { return representation->tipIsLastAppearance( t ); }

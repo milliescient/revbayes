@@ -93,6 +93,13 @@ namespace RevBayesCore {
         mutable int                                     cached_events_level = 0;                                 //!< 0 stale, 1 observed only, 2 hidden too
         double                                          drawExtinction(size_t i) const;                                  //!< On a sampled tree, a draw of species i's extinction from its conditional.
 
+        //!< On an extended tree, tip i's extinction given everything else: q~(tau_K -> d) times its end, between the
+        //!< present and the younger of tau_K and its parent's age. Exact for one psi; mvExtinctionTimeGibbs proposes from it.
+        void                                            prepareForProposal(void) { updateRanges(); prepareProbComputation(); }  //!< The ranges and rates as the current tree and parameters have them.
+        bool                                            extinctionWindow(size_t i, double &lo, double &hi) const;
+        double                                          drawExtinctionTime(size_t i) const;
+        double                                          extinctionTimeLnDensity(size_t i, double d) const;
+
         //!< On a sampled tree, the first change of species on the path from a sampled ancestor down to its named successor:
         //!< its age as a fraction u of that path, and its mode. Unused for any other taxon, which holds it under a
         //!< uniform pseudo-prior. Only the event accessors need it, so it is live once one of them is read.
