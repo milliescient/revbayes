@@ -9,6 +9,7 @@
 #include "Move_RotateNode.h"
 #include "RotateNodeProposal.h"
 #include "RlBoolean.h"
+#include "Probability.h"
 #include "RealPos.h"
 #include "RevObject.h"
 #include "RlTimeTree.h"
@@ -50,7 +51,9 @@ void Move_RotateNode::constructInternalObject( void )
 
     bool sym = static_cast<const RlBoolean &>( symmetric->getRevObject() ).getValue();
 
-    RevBayesCore::RotateNodeProposal *p = new RevBayesCore::RotateNodeProposal( t, sym );
+    double sf = static_cast<const Probability &>( successor_fraction->getRevObject() ).getValue();
+
+    RevBayesCore::RotateNodeProposal *p = new RevBayesCore::RotateNodeProposal( t, sym, sf );
 
     value = new RevBayesCore::MetropolisHastingsMove(p, we, false);
 }
@@ -104,6 +107,7 @@ const MemberRules& Move_RotateNode::getParameterRules(void) const
     {
         move_member_rules.push_back( new ArgumentRule( "tree", TimeTree::getClassTypeSpec(), "The tree on which this move operates.", ArgumentRule::BY_REFERENCE, ArgumentRule::STOCHASTIC ) );
         move_member_rules.push_back( new ArgumentRule( "symmetric", RlBoolean::getClassTypeSpec(), "Whether a node may also be left with no child continuing its species, a symmetric speciation. Use with beta > 0.", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean( false ) ) );
+        move_member_rules.push_back( new ArgumentRule( "successorFraction", Probability::getClassTypeSpec(), "The fraction of proposals that redraw a sampled ancestor's successor's first change of species, on a sampled tree whose event accessors exist.", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new Probability( 0.5 ) ) );
 
         const MemberRules& inheritedRules = Move::getParameterRules();
         move_member_rules.insert( move_member_rules.end(), inheritedRules.begin(), inheritedRules.end() );
@@ -153,6 +157,10 @@ void Move_RotateNode::setConstParameter(const std::string& name, const RevPtr<co
     else if ( name == "symmetric" )
     {
         symmetric = var;
+    }
+    else if ( name == "successorFraction" )
+    {
+        successor_fraction = var;
     }
     else
     {

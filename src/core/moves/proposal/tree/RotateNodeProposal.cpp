@@ -14,11 +14,12 @@
 using namespace RevBayesCore;
 
 
-RotateNodeProposal::RotateNodeProposal( StochasticNode<Tree> *n, bool sym ) : Proposal(),
+RotateNodeProposal::RotateNodeProposal( StochasticNode<Tree> *n, bool sym, double sf ) : Proposal(),
     tree( n ),
     node_index( 0 ),
     symmetric( sym ),
     failed( false ),
+    successor_fraction( sf ),
     redrew( false )
 {
     addNode( tree );
@@ -61,7 +62,7 @@ double RotateNodeProposal::doProposal( void )
     redrew = false;
 
     FossilizedBirthDeathSpeciationProcess *fbdsp = dynamic_cast<FossilizedBirthDeathSpeciationProcess *>( &tree->getDistribution() );
-    if ( fbdsp != NULL && fbdsp->hasFirstChanges() == true && rng->uniform01() < 0.5 )
+    if ( fbdsp != NULL && fbdsp->hasFirstChanges() == true && rng->uniform01() < successor_fraction )
     {
         redrew = true;
         size_t n = tau.getNumberOfTips();

@@ -39,6 +39,7 @@ namespace RevLanguage {
 
         RevPtr<const RevVariable>                   tree;
         RevPtr<const RevVariable>                   symmetric;
+        RevPtr<const RevVariable>                   successor_fraction;
     };
 
 }
