@@ -1,0 +1,60 @@
+# Symmetric speciation on an extended dnFBDSP tree. The trees carry each node's range label, so the
+# speciation mode at every node is fixed. The expected differences between trees come from an
+# independent R implementation of the density, whose terms were checked by simulation:
+#   budding 1-beta, symmetric 2 lambda beta, a range no taxon samples q from its top to its end,
+#   and an unobserved end mu + lambda_a p + lambda beta p^2.
+# Differences cancel the tree-shape constant. Every line printed must be TRUE.
+taxa <- readTaxonData("data/fbdsp_symmetric.tsv")
+trees <- readTrees("data/fbdsp_symmetric.tre", treetype="clock")
+out = "output/symmetric.txt"
+
+expected = v(0.0, 0.0, 0.2876820725, 0.2876820725, 0.2876820725, 1.4228119316, 2.3433194246, 2.6872798958)
+names = v("budding", "budding with the other daughter continuing", "a symmetric speciation ending a range no taxon samples",
+          "a range no taxon samples beginning at the origin", "a range no taxon samples running through a budding",
+          "anagenesis at a sampled ancestor", "an anagenesis into a range no taxon samples",
+          "a sampled ancestor ending at a symmetric speciation")
+
+x ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=0.5, rho=1.0, lambda_a=0.2, beta=0.4,
+            origin=10.0, condition="time", extended=TRUE)
+
+x.setValue(trees[1])
+base <- x.lnProbability()
+for (i in 1:expected.size()) {
+    x.setValue(trees[i])
+    print(filename=out, append=(i > 1), names[i] + ":\n")
+    print(filename=out, append=TRUE, abs(x.lnProbability() - base - expected[i]) < 1E-8, "\n")
+}
+
+x.setValue(trees[9])
+print(filename=out, append=TRUE, "a sampled ancestor's range carried past it is rejected:\n")
+print(filename=out, append=TRUE, x.lnProbability() < -1E300, "\n")
+x.setValue(trees[10])
+print(filename=out, append=TRUE, "a range reaching two tips is rejected:\n")
+print(filename=out, append=TRUE, x.lnProbability() < -1E300, "\n")
+
+# A chain moving only z resumes at the posterior it stopped at, so a checkpoint keeps the modes.
+print(filename=out, append=TRUE, "a checkpoint keeps a range no taxon samples, and a sampled ancestor at a symmetric speciation:\n")
+same = TRUE
+for (k in v(5, 8)) {
+    z ~ dnUniform(0, 1)
+    tr ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=0.5, rho=1.0, lambda_a=0.2, beta=0.4,
+                 origin=10.0, condition="time", extended=TRUE)
+    tr.setValue(trees[k])
+    for (pass in 1:2) {
+        log = "output/symmetric_" + k + "_" + pass + ".log"
+        m = mcmc(model(tr, z), [ mnModel(filename=log, printgen=1) ], [ mvSlide(z, weight=1) ])
+        if (pass == 1) {
+            m.run(generations=100, checkpointFile="output/symmetric_" + k + ".state", checkpointInterval=100)
+            stopped = readTrace(log, burnin=0)
+        } else {
+            m.initializeFromCheckpoint("output/symmetric_" + k + ".state")
+            m.run(generations=20)
+            resumed = readTrace(log, burnin=0)
+        }
+    }
+    last = stopped[2].getValues().size()
+    same = same && resumed[2].getValues()[1] == stopped[2].getValues()[last]
+}
+print(filename=out, append=TRUE, same, "\n")
+
+q()

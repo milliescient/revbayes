@@ -347,11 +347,11 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnProbabilityRanges( boo
     // only the oldest range begins at the origin
     if ( origin_age != NULL )
     {
-        if ( ranges[max_birth].divergence != origin ) return RbConstants::Double::neginf;
+        if ( origin_unsampled == false && ranges[max_birth].divergence != origin ) return RbConstants::Double::neginf;
 
         for (size_t i = 0; i < taxa.size(); ++i)
         {
-            if ( i != max_birth && ranges[i].divergence >= origin ) return RbConstants::Double::neginf;
+            if ( ( origin_unsampled == true || i != max_birth ) && ranges[i].divergence >= origin ) return RbConstants::Double::neginf;
         }
     }
 

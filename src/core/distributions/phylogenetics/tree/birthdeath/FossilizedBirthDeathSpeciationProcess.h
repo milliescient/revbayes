@@ -13,7 +13,7 @@ namespace RevBayesCore {
 
         bool parent_is_sa   = false;    //!< The range this one budded from was sampled at that node.
         bool ends_at_sa     = false;    //!< The range ends at a sampled ancestor, so its lineage carries on.
-        bool ends_symmetric = false;    //!< The range ends by symmetric speciation rather than extinction.
+        bool ends_symmetric = false;    //!< The range ends at an observed symmetric speciation, which its node pays for.
         int  sa_parent      = -1;       //!< With parent_is_sa, the range sampled at that node.
 
         bool operator==(const SpeciesEntry &e) const
@@ -105,6 +105,10 @@ namespace RevBayesCore {
         struct RangeFlow { int species; double end_age; };
         RangeFlow                                       updateRanges(const TopologyNode & );
 
+        //!< A range no taxon samples, from where it began to the symmetric speciation that ended it.
+        struct UnsampledRange { double top; double end; bool anagenetic; };
+        double                                          speciationModeLnProb(void) const;                        //!< The mode of each speciation, and the ranges no taxon samples.
+
         double                                          pSurvival(double start, double end) const override;             //!< Compute the probability of survival of the process (without incomplete taxon sampling).
 
         // Parameter management functions
@@ -140,7 +144,8 @@ namespace RevBayesCore {
         // helper functions
         double                                          getMaxTaxonAge( const TopologyNode& ) const;
 
-        void                                            labelSpecies(TopologyNode &node, int s) const;           //!< Stamp the range each node belongs to, top down.
+        void                                            labelSpecies(TopologyNode &node, const std::string &s, size_t &unsampled_count) const;  //!< Stamp the range each node belongs to, top down.
+        std::string                                     rangeLabel(const TopologyNode &node, size_t &unsampled_count) const;                  //!< A taxon's index, or a fresh id for a range no taxon samples.
         bool                                            adoptSpeciesLabels(void);                               //!< Take the continuation flags from a tree's range labels.
         bool                                            adoptAppearances(void);                                 //!< Take the appearances from the tips' FAD and LAD.
 
@@ -150,7 +155,9 @@ namespace RevBayesCore {
         std::vector<SpeciesEntry>                       next_species;                                            //!< Where the tree pass builds the replacement.
         std::vector<SpeciesEntry>                       stored_species;                                          //!< The table as the proposal found it.
 
-        mutable double                                  budding_lnProb;                                          //!< Sum of log(1-beta) over budding events.
+        std::vector<double>                             budding_ages;                                            //!< Each budding event, which pays 1-beta.
+        std::vector<double>                             symmetric_ages;                                          //!< Each symmetric event, which pays 2 beta for both daughters' births.
+        std::vector<UnsampledRange>                     unsampled;                                               //!< The ranges no taxon samples.
         mutable bool                                    invalid_continuation = false;                            //!< Some node's children do not name exactly one continuation.
 
         mutable std::vector<double>                     anagenetic;                                              //!< The sorted anagenetic speciation rates.

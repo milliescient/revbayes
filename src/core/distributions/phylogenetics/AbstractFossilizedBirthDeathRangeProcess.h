@@ -202,6 +202,7 @@ namespace RevBayesCore {
         std::vector<RangeEntry>                         ranges;                                                 //!< One per taxon.
         
         double                                          origin;                                                 //!< The origin time (oldest birth time)
+        bool                                            origin_unsampled = false;                               //!< No taxon samples the range that begins at the origin.
         size_t                                          max_birth;                                              //!< Index of the taxon holding the oldest divergence time.
 
         // the following vectors are used internally for more efficient likelihood calculations and are filled by 'prepareProbComputation'

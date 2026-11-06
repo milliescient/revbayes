@@ -1,0 +1,22 @@
+budding:
+TRUE	
+budding with the other daughter continuing:
+TRUE	
+a symmetric speciation ending a range no taxon samples:
+TRUE	
+a range no taxon samples beginning at the origin:
+TRUE	
+a range no taxon samples running through a budding:
+TRUE	
+anagenesis at a sampled ancestor:
+TRUE	
+an anagenesis into a range no taxon samples:
+TRUE	
+a sampled ancestor ending at a symmetric speciation:
+TRUE	
+a sampled ancestor's range carried past it is rejected:
+TRUE	
+a range reaching two tips is rejected:
+TRUE	
+a checkpoint keeps a range no taxon samples, and a sampled ancestor at a symmetric speciation:
+TRUE	

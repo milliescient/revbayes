@@ -97,8 +97,8 @@ RevBayesCore::FossilizedBirthDeathSpeciationProcess* Dist_FBDSP::createDistribut
     RevBayesCore::DagNode* p = psi->getRevObject().getDagNode();
     // anagnetic speciation rate
     RevBayesCore::DagNode* la = lambda_a->getRevObject().getDagNode();
-    // symmetric speciation probability, pinned at zero until it has a move
-    RevBayesCore::DagNode* b = new RevBayesCore::ConstantNode<double>( "", new double(0.0) );
+    // the probability that a speciation is symmetric
+    RevBayesCore::DagNode* b = beta->getRevObject().getDagNode();
 
     // sampling probability
     RevBayesCore::TypedDagNode<double>* r = static_cast<const Probability &>( rho->getRevObject() ).getDagNode();
@@ -126,6 +126,19 @@ RevBayesCore::FossilizedBirthDeathSpeciationProcess* Dist_FBDSP::createDistribut
         if ( mr == NULL ) throw RbException("psiMixtureWeights needs psiMixtureRates.");
         mw = static_cast<const Simplex &>( psi_mixture_weights->getRevObject() ).getDagNode();
     }
+
+    // beta is fixed at zero only as a constant; anything else may become positive
+    bool budding_only = false;
+    if ( b->isConstant() == true )
+    {
+        const RevBayesCore::TypedDagNode<double> *hb = dynamic_cast<const RevBayesCore::TypedDagNode<double>*>( b );
+        const RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> > *vb = dynamic_cast<const RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> >*>( b );
+        budding_only = true;
+        if ( hb != NULL ) budding_only = ( hb->getValue() == 0.0 );
+        if ( vb != NULL ) for (double x : vb->getValue()) budding_only = budding_only && ( x == 0.0 );
+    }
+    if ( budding_only == false && ext == false ) throw RbException("dnFBDSP has symmetric speciation only on an extended tree, so beta needs extended=TRUE.");
+    if ( budding_only == false && mr != NULL ) throw RbException("dnFBDSP cannot yet combine symmetric speciation with a psi mixture.");
 
     RevBayesCore::FossilizedBirthDeathSpeciationProcess* d = new RevBayesCore::FossilizedBirthDeathSpeciationProcess(sa, l, m, p, r, la, b, rt, cond, t, true, ext, pres, mr, mw);
 
@@ -221,7 +234,11 @@ const MemberRules& Dist_FBDSP::getParameterRules(void) const
         paramTypes.push_back( ModelVector<RealPos>::getClassTypeSpec() );
         dist_member_rules.push_back( new ArgumentRule( "lambda_a",  paramTypes, "The anagenetic speciation rate(s).", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, new RealPos(0.0) ) );
 
-        // beta is omitted until symmetric speciation has a move
+        std::vector<TypeSpec> betaTypes;
+        betaTypes.push_back( Probability::getClassTypeSpec() );
+        betaTypes.push_back( ModelVector<Probability>::getClassTypeSpec() );
+        dist_member_rules.push_back( new ArgumentRule( "beta",  betaTypes, "The probability that a speciation is symmetric, ending its parent species with two new ones, rather than budding. Needs extended=TRUE.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, new Probability(0.0) ) );
+
         dist_member_rules.push_back( new ArgumentRule( "extended",  RlBoolean::getClassTypeSpec(), "Are the tips extinction times? If false the extinction times are marginalized out and each range ends at min(tau_K, youngest child birth).", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean(true) ) );
 
         dist_member_rules.push_back( new ArgumentRule( "psiMixtureRates", ModelVector<RealPos>::getClassTypeSpec(), "The relative fossil sampling rate of each mixture component, which multiplies psi. Each species draws its component at budding, and an anagenetic species keeps its ancestor's. Needs extended=true. Left out, there is one component.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
@@ -263,6 +280,10 @@ void Dist_FBDSP::setConstParameter(const std::string& name, const RevPtr<const R
     if ( name == "lambda_a" )
     {
         lambda_a = var;
+    }
+    else if ( name == "beta" )
+    {
+        beta = var;
     }
     else if ( name == "extended" )
     {

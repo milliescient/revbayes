@@ -153,8 +153,42 @@ double FossilizedBirthDeathSpeciationProcess::computeLnProbabilityDivergenceTime
 
     lnProb += computeLnProbabilityTimes();
 
-    // each budding event carries 1-beta
-    lnProb += budding_lnProb;
+    lnProb += speciationModeLnProb();
+
+    return lnProb;
+}
+
+
+/**
+ * A budding pays 1-beta; a symmetric speciation pays 2 beta lambda for both daughters, who each already carry
+ * a lambda at their birth, since its daughters have no order while a budding's two orientations are separate
+ * states. A range no taxon samples pays its birth and q down to the symmetric node that ends it.
+ */
+double FossilizedBirthDeathSpeciationProcess::speciationModeLnProb( void ) const
+{
+    double lnProb = 0.0;
+
+    for (double a : budding_ages)
+    {
+        lnProb += log( 1.0 - symmetric[ findIndex(a) ] );
+    }
+
+    for (double a : symmetric_ages)
+    {
+        size_t i = findIndex(a);
+        lnProb += log( 2.0 * symmetric[i] ) - log( birth[i] );
+    }
+
+    for (const UnsampledRange &r : unsampled)
+    {
+        size_t ti = findIndex(r.top);
+        size_t ei = findIndex(r.end);
+
+        lnProb += log( birth[ti] ) + lnQFromPresent( ti, r.top ) - lnQFromPresent( ei, r.end );
+
+        // begun by anagenesis where its ancestor was sampled, as computeLnProbabilityTimes does for a taxon
+        if ( r.anagenetic == true ) lnProb += log( anagenetic[ti] ) - log( birth[ti] ) - log( death[ti] );
+    }
 
     return lnProb;
 }
@@ -211,14 +245,18 @@ double FossilizedBirthDeathSpeciationProcess::computeLnProbabilityTimes( void ) 
 /** Close range i at d: an extinction, a symmetric speciation, or the marginalization limit. */
 double FossilizedBirthDeathSpeciationProcess::rangeEndTerm( size_t i, size_t di, double d ) const
 {
-    // lambda*beta, less the lambda each daughter already carries
-    if ( species[i].ends_symmetric == true ) return log( symmetric[di] ) - log( birth[di] );
+    // the symmetric node pays
+    if ( species[i].ends_symmetric == true ) return 0.0;
 
     // computeLnProbabilityTimes cancels log(mu) at a sampled ancestor
     if ( extended == true && species[i].ends_at_sa == true ) return log( death[di] );
 
-    // extinction, or an anagenetic change to a species that leaves no sampled descendant
-    if ( extended == true ) return log( death[di] + anagenetic[di] * p( di, d ) );
+    // extinction, or an anagenetic or symmetric speciation that leaves no sampled descendant
+    if ( extended == true )
+    {
+        double pd = p( di, d );
+        return log( death[di] + anagenetic[di] * pd + birth[di] * symmetric[di] * pd * pd );
+    }
 
     if ( species[i].ends_at_sa == true ) return 0.0;
 
@@ -373,6 +411,14 @@ void FossilizedBirthDeathSpeciationProcess::setValue(Tree *v, bool force)
     }
     this->getValue().orderNodesByIndex();
 
+    // a sampled ancestor at a symmetric speciation sits beside a zero-length branch, which a Newick cannot tell
+    for (size_t i = 0; i < this->getValue().getNumberOfTips(); i++)
+    {
+        TopologyNode &tip = this->getValue().getNode(i);
+        std::optional<std::string> sa = tip.eraseNodeParameter( "sa" );
+        if ( sa.has_value() == true && *sa == "1" ) tip.setSampledAncestor( true );
+    }
+
     // flags before ages: the flags name each origination time
     if ( adoptSpeciesLabels() == false )
     {
@@ -404,7 +450,8 @@ std::string FossilizedBirthDeathSpeciationProcess::getHiddenStateString( void ) 
 {
     Tree t = *this->value;
 
-    labelSpecies( t.getRoot(), continuingSpecies( t.getRoot() ) );
+    size_t unsampled_count = 0;
+    labelSpecies( t.getRoot(), rangeLabel( t.getRoot(), unsampled_count ), unsampled_count );
 
     for (size_t i = 0; i < taxa.size(); ++i)
     {
@@ -420,6 +467,8 @@ std::string FossilizedBirthDeathSpeciationProcess::getHiddenStateString( void ) 
         tip.setNodeParameter( "LAD", last.str() );
         tip.setNodeParameter( "singleton", ranges[i].singleton ? "1" : "0" );
         tip.setNodeParameter( "survived", ranges[i].survived ? "1" : "0" );
+        // a Newick reads a zero-length tip as a sampled ancestor only beside a positive branch
+        if ( tip.isSampledAncestorTip() == true ) tip.setNodeParameter( "sa", "1" );
         if ( num_components > 1 ) tip.setNodeParameter( "component", StringUtilities::to_string( ranges[i].component ) );
     }
 
@@ -469,18 +518,28 @@ void FossilizedBirthDeathSpeciationProcess::setHiddenStateFromString( const std:
 
 
 /** The range each node belongs to, stamped top down. */
-void FossilizedBirthDeathSpeciationProcess::labelSpecies( TopologyNode &node, int s ) const
+void FossilizedBirthDeathSpeciationProcess::labelSpecies( TopologyNode &node, const std::string &s, size_t &unsampled_count ) const
 {
-    if ( s >= 0 ) node.setNodeParameter( "range", StringUtilities::to_string(s) );
+    node.setNodeParameter( "range", s );
 
     std::vector<TopologyNode*> children = node.getChildren();
     for (size_t c = 0; c < children.size(); c++)
     {
-        // a child that does not continue begins its own species at this node
-        int cs = children[c]->continuesParentSpecies() ? s : continuingSpecies( *children[c] );
+        // a child that does not continue begins its own range at this node
+        std::string cs = children[c]->continuesParentSpecies() ? s : rangeLabel( *children[c], unsampled_count );
 
-        labelSpecies( *children[c], cs );
+        labelSpecies( *children[c], cs, unsampled_count );
     }
+}
+
+
+/** A range no taxon samples still needs a label of its own, so the flags along it survive a checkpoint. */
+std::string FossilizedBirthDeathSpeciationProcess::rangeLabel( const TopologyNode &node, size_t &unsampled_count ) const
+{
+    int k = continuingSpecies( node );
+    if ( k >= 0 ) return StringUtilities::to_string( k );
+
+    return "u" + StringUtilities::to_string( unsampled_count++ );
 }
 
 
@@ -836,6 +895,8 @@ static long speciesBelow( const TopologyNode &node )
  */
 void FossilizedBirthDeathSpeciationProcess::branchEvents( std::vector<double> &hidden_budding, std::vector<double> &hidden_anagenetic, std::vector<double> &observed_budding, std::vector<double> &observed_anagenetic ) const
 {
+    if ( hasSymmetricSpeciation() == true ) throw RbException("The per-branch speciation event counts do not yet count symmetric speciation, so they need beta = 0.");
+
     const_cast<FossilizedBirthDeathSpeciationProcess *>( this )->updateRanges();
 
     const Tree &t = *value;
@@ -1334,10 +1395,14 @@ int FossilizedBirthDeathSpeciationProcess::continuingSpecies( const TopologyNode
 {
     if ( node.isTip() == true ) return int( node.getIndex() );
 
+    // at a sampled ancestor the tip names the range, whichever slot it is in
     const std::vector<TopologyNode*> &children = node.getChildren();
     for (size_t c = 0; c < children.size(); c++)
     {
-        if ( children[c]->continuesParentSpecies() == true ) return continuingSpecies( *children[c] );
+        if ( children[c]->continuesParentSpecies() == false ) continue;
+
+        int s = continuingSpecies( *children[c] );
+        if ( s >= 0 ) return s;
     }
 
     return -1;
@@ -1372,11 +1437,18 @@ void FossilizedBirthDeathSpeciationProcess::normalizeContinuationFlags( const To
         if ( children[c]->isSampledAncestorTip() == false && children[c]->continuesParentSpecies() == true ) ++n_cont;
     }
 
-    // zero continuations is symmetric speciation, legal where this node's beta is positive
-    bool legal = ( n_cont == 1 ) ||
-                 ( n_cont == 0 && ( sa_tip == true || symmetricAt( node.getAge() ) > 0.0 ) );
+    // flags from outside default to budding, and to anagenesis at a sampled ancestor; only a label or a
+    // move makes a symmetric speciation
+    if ( sa_tip == true )
+    {
+        for (size_t c = 0; c < children.size(); c++)
+        {
+            if ( children[c]->isSampledAncestorTip() == false ) children[c]->setContinuesParentSpecies( false );
+        }
+        return;
+    }
 
-    if ( legal == false )
+    if ( n_cont != 1 )
     {
         // the lowest admissible index, so presentations agree
         size_t keep = children.size();
@@ -1430,6 +1502,7 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
     // one continuing child is budding and none is symmetric speciation
     size_t n_cont = 0;
     bool   sa_tip = false;
+    const TopologyNode *past_sa = NULL;
 
     for (size_t c = 0; c < children.size(); c++)
     {
@@ -1441,25 +1514,39 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
         else if ( children[c]->continuesParentSpecies() == true )
         {
             ++n_cont;
+            past_sa = children[c];
         }
     }
 
     if ( n_cont > 1 ) invalid_continuation = true;
 
-    // screened as if beta were zero; rangeEndTerm applies each interval's beta
-    if ( sa_tip == true )
+    if ( sa_tip == true && n_cont == 1 )
     {
-        // a sibling continuing past a sampled ancestor ends by symmetric speciation
-        if ( n_cont == 1 && hasSymmetricSpeciation() == false ) invalid_continuation = true;
+        // a range carries on past its sampled ancestor only into the symmetric speciation that ends it,
+        // and in an extended tree its tip is its end, so that event sits at the tip's age
+        if ( hasSymmetricSpeciation() == false ) invalid_continuation = true;
+
+        if ( extended == true && invalid_continuation == false )
+        {
+            bool at_symmetric = ( past_sa->isTip() == false && past_sa->getAge() == node.getAge() );
+            for (size_t c = 0; at_symmetric == true && c < past_sa->getNumberOfChildren(); c++)
+            {
+                if ( past_sa->getChild(c).continuesParentSpecies() == true ) at_symmetric = false;
+            }
+            if ( at_symmetric == false ) invalid_continuation = true;
+        }
     }
-    else
-    {
-        // no child carries the species, so it ends here by symmetric speciation
-        if ( n_cont == 0 && hasSymmetricSpeciation() == false ) invalid_continuation = true;
-    }
+
+    // no child carries the species, so it ends here by symmetric speciation
+    if ( sa_tip == false && n_cont == 0 && hasSymmetricSpeciation() == false ) invalid_continuation = true;
 
     // stop before indexing with species == -1
     if ( invalid_continuation == true ) return flow;
+
+    if ( sa_tip == false )
+    {
+        ( n_cont == 1 ? budding_ages : symmetric_ages ).push_back( node.getAge() );
+    }
 
     // the range sampled at this node, which a species beginning here continues
     int sa_species = -1;
@@ -1468,14 +1555,8 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
         if ( children[c]->isSampledAncestorTip() == true ) sa_species = int( children[c]->getIndex() );
     }
 
-    // a non-symmetric bifurcation is a budding event
-    if ( sa_tip == false && n_cont == 1 )
-    {
-        budding_lnProb += log( 1.0 - symmetricAt( node.getAge() ) );
-    }
-
-    // a species that ends below reaches this node unnamed; the sampled ancestor here names it
-    int pending_species = -1;
+    // a range that ends below without a taxon reaches this node unnamed
+    bool pending = false;
     double pending_end  = 0.0;
 
     for(int c = 0; c < children.size(); c++)
@@ -1487,10 +1568,18 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
         // propagate a failed subtree
         if ( invalid_continuation == true ) return flow;
 
-        // carry an unnamed species past this node
         if ( sub.species < 0 )
         {
-            pending_end = sub.end_age;
+            if ( child.continuesParentSpecies() == true )
+            {
+                pending = true;
+                pending_end = sub.end_age;
+            }
+            else
+            {
+                // a range no taxon samples begins here
+                unsampled.push_back( UnsampledRange{ node.getAge(), sub.end_age, sa && extended } );
+            }
             continue;
         }
 
@@ -1514,10 +1603,15 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
         // child is the ancestral species
         else
         {
+            // one range reaching two tips
+            if ( flow.species >= 0 )
+            {
+                invalid_continuation = true;
+                return flow;
+            }
+
             // propagate species index
             flow.species = i;
-
-            if ( child.isSampledAncestorTip() == true ) pending_species = i;
 
             // its range ends here and the lineage carries on below
             if ( sa == true ) next_species[i].ends_at_sa = true;
@@ -1538,26 +1632,28 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
         }
     }
 
-    // the sampled ancestor here names a species that ended below
-    if ( pending_end > 0.0 && pending_species >= 0 )
+    if ( pending == true )
     {
-        if ( ranges[pending_species].death != pending_end )
+        if ( sa_species >= 0 )
         {
-            ranges[pending_species].death = pending_end;
-            dirty_taxa[pending_species] = true;
+            // the sampled ancestor here names the range that a symmetric speciation ended below
+            if ( ranges[sa_species].death != pending_end )
+            {
+                ranges[sa_species].death = pending_end;
+                dirty_taxa[sa_species] = true;
+            }
+            next_species[sa_species].ends_symmetric = true;
         }
-        next_species[pending_species].ends_symmetric = true;
-        pending_end = 0.0;
+        else
+        {
+            flow.end_age = pending_end;
+        }
     }
 
     // no child carries this node's species, so it ends here
-    if ( flow.species < 0 && sa_tip == false )
+    if ( sa_tip == false && n_cont == 0 )
     {
         flow.end_age = node.getAge();
-    }
-    else
-    {
-        flow.end_age = pending_end;
     }
 
     return flow;
@@ -1648,11 +1744,17 @@ void FossilizedBirthDeathSpeciationProcess::updateRanges( void )
 
     // a fresh table: the root lineage never reaches the assignment
     next_species.assign( taxa.size(), SpeciesEntry() );
-    budding_lnProb = 0.0;
+    budding_ages.clear();
+    symmetric_ages.clear();
+    unsampled.clear();
 
     const TopologyNode &root = getValue().getRoot();
 
-    updateRanges(root);
+    RangeFlow top = updateRanges(root);
+
+    // the range that begins at the origin may be one no taxon samples
+    origin_unsampled = ( invalid_continuation == false && root.isTip() == false && top.species < 0 );
+    if ( origin_unsampled == true ) unsampled.push_back( UnsampledRange{ getOriginAge(), top.end_age, false } );
 
     // an entry that moved is dirty
     for (size_t i = 0; i < taxa.size(); ++i)
