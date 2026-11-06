@@ -15,7 +15,8 @@ namespace RevBayesCore {
 
     /**
      * Move the continuation of the parent's species to another child of a random internal node,
-     * leaving every age and the topology alone.
+     * leaving every age and the topology alone. With symmetric speciation, a node's three states are
+     * either child continuing or neither, and the move proposes one of the other two uniformly.
      *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (June Walker)
@@ -25,7 +26,7 @@ namespace RevBayesCore {
     class RotateNodeProposal : public Proposal {
 
     public:
-        RotateNodeProposal( StochasticNode<Tree> *n );                                                //!< constructor
+        RotateNodeProposal( StochasticNode<Tree> *n, bool sym = false );                              //!< constructor
 
         // Basic utility functions
         void                                    cleanProposal(void);                                            //!< Clean up proposal
@@ -49,9 +50,9 @@ namespace RevBayesCore {
         StochasticNode<Tree>*                   tree;                                                           //!< The variable the Proposal is working on
 
         size_t                                  node_index;
+        bool                                    symmetric;                                                      //!< Whether a node may also be left with no continuing child
         std::vector<TopologyNode*>              stored_children;
-        TopologyNode*                           stored_continuer = NULL;                                 //!< The child that held the continuation before the swap
-        TopologyNode*                           moved_continuer = NULL;                                  //!< The child it moved to
+        std::vector<bool>                       stored_flags;                                                   //!< Each child's continuation before the proposal
         bool                                    failed;
     };
 

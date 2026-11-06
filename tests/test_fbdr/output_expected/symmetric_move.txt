@@ -1,0 +1,2 @@
+the chain visits the symmetric state in proportion to its density:
+TRUE	

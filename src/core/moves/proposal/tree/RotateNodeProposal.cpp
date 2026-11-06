@@ -13,9 +13,10 @@
 using namespace RevBayesCore;
 
 
-RotateNodeProposal::RotateNodeProposal( StochasticNode<Tree> *n ) : Proposal(),
+RotateNodeProposal::RotateNodeProposal( StochasticNode<Tree> *n, bool sym ) : Proposal(),
     tree( n ),
     node_index( 0 ),
+    symmetric( sym ),
     failed( false )
 {
     addNode( tree );
@@ -47,7 +48,7 @@ double RotateNodeProposal::getProposalTuningParameter( void ) const
 }
 
 
-/** Move the continuation at a random internal node to another child. */
+/** Move the continuation at a random internal node to another child, or with symmetric speciation to none. */
 double RotateNodeProposal::doProposal( void )
 {
     RandomNumberGenerator* rng = GLOBAL_RNG;
@@ -56,12 +57,12 @@ double RotateNodeProposal::doProposal( void )
 
     failed = false;
 
-    // a sampled ancestor node is skipped: its continuation is forced onto the tip
+    // a sampled ancestor node is skipped: its continuation is forced onto the tip. A flip leaves the
+    // set unchanged, so its size cancels.
     std::vector<size_t> candidates;
     for (size_t i = 0; i < tau.getNumberOfNodes(); i++)
     {
         const TopologyNode& n = tau.getNode(i);
-
         if ( n.isTip() == true || n.getNumberOfChildren() < 2 ) continue;
         if ( n.isSampledAncestorTipOrParent() == true ) continue;
 
@@ -71,38 +72,38 @@ double RotateNodeProposal::doProposal( void )
             if ( n.getChild(c).continuesParentSpecies() == true ) ++n_cont;
         }
 
-        // exactly one holder leaves somewhere to move it to
-        if ( n_cont == 1 ) candidates.push_back( i );
+        if ( n_cont == 1 || ( symmetric == true && n_cont == 0 ) ) candidates.push_back( i );
     }
 
     if ( candidates.empty() == true )
     {
         failed = true;
-
         // reject, so a move that could not act is not counted as accepted
         return RbConstants::Double::neginf;
     }
 
     node_index = candidates[ size_t( rng->uniform01() * candidates.size() ) ];
-
     TopologyNode& node = tau.getNode( node_index );
 
-    std::vector<TopologyNode*> others;
-    stored_continuer = NULL;
-
-    for (size_t c = 0; c < node.getNumberOfChildren(); c++)
+    stored_children = node.getChildren();
+    stored_flags.clear();
+    size_t holder = stored_children.size();
+    for (size_t c = 0; c < stored_children.size(); c++)
     {
-        TopologyNode *child = &node.getChild(c);
-
-        if ( child->continuesParentSpecies() == true ) stored_continuer = child;
-        else                                          others.push_back( child );
+        stored_flags.push_back( stored_children[c]->continuesParentSpecies() );
+        if ( stored_flags[c] == true ) holder = c;
     }
 
-    // symmetric: the reverse move draws from a set of the same size
-    moved_continuer = others[ size_t( rng->uniform01() * others.size() ) ];
+    // the states are one per child plus, with symmetric speciation, none; draw one of the others uniformly,
+    // so the reverse draw has the same chance
+    size_t states = stored_children.size() + ( symmetric ? 1 : 0 );
+    size_t pick = size_t( rng->uniform01() * ( states - 1 ) );
+    if ( pick >= holder ) ++pick;
 
-    stored_continuer->setContinuesParentSpecies( false );
-    moved_continuer->setContinuesParentSpecies( true );
+    for (size_t c = 0; c < stored_children.size(); c++)
+    {
+        stored_children[c]->setContinuesParentSpecies( c == pick );
+    }
 
     return 0.0;
 }
@@ -122,8 +123,10 @@ void RotateNodeProposal::undoProposal( void )
 {
     if ( failed == false )
     {
-        moved_continuer->setContinuesParentSpecies( false );
-        stored_continuer->setContinuesParentSpecies( true );
+        for (size_t c = 0; c < stored_children.size(); c++)
+        {
+            stored_children[c]->setContinuesParentSpecies( stored_flags[c] );
+        }
     }
 }
 

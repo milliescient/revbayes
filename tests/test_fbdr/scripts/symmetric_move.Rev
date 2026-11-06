@@ -1,0 +1,26 @@
+# mvRotateNode(symmetric=TRUE) samples a node's speciation mode: with two taxa the root is budding with
+# either child continuing, or symmetric, and a chain moving only the mode must visit symmetric in proportion
+# to its density. Every line printed must be TRUE.
+seed(3)
+taxa <- readTaxonData("data/fbdsp_symmetric_pair.tsv")
+trees <- readTrees("data/fbdsp_symmetric_pair.tre", treetype="clock")
+out = "output/symmetric_move.txt"
+
+x ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=0.5, rho=1.0, beta=0.4, origin=10.0, condition="time", extended=TRUE)
+x.setValue(trees[2])
+sym <- x.lnProbability()
+x.setValue(trees[1])
+bud <- x.lnProbability()
+
+# two budding states, one per continuing child, and one symmetric
+expected <- exp(sym) / (exp(sym) + 2 * exp(bud))
+
+m = mcmc(model(x), [ mnModel(filename="output/symmetric_move.log", printgen=1) ], [ mvRotateNode(x, symmetric=TRUE, weight=1) ])
+m.run(generations=100000)
+trace = readTrace("output/symmetric_move.log", burnin=0)
+# the density takes two values, so its mean gives the share of symmetric; a Rev loop over the samples is quadratic
+observed <- ( mean(trace[2].getValues()) - bud ) / ( sym - bud )
+
+print(filename=out, "the chain visits the symmetric state in proportion to its density:\n")
+print(filename=out, append=TRUE, abs(observed - expected) < 0.01, "\n")
+q()

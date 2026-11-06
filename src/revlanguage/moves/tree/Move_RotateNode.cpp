@@ -8,6 +8,7 @@
 #include "MetropolisHastingsMove.h"
 #include "Move_RotateNode.h"
 #include "RotateNodeProposal.h"
+#include "RlBoolean.h"
 #include "RealPos.h"
 #include "RevObject.h"
 #include "RlTimeTree.h"
@@ -47,7 +48,9 @@ void Move_RotateNode::constructInternalObject( void )
 
     double we = static_cast<const RealPos &>( weight->getRevObject() ).getValue();
 
-    RevBayesCore::RotateNodeProposal *p = new RevBayesCore::RotateNodeProposal( t );
+    bool sym = static_cast<const RlBoolean &>( symmetric->getRevObject() ).getValue();
+
+    RevBayesCore::RotateNodeProposal *p = new RevBayesCore::RotateNodeProposal( t, sym );
 
     value = new RevBayesCore::MetropolisHastingsMove(p, we, false);
 }
@@ -94,6 +97,7 @@ const MemberRules& Move_RotateNode::getParameterRules(void) const
     if ( rules_set == false )
     {
         move_member_rules.push_back( new ArgumentRule( "tree", TimeTree::getClassTypeSpec(), "The tree on which this move operates.", ArgumentRule::BY_REFERENCE, ArgumentRule::STOCHASTIC ) );
+        move_member_rules.push_back( new ArgumentRule( "symmetric", RlBoolean::getClassTypeSpec(), "Whether a node may also be left with no child continuing its species, a symmetric speciation. Use with beta > 0.", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean( false ) ) );
 
         const MemberRules& inheritedRules = Move::getParameterRules();
         move_member_rules.insert( move_member_rules.end(), inheritedRules.begin(), inheritedRules.end() );
@@ -139,6 +143,10 @@ void Move_RotateNode::setConstParameter(const std::string& name, const RevPtr<co
     if ( name == "tree" )
     {
         tree = var;
+    }
+    else if ( name == "symmetric" )
+    {
+        symmetric = var;
     }
     else
     {
