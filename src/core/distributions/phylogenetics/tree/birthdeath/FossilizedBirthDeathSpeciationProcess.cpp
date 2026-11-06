@@ -1003,11 +1003,11 @@ static long speciesBelow( const TopologyNode &node )
  * begins with the observed event that made it: an anagenesis where the continuing sibling is a sampled
  * ancestor, a symmetric speciation where no sibling continues, and otherwise a budding.
  */
-void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e ) const
+void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e, bool hidden ) const
 {
-    if ( num_components > 1 && hasSymmetricSpeciation() == true )
+    if ( hidden == true && num_components > 1 && hasSymmetricSpeciation() == true )
     {
-        throw RbException("The per-branch speciation event counts do not yet combine a psi mixture with symmetric speciation.");
+        throw RbException("The hidden speciation counts do not yet combine a psi mixture with symmetric speciation.");
     }
 
     const_cast<FossilizedBirthDeathSpeciationProcess *>( this )->updateRanges();
@@ -1053,6 +1053,8 @@ void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e ) cons
             spans.push_back( std::make_pair( lo, hi ) );
         }
     }
+
+    if ( hidden == false ) return;
 
     std::vector<double> hb, hs, ha;
     hiddenEventIntegrals( spans, hb, hs, ha );
@@ -1180,8 +1182,9 @@ void FossilizedBirthDeathSpeciationProcess::executeMethod( const std::string &n,
 
     if ( events.count( n ) == 1 )
     {
+        // the observed events need no hidden integral, so they work under any mixture
         BranchEvents e;
-        branchEvents( e );
+        branchEvents( e, n.find( "Hidden" ) != std::string::npos );
         const std::vector<double> &want = e.*( events.at( n ) );
         // indexed as dnPhyloCTMC's branchRates are, with no entry for the root
         if ( value->getRoot().getIndex() + 1 != want.size() )

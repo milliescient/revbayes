@@ -85,7 +85,7 @@ namespace RevBayesCore {
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const override;  //!< The per-branch speciation events, then the base's range methods.
         //!< By node index: the Poisson means of the hidden speciations on each branch, and the observed event that began the species.
         struct BranchEvents { std::vector<double> hidden_budding, hidden_bifurcation, hidden_anagenetic, observed_budding, observed_bifurcation, observed_anagenetic; };
-        void                                            branchEvents(BranchEvents &e) const;
+        void                                            branchEvents(BranchEvents &e, bool hidden = true) const;
         double                                          drawExtinction(size_t i) const;                                  //!< On a sampled tree, a draw of species i's extinction from its conditional.
         void                                            hiddenEventIntegrals(const std::vector<std::pair<double,double> > &spans, std::vector<double> &budding, std::vector<double> &bifurcation, std::vector<double> &anagenesis) const;  //!< The hidden events that change a lineage's species, by mode.
 
