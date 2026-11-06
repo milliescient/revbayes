@@ -22,7 +22,7 @@ namespace RevBayesCore {
     class WilsonBaldingProposal : public Proposal {
 
     public:
-        WilsonBaldingProposal( StochasticNode<Tree> *n );
+        WilsonBaldingProposal( StochasticNode<Tree> *n, bool sym = false );
 
         void                                    cleanProposal(void);
         WilsonBaldingProposal*                  clone(void) const;
@@ -44,6 +44,7 @@ namespace RevBayesCore {
         StochasticNode<Tree>*                   tree;
         bool                                    allow_sampled_ancestors;
         bool                                    budding;
+        bool                                    symmetric;                                  //!< Whether a regrafted node may also be symmetric, continuing neither child
 
         // stored state to undo the proposal
         bool                                    failed;

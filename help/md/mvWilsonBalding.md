@@ -8,6 +8,8 @@ Prunes a subtree with its parent node and regrafts it elsewhere in a time tree, 
 `mvWilsonBalding` picks a node that is neither the root, a child of the root, nor a sampled-ancestor tip, and removes it together with its parent node. It then picks uniformly among the places the subtree can go: any branch older than the subtree, where the new parent age is drawn uniformly along the branch, or any older fossil tip, which becomes a sampled ancestor. Unlike `mvFNPR`, it changes the attachment age and can create or remove sampled ancestors, so it moves a fossil between tip and ancestor in another part of the tree in one step.
 
 On budding trees the parent's species flag passes to the sibling left behind, and the new parent takes the flag of the branch it splits. A sampled ancestor continues its species, and on a branch a coin decides which child continues. The root is never pruned or regrafted above.
+
+With symmetric=TRUE, for a tree with symmetric speciation (beta > 0), the new parent on a branch is drawn uniformly among its three states: either child continuing, or neither. A range carried past its sampled ancestor into a symmetric node is never pruned, since a regraft onto a fossil makes only an anagenesis.
 ## authors
 ## see_also
 mvFNPR

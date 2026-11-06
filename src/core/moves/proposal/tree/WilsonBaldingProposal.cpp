@@ -13,10 +13,11 @@
 using namespace RevBayesCore;
 
 
-WilsonBaldingProposal::WilsonBaldingProposal( StochasticNode<Tree> *n ) : Proposal(),
+WilsonBaldingProposal::WilsonBaldingProposal( StochasticNode<Tree> *n, bool sym ) : Proposal(),
     tree( n ),
     allow_sampled_ancestors( false ),
     budding( false ),
+    symmetric( sym ),
     failed( false ),
     node( NULL ),
     parent( NULL ),
@@ -96,6 +97,17 @@ double WilsonBaldingProposal::doProposal( void )
 
     bool from_sampled_ancestor = sibling->isSampledAncestorTip();
 
+    // a range carried past its sampled ancestor into a symmetric node: the regraft onto a fossil makes only an
+    // anagenesis, so it could never come back
+    if ( from_sampled_ancestor == true && budding == true && node->continuesParentSpecies() == true )
+    {
+        failed = true;
+        return RbConstants::Double::neginf;
+    }
+
+    // the parent's states: either child continuing, and with symmetric speciation neither
+    double flag_states = ( symmetric == true ? 3.0 : 2.0 );
+
     // the pruned subtree
     std::vector<bool> in_subtree( t.getNumberOfNodes(), false );
     std::vector<TopologyNode*> stack( 1, node );
@@ -147,7 +159,7 @@ double WilsonBaldingProposal::doProposal( void )
     if ( from_sampled_ancestor == false )
     {
         ln_hastings -= std::log( grandparent->getAge() - std::max( node_age, sibling->getAge() ) );
-        if ( budding == true ) ln_hastings += std::log( 0.5 );
+        if ( budding == true ) ln_hastings -= std::log( flag_states );
     }
 
     stored_age               = parent->getAge();
@@ -194,12 +206,19 @@ double WilsonBaldingProposal::doProposal( void )
         double hi = target_parent->getAge();
         new_age = lo + rng->uniform01() * (hi - lo);
         ln_hastings += std::log( hi - lo );
-        if ( budding == true )
+        if ( budding == true && symmetric == false )
         {
             bool node_continues = rng->uniform01() < 0.5;
             node->setContinuesParentSpecies( node_continues );
             target->setContinuesParentSpecies( node_continues == false );
-            ln_hastings -= std::log( 0.5 );
+            ln_hastings += std::log( flag_states );
+        }
+        else if ( budding == true )
+        {
+            size_t state = size_t( rng->uniform01() * flag_states );
+            node->setContinuesParentSpecies( state == 0 );
+            target->setContinuesParentSpecies( state == 1 );
+            ln_hastings += std::log( flag_states );
         }
     }
     parent->setAge( new_age );
