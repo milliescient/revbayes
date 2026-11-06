@@ -12,7 +12,7 @@
 #include "RlString.h"
 #include "RlUtils.h"
 #include "TypeSpec.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "Workspace.h"
 #include "ArgumentRules.h"
 #include "Procedure.h"

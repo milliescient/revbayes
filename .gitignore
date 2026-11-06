@@ -17,8 +17,8 @@ tests/revbayes.github.io
 # ----------------------------------------------
 src/revlanguage/constants.h
 src/ui/constants.h
-src/revlanguage/utils/GitVersion.h
-src/revlanguage/utils/GitVersion.cpp
+src/core/utils/GitVersion.h
+src/core/utils/GitVersion.cpp
 projects/xcode/revbayes.xcodeproj
 .DS_Store
 .history

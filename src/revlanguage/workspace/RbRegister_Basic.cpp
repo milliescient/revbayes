@@ -31,7 +31,7 @@
 
 /* Files including helper classes */
 #include "RbException.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "Workspace.h"
 
 /// Miscellaneous types ///

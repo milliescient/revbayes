@@ -8,7 +8,7 @@
 #include "Signals.h"
 #include "SyntaxForLoop.h"
 #include "SyntaxStatement.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "RbBoolean.h"
 #include "RevObject.h"
 #include "RevPtr.h"

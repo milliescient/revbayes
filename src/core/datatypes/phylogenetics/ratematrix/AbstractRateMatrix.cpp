@@ -16,7 +16,7 @@
 #include "Cloneable.h"
 #include "RbVector.h"
 #include "RbVectorImpl.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 
 using namespace RevBayesCore;
 

@@ -20,11 +20,11 @@ subdir('help2yml')
 
 "$PROJDIR"/generate_version_number.sh
 echo " Saving old GitVersion.cpp in projects/meson/GitVersion_backup.cpp"
-if [ -e "$SRC"/revlanguage/utils/GitVersion.cpp ] ; then
-    cp "$SRC"/revlanguage/utils/GitVersion.cpp GitVersion_backup.cpp
+if [ -e "$SRC"/core/utils/GitVersion.cpp ] ; then
+    cp "$SRC"/core/utils/GitVersion.cpp GitVersion_backup.cpp
 fi
-echo " Copying current GitVersion.cpp to src/revlanguage/utils"
-mv GitVersion.cpp "$SRC"/revlanguage/utils/
+echo " Copying current GitVersion.cpp to src/core/utils"
+mv GitVersion.cpp "$SRC"/core/utils/
 
 "$PROJDIR"/generate_sources.sh core
 

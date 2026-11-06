@@ -12,7 +12,7 @@ Neither the [master](https://github.com/revbayes/revbayes/tree/master) branch no
         * `git checkout release-vX.Y.Z`
     3. Update the version number
         * modify `meson.build`
-        * modify `src/revlanguage/utils/RbVersion.cpp`
+        * modify `src/core/utils/RbVersion.cpp`
         * modify `flake.nix`
     4. Update `NEWS.md` file
     5. Make sure the release workflow (`release.yml`) is in sync with the build workflow (`build.yml`)

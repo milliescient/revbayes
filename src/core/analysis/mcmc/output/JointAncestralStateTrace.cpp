@@ -15,7 +15,7 @@
 #include "RbBitSet.h"
 #include "RbException.h"
 #include "RbFileManager.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "StringUtilities.h"
 #include "TopologyNode.h"
 #include "Tree.h"

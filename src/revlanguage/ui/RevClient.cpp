@@ -2,7 +2,7 @@
 #include "RbFileManager.h"
 #include "RevClient.h"
 #include "RlFunction.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "Parser.h"
 #include "Workspace.h"
 #include "RbSettings.h"

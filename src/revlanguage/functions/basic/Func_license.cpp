@@ -5,7 +5,7 @@
 #include "Func_license.h"
 #include "RlUtils.h"
 #include "TypeSpec.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "ArgumentRules.h"
 #include "Procedure.h"
 #include "RbHelpReference.h"

@@ -16,7 +16,7 @@
 #include "Probability.h"
 #include "RlString.h"
 #include "RlSimplex.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "RbBitSet.h"
 #include "AbstractDiscreteTaxonData.h"
 #include "HomologousDiscreteCharacterData.h"

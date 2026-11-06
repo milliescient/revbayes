@@ -14,7 +14,7 @@
 #include "RbConstants.h"
 #include "RbException.h"
 #include "RbMathLogic.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "SingleRandomMoveSchedule.h"
 #include "SequentialMoveSchedule.h"
 #include "AbstractFileMonitor.h"
@@ -31,7 +31,6 @@
 #include "RbVector.h"
 #include "RbVectorImpl.h"
 #include "RbSettings.h" // for logMCMC setting
-#include "RlUserInterface.h"
 #include "StringUtilities.h"
 
 #ifdef RB_MPI

@@ -22,7 +22,7 @@
 #include "RbException.h"
 #include "RbMathCombinatorialFunctions.h"
 #include "RbVectorUtilities.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "StringUtilities.h"
 #include "TopologyNode.h"
 #include "TreeSummary.h"

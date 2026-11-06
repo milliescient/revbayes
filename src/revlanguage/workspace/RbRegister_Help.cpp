@@ -5,7 +5,7 @@
 #include "RbException.h"
 #include "RbHelpSystem.h"
 #include "RbHelpType.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "Workspace.h"
 
 // The types of which we add extra help

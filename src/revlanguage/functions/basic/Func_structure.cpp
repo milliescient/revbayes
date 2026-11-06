@@ -8,7 +8,7 @@
 #include "DagNode.h"
 #include "Func_structure.h"
 #include "RlBoolean.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "RlUtils.h"
 #include "TypeSpec.h"
 #include "ArgumentRules.h"

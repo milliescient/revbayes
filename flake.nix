@@ -30,7 +30,7 @@
               echo 'const char *build_git_sha = "1.5.0-preview";'
               echo 'const char *build_date = "unknown";'
               echo 'const char *build_git_branch = "unknown";'
-            } > src/revlanguage/utils/GitVersion.cpp
+            } > src/core/utils/GitVersion.cpp
 
             # Generate generated_include_dirs.cmake and per-subdir CMakeLists.txt
             # (normally done by build.sh before invoking cmake)

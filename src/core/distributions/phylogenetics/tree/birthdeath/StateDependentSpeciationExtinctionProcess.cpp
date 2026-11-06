@@ -46,7 +46,7 @@
 #include "TypedDagNode.h"
 #include "TypedDistribution.h"
 #include "boost/numeric/odeint.hpp" // IWYU pragma: keep
-#include "RlUserInterface.h"  // for RBOUT
+#include "RbConsole.h"  // for RBOUT
 
 namespace RevBayesCore { class DagNode; }
 namespace RevBayesCore { template <class valueType> class RbOrderedSet; }

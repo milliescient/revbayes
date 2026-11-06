@@ -15,7 +15,7 @@
 #include "RlBoolean.h"
 #include "RlContinuousCharacterData.h"
 #include "RlString.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "AbstractCharacterData.h"
 #include "Argument.h"
 #include "ArgumentRules.h"

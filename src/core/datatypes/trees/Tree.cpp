@@ -23,7 +23,7 @@
 #include "RbBitSet.h"
 #include "RbBoolean.h"
 #include "RbFileManager.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "StringUtilities.h"
 #include "TaxonMap.h"
 #include "TreeChangeEventHandler.h"

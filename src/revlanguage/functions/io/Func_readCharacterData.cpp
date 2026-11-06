@@ -21,7 +21,7 @@
 #include "RlDnaState.h"
 #include "RlRnaState.h"
 #include "RlString.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "AbstractCharacterData.h"
 #include "AbstractNonHomologousDiscreteCharacterData.h"
 #include "AminoAcidState.h"

@@ -31,7 +31,7 @@
 
 /* Files including helper classes */
 #include "AddWorkspaceVectorType.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 
 /// Miscellaneous types ///
 

@@ -10,7 +10,7 @@
 #include "RandomMoveSchedule.h"
 #include "RbException.h"
 #include "RbMathLogic.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "SingleRandomMoveSchedule.h"
 #include "SequentialMoveSchedule.h"
 #include "MaximumLikelihoodEstimation.h"

@@ -1,4 +1,6 @@
+#include <cctype>
 #include <cstddef>
+#include <iostream>
 #include <sstream>
 #include <list>
 #include <set>
@@ -6,10 +8,11 @@
 
 #include "Environment.h"
 #include "RbException.h"
+#include "RbUtil.h"
 #include "SyntaxFunctionDef.h"
 #include "UserFunction.h"
 #include "UserFunctionDef.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "UserProcedure.h"
 #include "Workspace.h"
 #include "ArgumentRule.h"
@@ -26,6 +29,42 @@
 namespace RevLanguage { class Function; }
 
 using namespace RevLanguage;
+
+
+namespace {
+
+    std::string readAnswer(void)
+    {
+        std::string answer;
+        std::cin >> answer;
+        for (size_t i=0; i<answer.size(); i++)
+        {
+            answer[i] = char( tolower(answer[i]) );
+        }
+        return answer;
+    }
+
+    /** Ask the user a yes/no question */
+    bool ask(const std::string &msg)
+    {
+        std::string dummy;
+        std::cout << RevBayesCore::RbUtils::PAD << (msg + "? (yes/no) ");     // not RBOUT, which would end the line
+        std::string answer = readAnswer();
+
+        while (answer!="y" && answer!="yes" && answer!="n" && answer!="no")
+        {
+            std::getline(std::cin, dummy);
+            std::cout << std::endl;
+            RBOUT("Please answer yes or no.");
+            std::cout << RevBayesCore::RbUtils::PAD << (msg + "? (yes/no) ");
+            answer = readAnswer();
+        }
+        std::getline(std::cin, dummy);
+
+        return answer[0] == 'y';
+    }
+
+}
 
 /** Construct global function call from function name and arguments */
 SyntaxFunctionDef::SyntaxFunctionDef( const std::string&            type,
@@ -173,9 +212,9 @@ RevPtr<RevVariable> SyntaxFunctionDef::evaluateContent( const std::shared_ptr<En
     {
         bool ok;
         if ( is_procedure_def )
-            ok = UserInterface::userInterface().ask( "Replace existing procedure with same signature" );
+            ok = ask( "Replace existing procedure with same signature" );
         else
-            ok = UserInterface::userInterface().ask( "Replace existing function with same signature" );
+            ok = ask( "Replace existing function with same signature" );
 
         if ( ok )
         {

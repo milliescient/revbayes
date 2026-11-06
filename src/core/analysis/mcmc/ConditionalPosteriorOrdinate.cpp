@@ -7,7 +7,7 @@
 
 #include "Cloneable.h"
 #include "RbException.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "StringUtilities.h"
 #include "RbConstants.h"
 #include "RbMathLogic.h"

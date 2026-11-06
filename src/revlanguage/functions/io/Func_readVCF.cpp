@@ -12,7 +12,7 @@
 #include "RlString.h"
 #include "RlUtils.h"
 #include "StringUtilities.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 
 #include <map>
 #include <set>

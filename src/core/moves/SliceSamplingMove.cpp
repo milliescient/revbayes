@@ -17,7 +17,7 @@
 #include "RbOrderedSet.h"
 #include "StochasticNode.h"
 #include "RbSettings.h" // for debugMCMC setting
-#include "RlUserInterface.h" // for RBOUT
+#include "RbConsole.h" // for RBOUT
 
 using boost::optional;
 

@@ -34,7 +34,7 @@
 #include "Trace.h"
 #include "TypeSpec.h"
 #include "WorkspaceToCoreWrapperObject.h"
-#include "RlUserInterface.h"  // for RBOUT
+#include "RbConsole.h"  // for RBOUT
 
 using namespace RevLanguage;
 

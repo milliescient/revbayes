@@ -19,7 +19,7 @@
 #include "SyntaxElement.h"
 #include "SyntaxFunctionCall.h"
 #include "SyntaxVariable.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "Signals.h"
 #include "Workspace.h"
 #include "FunctionTable.h"
@@ -331,17 +331,17 @@ int RevLanguage::Parser::help(const std::string& symbol) const
         const RevBayesCore::RbHelpEntry& h = hs.getHelp( symbol );
         RevBayesCore::HelpRenderer hRenderer;
         std::string hStr = hRenderer.renderHelp(h, RbSettings::userSettings().getLineWidth() - RevBayesCore::RbUtils::PAD.size());
-        UserInterface::userInterface().output("\n", true);
-        UserInterface::userInterface().output("\n", true);
-        UserInterface::userInterface().output(hStr, true);
+        RevBayesCore::RbConsole::instance().output("\n", true);
+        RevBayesCore::RbConsole::instance().output("\n", true);
+        RevBayesCore::RbConsole::instance().output(hStr, true);
     }
     else if ( not hs.isHelpAvailableForQuery(symbol) and help_title.size() > 0 )
     {
         RevBayesCore::HelpRenderer hRenderer;
         std::string hStr = hRenderer.renderHelp(hd, symbol, RbSettings::userSettings().getLineWidth() - RevBayesCore::RbUtils::PAD.size());
-        UserInterface::userInterface().output("\n", true);
-        UserInterface::userInterface().output("\n", true);
-        UserInterface::userInterface().output(hStr, true);
+        RevBayesCore::RbConsole::instance().output("\n", true);
+        RevBayesCore::RbConsole::instance().output("\n", true);
+        RevBayesCore::RbConsole::instance().output(hStr, true);
     }
     else
     {
@@ -366,9 +366,9 @@ int RevLanguage::Parser::help(const std::string& baseSymbol, const std::string& 
         const RevBayesCore::RbHelpEntry& h = hs.getHelp( baseSymbol, symbol );
         RevBayesCore::HelpRenderer hRenderer;
         std::string hStr = hRenderer.renderHelp(h, RbSettings::userSettings().getLineWidth() - RevBayesCore::RbUtils::PAD.size());
-        UserInterface::userInterface().output("\n", true);
-        UserInterface::userInterface().output("\n", true);
-        UserInterface::userInterface().output(hStr, true);
+        RevBayesCore::RbConsole::instance().output("\n", true);
+        RevBayesCore::RbConsole::instance().output("\n", true);
+        RevBayesCore::RbConsole::instance().output(hStr, true);
     }
     else
     {

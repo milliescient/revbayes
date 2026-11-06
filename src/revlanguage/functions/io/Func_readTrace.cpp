@@ -16,7 +16,7 @@
 #include "RlString.h"
 #include "StringUtilities.h"
 #include "RlTrace.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "WorkspaceVector.h"
 #include "Argument.h"
 #include "ArgumentRules.h"

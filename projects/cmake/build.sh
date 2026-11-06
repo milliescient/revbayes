@@ -13,7 +13,7 @@
 # 1. Read command line flags
 # 2. Generate cmake variables from command-line flags.
 # 3. Create the build/ directory (if missing).
-# 4. Update the version number            --> src/revlanguage/utils/GitVersion.cpp
+# 4. Update the version number            --> src/core/utils/GitVersion.cpp
 # 5. Update the help database --> src/core/help/RbHelpDatabase.cpp
 # 6. Run ./regenerate.sh
 # 7. Run cmake <--- This is where the configuration actually happens
@@ -167,11 +167,11 @@ fi
 ######## generate git version number
 ./generate_version_number.sh
 echo " Saving old GitVersion.cpp in projects/cmake/GitVersion_backup.cpp"
-if [ -e ../../src/revlanguage/utils/GitVersion.cpp ] ; then
-    cp ../../src/revlanguage/utils/GitVersion.cpp GitVersion_backup.cpp
+if [ -e ../../src/core/utils/GitVersion.cpp ] ; then
+    cp ../../src/core/utils/GitVersion.cpp GitVersion_backup.cpp
 fi
-echo " Copying current GitVersion.cpp to src/revlanguage/utils"
-mv GitVersion.cpp ../../src/revlanguage/utils/
+echo " Copying current GitVersion.cpp to src/core/utils"
+mv GitVersion.cpp ../../src/core/utils/
 
 
 ######### Generate help database
@@ -215,7 +215,7 @@ cd ..
 
 ####### Restore GitVersion.cpp from backup
 if [ -e  GitVersion_backup.cpp ] ; then
-    cp GitVersion_backup.cpp ../../src/revlanguage/utils/GitVersion.cpp
+    cp GitVersion_backup.cpp ../../src/core/utils/GitVersion.cpp
     rm GitVersion_backup.cpp
 fi
 

@@ -34,7 +34,7 @@
 #include "RlString.h"
 #include "RlUtils.h"
 #include "TypeSpec.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "ArgumentRules.h"
 #include "Environment.h"
 #include "Procedure.h"

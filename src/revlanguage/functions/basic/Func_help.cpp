@@ -9,7 +9,7 @@
 #include "RlString.h"
 #include "RlUtils.h"
 #include "TypeSpec.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "RbHelpSystem.h"
 #include "RbHelpDatabase.h"
 #include "RbHelpRenderer.h"
@@ -88,17 +88,17 @@ RevPtr<RevVariable> Func_help::execute( void )
             const RevBayesCore::RbHelpEntry& h = hs.getHelp( baseQuery );
             RevBayesCore::HelpRenderer hRenderer;
             std::string hStr = hRenderer.renderHelp(h, RbSettings::userSettings().getLineWidth() - RevBayesCore::RbUtils::PAD.size());
-            UserInterface::userInterface().output("\n", true);
-            UserInterface::userInterface().output("\n", true);
-            UserInterface::userInterface().output(hStr, true);
+            RevBayesCore::RbConsole::instance().output("\n", true);
+            RevBayesCore::RbConsole::instance().output("\n", true);
+            RevBayesCore::RbConsole::instance().output(hStr, true);
         }
         else if ( not hs.isHelpAvailableForQuery(baseQuery) and help_title.size() > 0 )
         {
             RevBayesCore::HelpRenderer hRenderer;
             std::string hStr = hRenderer.renderHelp(hd, baseQuery, RbSettings::userSettings().getLineWidth() - RevBayesCore::RbUtils::PAD.size());
-            UserInterface::userInterface().output("\n", true);
-            UserInterface::userInterface().output("\n", true);
-            UserInterface::userInterface().output(hStr, true);
+            RevBayesCore::RbConsole::instance().output("\n", true);
+            RevBayesCore::RbConsole::instance().output("\n", true);
+            RevBayesCore::RbConsole::instance().output(hStr, true);
         }
         else
         {

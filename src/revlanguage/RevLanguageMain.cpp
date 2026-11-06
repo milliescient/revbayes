@@ -9,7 +9,7 @@
 #include "RbException.h"
 #include "RbSettings.h"
 #include "Workspace.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "RbVersion.h"
 #include "StringUtilities.h"
 #include "RevClient.h"        // for RevClient::shutdown()
@@ -52,8 +52,8 @@ int RevLanguageMain::startRevLanguageEnvironment(const std::vector<std::string> 
     {
         // Print a nifty message
         RbVersion version = RbVersion();
-        RevLanguage::UserInterface::userInterface().output(version.getHeader(), false);
-        RevLanguage::UserInterface::userInterface().output("", false);
+        RevBayesCore::RbConsole::instance().output(version.getHeader(), false);
+        RevBayesCore::RbConsole::instance().output("", false);
     }
 
     // 3. Initialize the global workspace

@@ -11,7 +11,7 @@
 #include "RevClient.h"
 #include "RevLanguageMain.h"
 #include "RlCommandLineOutputStream.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "StringUtilities.h"
 #include "TerminalFormatter.h"
 #include "Workspace.h"
@@ -250,7 +250,7 @@ int main(int argc, char* argv[])
 
     /* Set output stream */
     CommandLineOutputStream *rev_output = new CommandLineOutputStream();
-    RevLanguage::UserInterface::userInterface().setOutputStream( rev_output );
+    RevBayesCore::RbConsole::instance().setOutputStream( rev_output );
 
     /* Any script or expressions from `-e expr` are executed here. */
     int result = rl.startRevLanguageEnvironment(cmd_line.expressions, cmd_line.filename, cmd_line.args);

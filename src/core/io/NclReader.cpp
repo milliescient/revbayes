@@ -22,7 +22,7 @@
 #include "Tree.h"
 #include "TopologyNode.h"
 #include "TreeUtilities.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "AbstractCharacterData.h"
 #include "Cloneable.h"
 #include "ContinuousCharacterData.h"

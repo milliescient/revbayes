@@ -13,7 +13,7 @@
 #include "ProgressBar.h"
 #include "RandomNumberFactory.h"
 #include "RandomNumberGenerator.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "StochasticVariableMonitor.h"
 #include "Trace.h"
 #include "TraceReader.h"

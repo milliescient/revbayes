@@ -34,7 +34,7 @@
 #include "AddWorkspaceVectorType.h"
 #include "RbException.h"
 #include "RevAbstractType.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "Workspace.h"
 
 /// Miscellaneous types ///

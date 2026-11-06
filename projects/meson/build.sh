@@ -236,7 +236,7 @@ fi
 
 ####### Restore GitVersion.cpp from backup
 if [ -e  GitVersion_backup.cpp ] ; then
-    cp GitVersion_backup.cpp ../../src/revlanguage/utils/GitVersion.cpp
+    cp GitVersion_backup.cpp ../../src/core/utils/GitVersion.cpp
     rm GitVersion_backup.cpp
 fi
 

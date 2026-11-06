@@ -29,7 +29,7 @@
 
 /* Files including helper classes */
 #include "RbException.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "Workspace.h"
 
 #include "Func_workspaceVector.h"              // for Func_workspaceVector

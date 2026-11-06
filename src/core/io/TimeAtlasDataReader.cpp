@@ -21,7 +21,7 @@
 #include "RbFileManager.h"
 #include "RbConstants.h"
 #include "RbException.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "GeographicArea.h"
 
 using namespace RevBayesCore;

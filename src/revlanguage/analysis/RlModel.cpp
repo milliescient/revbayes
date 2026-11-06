@@ -24,7 +24,7 @@
 #include "RevVariable.h"
 #include "RlBoolean.h"
 #include "RlUtils.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "StringUtilities.h"
 #include "Workspace.h"
 #include "WorkspaceToCoreWrapperObject.h"

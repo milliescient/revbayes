@@ -14,7 +14,7 @@
 #include "MonteCarloSampler.h"
 #include "MpiUtilities.h"
 #include "ProgressBar.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "Cloneable.h"
 #include "Model.h"
 #include "Monitor.h"

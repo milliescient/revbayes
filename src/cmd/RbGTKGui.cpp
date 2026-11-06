@@ -1,7 +1,7 @@
 #include "RbGTKGui.h"
 
 #include "Parser.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "StringUtilities.h"
 #include "Workspace.h"
 
@@ -82,7 +82,7 @@ RbGTKGui::RbGTKGui( void ) :
 
     /* initialize environment */
     rev_output = new StringOutputStream();
-    RevLanguage::UserInterface::userInterface().setOutputStream( rev_output );
+    RevBayesCore::RbConsole::instance().setOutputStream( rev_output );
     rl_interpreter.startRevLanguageEnvironment(/*expressions*/ {}, /*filename*/ {}, /*args*/ {});
 
     

@@ -11,7 +11,7 @@
 #include "RandomNumberGenerator.h"
 #include "RbException.h"
 #include "RbFileManager.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "StringUtilities.h"
 
 using namespace RevBayesCore;

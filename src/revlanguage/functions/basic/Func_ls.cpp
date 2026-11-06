@@ -12,7 +12,7 @@
 #include "OptionRule.h"
 #include "RlBoolean.h"
 #include "RlUtils.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "TypeSpec.h"
 #include "Workspace.h"
 #include "ArgumentRules.h"

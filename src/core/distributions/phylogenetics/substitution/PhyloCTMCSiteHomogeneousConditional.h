@@ -6,7 +6,7 @@
 #include "PhyloCTMCSiteHomogeneous.h"
 #include "DistributionBinomial.h"
 #include "DistributionNegativeBinomial.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 
 namespace RevBayesCore {
 

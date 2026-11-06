@@ -22,7 +22,7 @@
 #include "RlClade.h"
 #include "RlString.h"
 #include "RlTraceTree.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "StringUtilities.h"
 #include "TraceTree.h"
 #include "TreeUtilities.h"

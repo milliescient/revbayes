@@ -3,9 +3,9 @@
 
 #include <iosfwd>
 
-#include "RlUserInterfaceOutputStream.h"
+#include "RbConsole.h"
 
-class CommandLineOutputStream : public UserInterfaceOutputStream {
+class CommandLineOutputStream : public RevBayesCore::ConsoleStream {
     
 public:
     

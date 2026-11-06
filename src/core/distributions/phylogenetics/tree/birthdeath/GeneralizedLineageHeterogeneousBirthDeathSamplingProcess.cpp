@@ -13,7 +13,7 @@
 #include "TopologyNode.h"
 #include "Taxon.h"
 #include "Tree.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 
 
 using namespace RevBayesCore;

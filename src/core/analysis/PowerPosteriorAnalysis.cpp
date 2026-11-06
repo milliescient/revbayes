@@ -19,7 +19,7 @@
 #include "ProgressBar.h"
 #include "RbException.h"
 #include "RbFileManager.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "StringUtilities.h"
 
 #ifdef _WIN32

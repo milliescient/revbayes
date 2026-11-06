@@ -20,7 +20,7 @@
 #include "RbException.h"
 #include "RbFileManager.h"
 #include "RlString.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "SemMin.h"
 #include "StationarityTest.h"
 #include "StringUtilities.h"

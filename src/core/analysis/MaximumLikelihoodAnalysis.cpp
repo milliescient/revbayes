@@ -4,7 +4,7 @@
 #include "RandomNumberFactory.h"
 #include "RbConstants.h"
 #include "MaximumLikelihoodAnalysis.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "Cloneable.h"
 #include "MaximumLikelihoodEstimation.h"
 #include "Parallelizable.h"

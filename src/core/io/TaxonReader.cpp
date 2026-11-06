@@ -10,7 +10,7 @@
 
 #include "RbException.h"
 #include "RbMathLogic.h"
-#include "RlUserInterface.h" // for RBOUT
+#include "RbConsole.h" // for RBOUT
 #include "StringUtilities.h"
 #include "TaxonReader.h"
 #include "DelimitedDataReader.h"

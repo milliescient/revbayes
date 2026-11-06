@@ -38,7 +38,7 @@
 #include "RevPtr.h"
 #include "RevVariable.h"
 #include "RlConstantNode.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "TraceTree.h"
 #include "Tree.h"
 #include "TypeSpec.h"

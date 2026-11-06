@@ -13,7 +13,7 @@
 #include "RlAbstractConvergenceStoppingRule.h"
 #include "RbException.h"
 #include "RlString.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "SemMin.h"
 #include "TypeSpec.h"
 #include "IntegerPos.h"

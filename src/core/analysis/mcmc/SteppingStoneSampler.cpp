@@ -6,7 +6,7 @@
 #include <iostream>
 
 #include "Cloneable.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 #include "RbStatisticsHelper.h"
 
 #ifdef RB_MPI

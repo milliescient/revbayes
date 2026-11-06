@@ -9,7 +9,7 @@
 #include "Distribution.h"
 #include "Parallelizable.h"
 #include "RbFileManager.h"
-#include "RlUserInterface.h"
+#include "RbConsole.h"
 
 #ifdef RB_MPI
 #include <mpi.h>
