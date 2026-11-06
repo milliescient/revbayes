@@ -23,8 +23,11 @@
 #include "Distribution.h"
 #include "RbHelpDistribution.h"
 #include "RevObject.h"
+#include "RevPtr.h"
 
 namespace RevLanguage {
+
+    class RevVariable;
 
     class Distribution : public RevObject {
     
@@ -76,6 +79,8 @@ namespace RevLanguage {
         std::string                                         guiDistributionToolTip;
 
     };
+    
+    RevPtr<RevVariable>                                     wrapProcedureResult(const RevBayesCore::ProcedureResult &r);   //!< Wrap a core procedure's return value as a Rev variable
     
 }
 

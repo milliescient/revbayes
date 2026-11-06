@@ -1,3 +1,4 @@
+#include "RbConstants.h"
 #include "RandomIntegerWalkProposal.h"
 
 #include "RandomNumberFactory.h"

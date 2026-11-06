@@ -164,10 +164,10 @@ RevLanguage::RevPtr<RevLanguage::RevVariable> RevLanguage::StochasticNode<valueT
         }
     }
     
-    RevPtr<RevVariable> ret_proc_val = this->distribution->executeProcedure(name, dist_args, found);
+    RevBayesCore::ProcedureResult ret_proc_val = this->distribution->executeProcedure(name, dist_args, found);
     if ( found == true )
     {
-        return ret_proc_val;
+        return wrapProcedureResult( ret_proc_val );
     }
 
     

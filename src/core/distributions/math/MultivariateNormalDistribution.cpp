@@ -10,7 +10,6 @@
 #include "StochasticNode.h"
 #include "Cloner.h"
 #include "RbVectorImpl.h"
-#include "RevVariable.h"
 #include "TypedDagNode.h"
 
 namespace RevBayesCore { class DagNode; }
@@ -127,7 +126,7 @@ double MultivariateNormalDistribution::computeLnProbability( void )
 }
 
 
-RevLanguage::RevPtr<RevLanguage::RevVariable> MultivariateNormalDistribution::executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found)
+ProcedureResult MultivariateNormalDistribution::executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found)
 {
     
     if (name == "clampAt")
@@ -139,7 +138,7 @@ RevLanguage::RevPtr<RevLanguage::RevVariable> MultivariateNormalDistribution::ex
         
         clampAt(index, v);
 
-        return NULL;
+        return {};
     }
     
     return TypedDistribution<RbVector<double> >::executeProcedure( name, args, found );

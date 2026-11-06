@@ -2,7 +2,6 @@
 #include <cmath>
 #include <vector>
 
-#include "ModelVector.h"
 #include "MultispeciesCoalescentInverseGammaPrior.h"
 #include "DistributionInverseGamma.h"
 #include "RandomNumberFactory.h"

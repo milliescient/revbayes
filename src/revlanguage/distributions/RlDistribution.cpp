@@ -16,6 +16,8 @@
 #include "RevObject.h"
 #include "RevPtr.h"
 #include "RevVariable.h"
+#include "RlAbstractHomologousDiscreteCharacterData.h"
+#include "RlString.h"
 
 namespace RevBayesCore { class RbHelpEntry; }
 
@@ -289,3 +291,18 @@ MethodTable Distribution::getDistributionMethods( void ) const
 {
     o << getClassType() << "(...)" << std::endl;
 }*/
+
+
+
+RevPtr<RevVariable> RevLanguage::wrapProcedureResult(const RevBayesCore::ProcedureResult &r)
+{
+    if ( const std::string *s = std::get_if<std::string>( &r ) )
+    {
+        return new RevVariable( new RlString( *s ) );
+    }
+    if ( const RevBayesCore::AbstractHomologousDiscreteCharacterData * const *d = std::get_if<const RevBayesCore::AbstractHomologousDiscreteCharacterData*>( &r ) )
+    {
+        return new RevVariable( new AbstractHomologousDiscreteCharacterData( **d ) );
+    }
+    return NULL;
+}

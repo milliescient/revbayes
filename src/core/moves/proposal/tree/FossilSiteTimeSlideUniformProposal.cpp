@@ -15,7 +15,6 @@
 #include "TopologyNode.h"
 #include "Tree.h"
 #include "Taxon.h"
-#include "RlTaxon.h"
 #include "RbVector.h"
 #include "RbVectorImpl.h"
 #include "TreeChangeEventHandler.h"

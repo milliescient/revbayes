@@ -1,6 +1,7 @@
 #ifndef StairwayPlotDistribution_H
 #define StairwayPlotDistribution_H
 
+#include "MemberObject.h"
 #include "TypedDistribution.h"
 #include "RbVector.h"
 

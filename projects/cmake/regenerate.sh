@@ -22,17 +22,26 @@ cd "$BUILD_DIR"/../../../src
 
 echo "Generating src/generated_include_dirs.cmake"
 ######### Generate generated_include_dirs.cmake ############
-(
-    echo '
-    # TODO Split these up based on sub-package dependency
-INCLUDE_DIRECTORIES('
-    find libs core revlanguage -type d |
+list_include_dirs()
+{
+    find "$@" -type d |
         grep -v "svn" |
         sed "s|libs/\([^/]*\)/.*|libs/\1|" |
         sort |
         uniq |
         sed 's|^|    ${PROJECT_SOURCE_DIR}/|g'
+}
+
+(
+    echo '
+# rb-libs and rb-core see only these, so they build without the language
+set(RB_CORE_INCLUDE_DIRS'
+    list_include_dirs libs core
     echo ' ${Boost_INCLUDE_DIRS} )
+
+set(RB_LANGUAGE_INCLUDE_DIRS'
+    list_include_dirs revlanguage
+    echo ')
 '
 ) > "$SRC_DIR/generated_include_dirs.cmake"
 

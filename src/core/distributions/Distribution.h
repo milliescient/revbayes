@@ -4,16 +4,21 @@
 #include "Cloneable.h"
 #include "Parallelizable.h"
 #include "RbOrderedSet.h"
-#include "RevPtr.h"
-#include "RevVariable.h"
+#include "SimulationConditions.h"
 
 #include <iostream>
 #include <set>
+#include <string>
+#include <variant>
 #include <vector>
 
 namespace RevBayesCore {
     
+    class AbstractHomologousDiscreteCharacterData;
     class DagNode;
+    
+    /** A procedure's return value, which the language layer wraps: nothing, a string or character data. */
+    typedef std::variant<std::monostate, std::string, const AbstractHomologousDiscreteCharacterData*> ProcedureResult;
     
     /**
      * @brief Distribution: interface for all core distributions
@@ -43,7 +48,7 @@ namespace RevBayesCore {
         
         // public methods
         virtual void                                            bootstrap(void);                                                                    //!< Draw a new random value from the distribution
-        virtual RevLanguage::RevPtr<RevLanguage::RevVariable>   executeProcedure(const std::string &n, const std::vector<DagNode*> args, bool &f);  //!< execute the procedure
+        virtual ProcedureResult                                 executeProcedure(const std::string &n, const std::vector<DagNode*> args, bool &f);  //!< execute the procedure
         virtual void                                            getAffected(RbOrderedSet<DagNode *>& affected, const DagNode* affecter);            //!< get affected nodes
         virtual std::vector<double>                             getMixtureProbabilities(void) const;
         virtual size_t                                          getNumberOfMixtureElements(void) const;                                             //!< Get the number of elements for this value

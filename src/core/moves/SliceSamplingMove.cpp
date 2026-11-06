@@ -9,6 +9,7 @@
 
 #include <boost/optional.hpp>
 
+#include "RbConstants.h"
 #include "DagNode.h"
 #include "SliceSamplingMove.h"
 #include "RandomNumberFactory.h"

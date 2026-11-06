@@ -7,8 +7,6 @@
 #include "DagNode.h"
 #include "Distribution.h"
 #include "RbException.h"
-#include "RevPtr.h"
-#include "RevVariable.h"
 #include "Parallelizable.h"
 
 namespace RevBayesCore { template <class valueType> class RbOrderedSet; }
@@ -115,10 +113,10 @@ void Distribution::addParameter(const DagNode *p)
 
 
 
-RevLanguage::RevPtr<RevLanguage::RevVariable> Distribution::executeProcedure(const std::string &n, const std::vector<DagNode *> args, bool &f)
+ProcedureResult Distribution::executeProcedure(const std::string &n, const std::vector<DagNode *> args, bool &f)
 {
     // no function found
-    return NULL;
+    return {};
 }
 
 

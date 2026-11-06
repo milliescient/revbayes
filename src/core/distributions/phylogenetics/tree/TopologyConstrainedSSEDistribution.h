@@ -23,7 +23,7 @@ public:
 	virtual ~TopologyConstrainedSSEDistribution();
 
     void                                                executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const;
-    RevLanguage::RevPtr<RevLanguage::RevVariable>       executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found);
+    ProcedureResult                                     executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found);
 
 
 };

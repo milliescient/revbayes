@@ -1,7 +1,7 @@
 #ifndef InferAncestralPopSizeFunction_h
 #define InferAncestralPopSizeFunction_h
 
-#include "RlTypedFunction.h"
+#include "TypedFunction.h"
 #include "MatrixReal.h"
 
 #include <string>

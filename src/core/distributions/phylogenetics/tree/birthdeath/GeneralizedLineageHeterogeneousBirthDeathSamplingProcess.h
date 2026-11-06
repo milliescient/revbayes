@@ -1,6 +1,7 @@
 #ifndef GeneralizedLineageHeterogeneousBirthDeathSamplingProcess_H
 #define GeneralizedLineageHeterogeneousBirthDeathSamplingProcess_H
 
+#include "MemberObject.h"
 #include "AbstractHomologousDiscreteCharacterData.h"
 #include "TreeDiscreteCharacterData.h"
 #include "CladogeneticProbabilityMatrix.h"
@@ -12,10 +13,8 @@
 #include "TreeDiscreteCharacterData.h"
 #include "TreeChangeEventListener.h"
 #include "TypedDagNode.h"
+#include "TypedDistribution.h"
 #include "RbVector.h"
-#include "RevPtr.h"
-#include "RevVariable.h"
-#include "RlString.h"
 #include "Loader.h"
 
 #include <vector>
@@ -111,7 +110,7 @@ namespace RevBayesCore {
         // Parameter management functions. You need to override both if you have additional parameters
         virtual void                                                      swapParameterInternal(const DagNode *oldP, const DagNode *newP);                                    //!< Swap a parameter
         void                                                              executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const;
-        RevLanguage::RevPtr<RevLanguage::RevVariable>                     executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found);
+        ProcedureResult                                                   executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found);
         
         // dirty nodes
         void                                                              resizeVectors(size_t num_nodes);

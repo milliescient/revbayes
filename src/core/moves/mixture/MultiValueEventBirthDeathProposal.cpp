@@ -1,3 +1,4 @@
+#include "RbConstants.h"
 #include "MultiValueEventBirthDeathProposal.h"
 
 #include <cmath>

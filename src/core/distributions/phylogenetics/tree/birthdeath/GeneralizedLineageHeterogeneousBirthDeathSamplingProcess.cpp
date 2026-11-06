@@ -2,10 +2,9 @@
 
 #include "RandomNumberFactory.h"
 #include "RandomNumberGenerator.h"
+#include "StochasticNode.h"
 #include "AbstractHomologousDiscreteCharacterData.h"
 #include "GeneralizedLineageHeterogeneousBirthDeathSamplingProcess.h"
-#include "RlAbstractHomologousDiscreteCharacterData.h"
-#include "RlString.h"
 #include "HomologousDiscreteCharacterData.h"
 #include "DiscreteCharacterState.h"
 #include "DiscreteTaxonData.h"
@@ -2106,7 +2105,7 @@ void GeneralizedLineageHeterogeneousBirthDeathSamplingProcess::executeMethod(con
 
 }
 
-RevLanguage::RevPtr<RevLanguage::RevVariable> GeneralizedLineageHeterogeneousBirthDeathSamplingProcess::executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found)
+ProcedureResult GeneralizedLineageHeterogeneousBirthDeathSamplingProcess::executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found)
 {
     if (name == "clampCharData")
     {
@@ -2158,14 +2157,13 @@ RevLanguage::RevPtr<RevLanguage::RevVariable> GeneralizedLineageHeterogeneousBir
         // mark the likelihood dirty
         probability_dirty = true;
 
-        return NULL;
+        return {};
     }
 
     if (name == "getCharData")
     {
         found = true;
-        RevLanguage::AbstractHomologousDiscreteCharacterData *tip_states = new RevLanguage::AbstractHomologousDiscreteCharacterData( getCharacterData() );
-        return new RevLanguage::RevVariable( tip_states );
+        return &getCharacterData();
     }
 
     if (name == "dumpModel")
@@ -2178,7 +2176,7 @@ RevLanguage::RevPtr<RevLanguage::RevVariable> GeneralizedLineageHeterogeneousBir
     	// write the file
     	tp_ptr->writeStateToFile(file_name);
 
-    	return NULL;
+    	return {};
     }
 
 	return TypedDistribution<Tree>::executeProcedure( name, args, found );

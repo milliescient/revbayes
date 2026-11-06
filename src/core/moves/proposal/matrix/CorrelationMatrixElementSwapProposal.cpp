@@ -1,3 +1,4 @@
+#include "RbConstants.h"
 #include "CorrelationMatrixElementSwapProposal.h"
 
 #include "RandomNumberFactory.h"

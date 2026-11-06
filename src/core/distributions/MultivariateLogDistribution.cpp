@@ -1,3 +1,4 @@
+#include "RbConstants.h"
 #include "MultivariateLogDistribution.h"
 #include "RandomNumberFactory.h"
 #include "RandomNumberGenerator.h"

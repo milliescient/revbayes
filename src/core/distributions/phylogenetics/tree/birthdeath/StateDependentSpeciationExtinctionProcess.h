@@ -12,9 +12,6 @@
 #include "Tree.h"
 #include "TreeChangeEventListener.h"
 #include "TypedDagNode.h"
-#include "RevPtr.h"
-#include "RevVariable.h"
-#include "RlString.h"
 
 
 #include <vector>
@@ -99,7 +96,7 @@ namespace RevBayesCore {
         virtual void                                                    swapParameterInternal(const DagNode *oldP, const DagNode *newP);                                    //!< Swap a parameter
         void                                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const;  
         void                                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<std::int64_t> &rv) const;     //!< Map the member methods to internal function calls
-        RevLanguage::RevPtr<RevLanguage::RevVariable>                   executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found);
+        ProcedureResult                                                 executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found);
         
         // helper functions
         void                                                            buildRandomBinaryTree(std::vector<TopologyNode *> &tips);

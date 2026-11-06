@@ -187,10 +187,14 @@ link_directories(${Boost_LIBRARY_DIRS})
 
 # This will look for "generated_include_dirs.cmake" in the module path.
 include("generated_include_dirs")
+include_directories(${RB_CORE_INCLUDE_DIRS})
 
 # Split into much smaller libraries
 add_subdirectory(libs)
 add_subdirectory(core)
+
+# Added after rb-libs and rb-core are defined, so neither can include a language header
+include_directories(${RB_LANGUAGE_INCLUDE_DIRS})
 add_subdirectory(revlanguage)
 
 

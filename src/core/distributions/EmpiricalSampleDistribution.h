@@ -38,7 +38,7 @@ namespace RevBayesCore {
         EmpiricalSampleDistribution*                        clone(void) const;                                                                      //!< Create an independent clone
         double                                              computeLnProbability(void);
         void                                                executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const;     //!< Map the member methods to internal function calls
-        RevLanguage::RevPtr<RevLanguage::RevVariable>       executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found);
+        ProcedureResult                                     executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found);
         void                                                redrawValue(void);
         void                                                setValue(RbVector<valueType> *v, bool f=false);
         
@@ -373,7 +373,7 @@ void RevBayesCore::EmpiricalSampleDistribution<mixtureType>::executeMethod(const
 
 
 template <class valueType>
-RevLanguage::RevPtr<RevLanguage::RevVariable> RevBayesCore::EmpiricalSampleDistribution<valueType>::executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found)
+RevBayesCore::ProcedureResult RevBayesCore::EmpiricalSampleDistribution<valueType>::executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found)
 {
     
     bool org_found = found;
@@ -386,7 +386,7 @@ RevLanguage::RevPtr<RevLanguage::RevVariable> RevBayesCore::EmpiricalSampleDistr
         }
         found |= f;
     }
-    return NULL;
+    return {};
     
 }
 

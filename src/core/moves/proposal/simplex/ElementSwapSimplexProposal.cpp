@@ -1,3 +1,4 @@
+#include "RbConstants.h"
 #include "ElementSwapSimplexProposal.h"
 
 #include <cstddef>

@@ -22,9 +22,6 @@
 #include "RbVector.h"
 #include "TypedDistribution.h"
 #include "MatrixReal.h"
-#include "RevPtr.h"
-
-namespace RevLanguage { class RevVariable; }
 
 namespace RevBayesCore {
 class DagNode;
@@ -41,7 +38,7 @@ template <class valueType> class TypedDagNode;
         MultivariateNormalDistribution*                                 clone(void) const;
         
         MatrixReal                                                      computeContrasts(void);
-        RevLanguage::RevPtr<RevLanguage::RevVariable>                   executeProcedure(const std::string &n, const std::vector<DagNode*> args, bool &f);  //!< execute the procedure
+        ProcedureResult                                                 executeProcedure(const std::string &n, const std::vector<DagNode*> args, bool &f);  //!< execute the procedure
         void                                                            clampAt(size_t i, double v);
         double                                                          computeLnProbability(void);
         void                                                            redrawValue(void);

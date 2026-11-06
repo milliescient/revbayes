@@ -1,3 +1,4 @@
+#include "RbConstants.h"
 #include "BinarySwitchProposal.h"
 
 #include "Cloneable.h"

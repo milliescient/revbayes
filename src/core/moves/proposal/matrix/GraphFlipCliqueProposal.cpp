@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "RbConstants.h"
 #include "DistributionBinomial.h"
 #include "DistributionPoisson.h"
 #include "GraphFlipCliqueProposal.h"

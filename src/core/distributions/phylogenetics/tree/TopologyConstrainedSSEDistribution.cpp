@@ -27,7 +27,7 @@ void TopologyConstrainedSSEDistribution::executeMethod(const std::string &n, con
 {
 }
 
-RevLanguage::RevPtr<RevLanguage::RevVariable> TopologyConstrainedSSEDistribution::executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found)
+ProcedureResult TopologyConstrainedSSEDistribution::executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found)
 {
 	return base_distribution->executeProcedure(name, args, found);
 }

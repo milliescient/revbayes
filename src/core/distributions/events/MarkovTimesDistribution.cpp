@@ -5,6 +5,7 @@
  *      Author: mrmay
  */
 
+#include "RbConstants.h"
 #include "MarkovTimesDistribution.h"
 
 #include <set>

@@ -1,3 +1,4 @@
+#include "RbConstants.h"
 #include "StairwayPlotDistribution.h"
 
 #include <stddef.h>

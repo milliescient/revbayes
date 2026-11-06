@@ -8,8 +8,8 @@
 #include <utility>
 #include <vector>
 
+#include "ConstantNode.h"
 #include "AbstractHomologousDiscreteCharacterData.h"
-#include "RlAbstractHomologousDiscreteCharacterData.h"
 #include "SSE_ODE.h"
 #include "CladogeneticSpeciationRateMatrix.h"
 #include "DistributionExponential.h"
@@ -20,7 +20,6 @@
 #include "RateMatrix_JC.h"
 #include "RbConstants.h"
 #include "RbMathCombinatorialFunctions.h"
-#include "RlString.h"
 #include "StochasticNode.h"
 #include "TopologyNode.h"
 #include "AbstractDiscreteTaxonData.h"
@@ -35,8 +34,6 @@
 #include "RbSettings.h"
 #include "RbVector.h"
 #include "RbVectorImpl.h"
-#include "RevPtr.h"
-#include "RevVariable.h"
 #include "Simplex.h"
 #include "StringUtilities.h"
 #include "Taxon.h"
@@ -1514,7 +1511,7 @@ bool StateDependentSpeciationExtinctionProcess::recursivelyDrawStochasticCharact
 }
 
 
-RevLanguage::RevPtr<RevLanguage::RevVariable> StateDependentSpeciationExtinctionProcess::executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found)
+ProcedureResult StateDependentSpeciationExtinctionProcess::executeProcedure(const std::string &name, const std::vector<DagNode *> args, bool &found)
 {    
     if (name == "clampCharData")
     {
@@ -1557,19 +1554,18 @@ RevLanguage::RevPtr<RevLanguage::RevVariable> StateDependentSpeciationExtinction
 //        drawStochasticCharacterMap(character_histories);
 //        static_cast<TreeDiscreteCharacterData*>(this->value)->setTimeInStates(time_in_states);
 
-        return NULL;
+        return {};
     }
     
     if (name == "getCharData") 
     { 
         found = true;
-        RevLanguage::AbstractHomologousDiscreteCharacterData *tip_states = new RevLanguage::AbstractHomologousDiscreteCharacterData( getCharacterData() );
-        return new RevLanguage::RevVariable( tip_states );
+        return &getCharacterData();
     }
     if ( name == "getCharHistory" )
     {
         found = true;
-        return new RevLanguage::RevVariable( new RlString( simmap ) );        
+        return simmap;
     }
     return TypedDistribution<Tree>::executeProcedure( name, args, found );
 }

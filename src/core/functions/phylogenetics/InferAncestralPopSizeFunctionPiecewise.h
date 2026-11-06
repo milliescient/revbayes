@@ -1,7 +1,7 @@
 #ifndef InferAncestralPopSizeFunctionPiecewise_h
 #define InferAncestralPopSizeFunctionPiecewise_h
 
-#include "RlTypedFunction.h"
+#include "TypedFunction.h"
 #include "MatrixReal.h"
 
 #include <string>
