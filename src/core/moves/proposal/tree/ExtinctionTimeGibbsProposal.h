@@ -23,7 +23,8 @@ namespace RevBayesCore {
     class ExtinctionTimeGibbsProposal : public Proposal {
 
     public:
-        ExtinctionTimeGibbsProposal( StochasticNode<Tree> *n );                                         //!< constructor
+        enum Target { TIP, NODE, RANGE, ANCESTOR };
+        ExtinctionTimeGibbsProposal( StochasticNode<Tree> *n, Target t = TIP );                         //!< constructor
 
         void                                    cleanProposal(void);
         ExtinctionTimeGibbsProposal*            clone(void) const;
@@ -40,9 +41,18 @@ namespace RevBayesCore {
         void                                    swapNodeInternal(DagNode *oldN, DagNode *newN);
 
     private:
+        double                                  redraw(TopologyNode &tip, double ln_old);                       //!< Redraw a tip's extinction, returning the log density ratio old over new.
+        double                                  proposeTip(void);
+        double                                  proposeNode(void);
+        double                                  proposeRange(void);
+        double                                  proposeAncestor(void);
+        TopologyNode*                           collapsedSymmetric(TopologyNode &a) const;
+
         StochasticNode<Tree>*                   tree;
-        size_t                                  tip_index;
-        double                                  stored_age;
+        Target                                  target;
+        std::vector<TopologyNode*>              moved;                                                          //!< every node this proposal set an age on
+        std::vector<double>                     stored_ages;
+        TopologyNode*                           flipped = NULL;                                                 //!< a tip whose sampled-ancestor flag this proposal switched
         bool                                    failed;
     };
 
