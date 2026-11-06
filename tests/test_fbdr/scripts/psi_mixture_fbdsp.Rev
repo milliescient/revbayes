@@ -26,7 +26,7 @@ for (tree in v("drawn", "sampled ancestors")) {
         rec_mix.clamp(taxa)
         print(filename=out, append=TRUE, tree + ", " + cond + ": the same tree, and the plain densities:\n")
         print(filename=out, append=TRUE, plain == mix && (tree == "drawn" || mix.numSampledAncestors() == 2)
-              && abs(plain.lnProbability() - mix.lnProbability()) < 1E-10
+              && abs(plain.lnProbability() - mix.lnProbability()) < 1E-8
               && abs(rec_plain.lnProbability() - rec_mix.lnProbability()) < 1E-10, "\n")
     }
 }

@@ -239,7 +239,7 @@ const MemberRules& Dist_FBDSP::getParameterRules(void) const
 
         dist_member_rules.push_back( new ArgumentRule( "extended",  RlBoolean::getClassTypeSpec(), "Are the tips extinction times? If false the extinction times are marginalized out and each range ends at min(tau_K, youngest child birth).", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean(true) ) );
 
-        dist_member_rules.push_back( new ArgumentRule( "psiMixtureRates", ModelVector<RealPos>::getClassTypeSpec(), "The relative fossil sampling rate of each mixture component, which multiplies psi. Each species draws its component at budding, and an anagenetic species keeps its ancestor's. Needs extended=true. Left out, there is one component.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
+        dist_member_rules.push_back( new ArgumentRule( "psiMixtureRates", ModelVector<RealPos>::getClassTypeSpec(), "The relative fossil sampling rate of each mixture component, which multiplies psi. Each new species draws its own component, however it arose. Needs extended=true. Left out, there is one component.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
         dist_member_rules.push_back( new ArgumentRule( "psiMixtureWeights", Simplex::getClassTypeSpec(), "The probability of each mixture component. Left out, the weights are equal.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
 
         rules_set = true;

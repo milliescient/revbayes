@@ -56,8 +56,8 @@ public:
     //!< Taxon i, whose range follows a sampled ancestor.
     virtual double      successorTerm(const FossilizedBirthDeathSpeciationProcess &f, size_t i) const = 0;
     virtual RangeStart  unsampledSuccessorStart(void) const = 0;
-    //!< A range no taxon samples, following a sampled ancestor in interval ti.
-    virtual double      unsampledSuccessorTerm(const FossilizedBirthDeathSpeciationProcess &f, size_t ti) const = 0;
+    //!< A range no taxon samples, following a sampled ancestor at age t.
+    virtual double      unsampledSuccessorTerm(const FossilizedBirthDeathSpeciationProcess &f, double t) const = 0;
     //!< Whether the range at a sampled ancestor may carry on into its sibling.
     virtual bool        mayContinuePastSampledAncestor(const TopologyNode &sa_node, const TopologyNode &sibling, bool symmetric) const = 0;
 
@@ -72,27 +72,33 @@ public:
     bool        tipIsLastAppearance(const Taxon &t) const override { return false; }
     double      extinctionTime(const FossilizedBirthDeathSpeciationProcess &f, size_t i) const override { return f.ranges[i].death; }
 
-    // extinction, or an anagenetic or symmetric speciation that leaves no sampled descendant; under a psi mixture the
-    // anagenetic successor keeps the component and a symmetric speciation's daughters each draw one
+    // extinction, or an anagenetic or symmetric speciation that leaves no sampled descendant; under a psi mixture
+    // every successor draws its own component
     double      endTerm(const FossilizedBirthDeathSpeciationProcess &f, size_t di, double d, double p_d, double pbar_d) const override
     {
         double pd = ( p_d >= 0.0 ? p_d : f.p( di, d ) );
         double pb = ( pbar_d >= 0.0 ? pbar_d : pd );
-        return log( f.death[di] + f.anagenetic[di] * pd + f.birth[di] * f.symmetric[di] * pb * pb );
+        return log( f.death[di] + f.anagenetic[di] * pb + f.birth[di] * f.symmetric[di] * pb * pb );
     }
     // the successor's term cancels it
     double      saEndTerm(const FossilizedBirthDeathSpeciationProcess &f, size_t di) const override { return log( f.death[di] ); }
 
-    // the ancestor's range ended by anagenetic speciation, not by extinction
+    // the ancestor's range ended where the successor's began, by anagenesis or by a symmetric speciation whose
+    // other daughter left no sample, not by extinction
     double      successorTerm(const FossilizedBirthDeathSpeciationProcess &f, size_t i) const override
     {
-        size_t y_ai = f.findIndex( f.ranges[i].divergence );
-        return log( f.anagenetic[y_ai] ) - log( f.birth[y_ai] ) - log( f.death[y_ai] );
+        double y = f.ranges[i].divergence;
+        size_t yi = f.findIndex( y );
+        double r_ana, r_sym;
+        f.successorRates( y, r_ana, r_sym );
+        return log( r_ana + r_sym ) - log( f.birth[yi] ) - log( f.death[yi] );
     }
     RangeStart  unsampledSuccessorStart(void) const override { return RangeStart::ANAGENESIS; }
-    double      unsampledSuccessorTerm(const FossilizedBirthDeathSpeciationProcess &f, size_t ti) const override
+    double      unsampledSuccessorTerm(const FossilizedBirthDeathSpeciationProcess &f, double t) const override
     {
-        return log( f.anagenetic[ti] ) - log( f.death[ti] );
+        double r_ana, r_sym;
+        f.successorRates( t, r_ana, r_sym );
+        return log( r_ana + r_sym ) - log( f.death[ f.findIndex( t ) ] );
     }
 
     // the tip is the range's end, so the symmetric speciation sits at its age
@@ -135,7 +141,7 @@ public:
         return log( 1.0 - exp( f.lnNoSpeciesChange( f.ranges[i].first, y_a ) ) ) - log( f.birth[ f.findIndex( y_a ) ] );
     }
     RangeStart  unsampledSuccessorStart(void) const override { return RangeStart::SAMPLED_ANCESTOR; }
-    double      unsampledSuccessorTerm(const FossilizedBirthDeathSpeciationProcess &f, size_t ti) const override { return 0.0; }
+    double      unsampledSuccessorTerm(const FossilizedBirthDeathSpeciationProcess &f, double t) const override { return 0.0; }
 
     // that range and a successor no taxon samples are one state, which the successor stands for
     bool        mayContinuePastSampledAncestor(const TopologyNode &sa_node, const TopologyNode &sibling, bool symmetric) const override { return false; }
@@ -300,14 +306,7 @@ double FossilizedBirthDeathSpeciationProcess::speciationModeLnProb( void ) const
 
         if ( num_components > 1 )
         {
-            // its lineage starts in a fresh draw, or in the component of the sampled ancestor it continues
-            std::vector<double> source = mixture_weights;
-            if ( r.start != RangeStart::SPECIATION && r.sa_species >= 0 )
-            {
-                source.assign( num_components, 0.0 );
-                source[ ranges[r.sa_species].component ] = 1.0;
-            }
-            lnProb += unsampledMixtureLnProb( r, source );
+            lnProb += unsampledMixtureLnProb( r, mixture_weights );
         }
         else
         {
@@ -317,7 +316,7 @@ double FossilizedBirthDeathSpeciationProcess::speciationModeLnProb( void ) const
         if ( r.start == RangeStart::SPECIATION ) lnProb += log( birth[ti] );
 
         // the ancestor's end was charged mu, as computeLnProbabilityTimes cancels for a taxon
-        if ( r.start != RangeStart::SPECIATION ) lnProb += representation->unsampledSuccessorTerm( *this, ti );
+        if ( r.start != RangeStart::SPECIATION ) lnProb += representation->unsampledSuccessorTerm( *this, r.top );
     }
 
     return lnProb;
@@ -365,29 +364,24 @@ void FossilizedBirthDeathSpeciationProcess::appendIntervalRates( size_t j, std::
 }
 
 
-/** An anagenetic species continues its ancestor's lineage, and with it the ancestor's component. */
-void FossilizedBirthDeathSpeciationProcess::mixtureStemSource( size_t i, std::vector<double> &w ) const
+/** At a sampled ancestor of age y, the successor's start: anagenesis, or a symmetric speciation whose other daughter left no sample. */
+void FossilizedBirthDeathSpeciationProcess::successorRates( double y, double &r_ana, double &r_sym ) const
 {
-    int a = species[i].sa_parent;
-    if ( species[i].parent_is_sa == false || a < 0 )
+    size_t yi = findIndex( y );
+    double pbar = 0.0;
+    if ( num_components > 1 )
     {
-        AbstractFossilizedBirthDeathRangeProcess::mixtureStemSource( i, w );
-        return;
+        std::vector<double> ph;
+        double lp;
+        mixtureAt( y, ph, lp );
+        for (size_t h = 0; h < num_components; h++) pbar += mixture_weights[h] * ph[h];
     }
-
-    w.assign( num_components, 0.0 );
-    w[ ranges[a].component ] = 1.0;
-}
-
-
-std::vector<size_t> FossilizedBirthDeathSpeciationProcess::mixtureDependents( size_t i ) const
-{
-    std::vector<size_t> out;
-    for (size_t j = 0; j < species.size(); j++)
+    else
     {
-        if ( species[j].parent_is_sa == true && species[j].sa_parent == int(i) ) out.push_back( j );
+        pbar = p( yi, y );
     }
-    return out;
+    r_ana = anagenetic[yi];
+    r_sym = 2.0 * birth[yi] * symmetric[yi] * pbar;
 }
 
 
@@ -1006,6 +1000,14 @@ void FossilizedBirthDeathSpeciationProcess::mixtureSymmetric( std::vector<double
 }
 
 
+/** Each interval's anagenetic rate, which moves a lineage to a fresh component. */
+void FossilizedBirthDeathSpeciationProcess::mixtureAnagenetic( std::vector<double> &rate ) const
+{
+    rate.clear();
+    if ( hasAnagenesis() == true ) rate = anagenetic;
+}
+
+
 /**
  * An unsampled range's lineage from its top to the symmetric node that ends it, starting in source: the stem matrix
  * summed over the component it ends in, since nothing is observed of it.
@@ -1029,23 +1031,6 @@ double FossilizedBirthDeathSpeciationProcess::unsampledMixtureLnProb( const Unsa
         total += s * exp( Q_scale[c] - top_scale );
     }
     return log( total ) + top_scale;
-}
-
-
-/** An unsampled range begun by anagenesis at taxon i keeps i's component, so it enters i's conditional. */
-void FossilizedBirthDeathSpeciationProcess::mixtureExtraLnProbs( size_t i, std::vector<double> &ln_probs ) const
-{
-    for (const UnsampledRange &r : unsampled)
-    {
-        if ( r.start == RangeStart::SPECIATION || r.sa_species != int(i) ) continue;
-        std::vector<double> source( num_components, 0.0 );
-        for (size_t h = 0; h < num_components; h++)
-        {
-            source.assign( num_components, 0.0 );
-            source[h] = 1.0;
-            ln_probs[h] += unsampledMixtureLnProb( r, source );
-        }
-    }
 }
 
 

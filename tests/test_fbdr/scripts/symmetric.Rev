@@ -2,13 +2,14 @@
 # speciation mode at every node is fixed. The expected differences between trees come from an
 # independent R implementation of the density, whose terms were checked by simulation:
 #   budding 1-beta, symmetric 2 lambda beta, a range no taxon samples q from its top to its end,
-#   and an unobserved end mu + lambda_a p + lambda beta p^2.
+#   an unobserved end mu + lambda_a p + lambda beta p^2, and a sampled ancestor's successor lambda_a + 2 lambda beta p,
+#   the R implementation's lambda_a there corrected by log(1 + 2 lambda beta p / lambda_a).
 # Differences cancel the tree-shape constant. Every line printed must be TRUE.
 taxa <- readTaxonData("data/fbdsp_symmetric.tsv")
 trees <- readTrees("data/fbdsp_symmetric.tre", treetype="clock")
 out = "output/symmetric.txt"
 
-expected = v(0.0, 0.0, 0.2876820725, 0.2876820725, 0.2876820725, 1.4228119316, 2.3433194246, 2.6872798958)
+expected = v(0.0, 0.0, 0.2876820725, 0.2876820725, 0.2876820725, 1.9354046692, 2.8559121622, 2.6872798958)
 names = v("budding", "budding with the other daughter continuing", "a symmetric speciation ending a range no taxon samples",
           "a range no taxon samples beginning at the origin", "a range no taxon samples running through a budding",
           "anagenesis at a sampled ancestor", "an anagenesis into a range no taxon samples",

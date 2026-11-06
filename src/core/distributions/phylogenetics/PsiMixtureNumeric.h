@@ -11,10 +11,11 @@ namespace RevBayesCore {
     /**
      * @brief Extinction probabilities under a mixture of psi multiples drawn at birth, integrated with fixed eighth-order steps.
      *
-     * The same quantities as PsiMixtureSolution, for any beta: with symmetric speciation both daughters draw a
-     * component, which adds lambda beta pbar^2 to dp_h/dt and breaks the linearisation the closed form rests on.
+     * The same quantities as PsiMixtureSolution, for any beta and anagenetic rate a: every new species draws a
+     * component, so symmetric speciation adds lambda beta pbar^2 to dp_h/dt, which breaks the linearisation the
+     * closed form rests on, and anagenesis moves the lineage to a fresh draw.
      *
-     *     dp_h/dt = mu - (lambda + mu + psi nu_h) p_h + lambda (1-beta) p_h pbar + lambda beta pbar^2
+     *     dp_h/dt = mu - (lambda + mu + psi nu_h + a) p_h + lambda (1-beta) p_h pbar + lambda beta pbar^2 + a pbar
      *
      * The lambda integral is int lambda (1-beta) pbar, a budding whose daughter leaves no sample, which is
      * int lambda pbar at beta = 0. The stem matrix Q = dp(t)/dp(s) solves the variational equation.
@@ -31,7 +32,8 @@ namespace RevBayesCore {
 
         void                    update(const std::vector<double> &times, const std::vector<double> &lambda, const std::vector<double> &mu,
                                        const std::vector<double> &psi, const std::vector<double> &rates, const std::vector<double> &weights,
-                                       double rho, const std::vector<double> &beta);                         //!< As PsiMixtureSolution::update, with each interval's beta.
+                                       double rho, const std::vector<double> &beta,
+                                       const std::vector<double> &anagenetic);                               //!< As PsiMixtureSolution::update, with each interval's beta and anagenetic rate.
         size_t                  getNumberOfComponents(void) const { return num_components; }
         void                    at(double t, std::vector<double> &p, double &lambda_pbar) const;            //!< p of each component at age t, and int lambda (1-beta) pbar from the present up to t.
         double                  lambdaPbarIntegral(double t0, double t1) const;                             //!< int lambda (1-beta) pbar between ages t0 <= t1.
@@ -48,7 +50,7 @@ namespace RevBayesCore {
         void                    rk4(size_t i, std::vector<double> &x, double h, size_t columns) const;      //!< one fixed high-order step
 
         size_t                  num_components = 0;
-        std::vector<double>     starts, lam, mu_, psi_, beta_, nu, w;
+        std::vector<double>     starts, lam, mu_, psi_, beta_, ana_, nu, w;
         double                  rho = 1.0;
         double                  step = 0.5;                    //!< the longest step
         double                  step_rate = 0.5;                //!< the longest step times the interval's fastest rate

@@ -132,6 +132,7 @@ namespace RevBayesCore {
         virtual bool                                    marginalizesExtinction(void) const { return false; }        //!< True when the extinction times are integrated out.
         virtual double                                  rangeEndTerm(size_t i, size_t di, double d, double p_d = -1.0, double pbar_d = -1.0) const { return log( death[di] ); } //!< Log term closing range i at d; under a mixture p_d is the range's component's chance to leave no sample from d, pbar_d a fresh draw's.
         virtual void                                    mixtureSymmetric(std::vector<double> &beta) const { beta.clear(); }  //!< Each interval's chance of symmetric speciation, empty where there is none.
+        virtual void                                    mixtureAnagenetic(std::vector<double> &rate) const { rate.clear(); }  //!< Each interval's anagenetic rate, empty where there is none.
         virtual void                                    mixtureExtraLnProbs(size_t i, std::vector<double> &ln_probs) const {}  //!< Terms beside the ranges that depend on taxon i's component, by component.
         void                                            mixtureAt(double t, std::vector<double> &p, double &lambda_pbar) const;  //!< The mixture solution's p and lambda integral, from whichever solver holds it.
         void                                            mixtureSensitivity(double s, double t, const std::vector<size_t> &columns, std::vector<double> &Q, std::vector<double> &Q_scale) const;
@@ -225,9 +226,10 @@ namespace RevBayesCore {
         // used only with more than one psi mixture component
         mutable std::vector<double>                     mixture_rates;                                          //!< The relative fossil sampling rate of each component
         mutable std::vector<double>                     mixture_weights;                                        //!< The probability of each component
-        mutable PsiMixtureNumeric                       mixture_numeric;                                        //!< the same, for a beta > 0 that the closed form cannot take
+        mutable PsiMixtureNumeric                       mixture_numeric;                                        //!< the same, for a beta or anagenetic rate > 0 that the closed form cannot take
         mutable bool                                    mixture_numeric_on = false;                             //!< Whether the mixture is solved numerically.
         mutable std::vector<double>                     mix_beta;                                               //!< scratch: each interval's beta, for the solver
+        mutable std::vector<double>                     mix_ana;                                                //!< scratch: each interval's anagenetic rate, for the solver
         mutable PsiMixtureSolution                      mixture_solution;                                       //!< p, int lambda pbar and Q of every component
         mutable std::vector<double>                     mix_start, mix_p, mix_Q, mix_Q_scale, mix_ln_probs;     //!< scratch for the mixture range density
         mutable std::vector<size_t>                     mix_columns;

@@ -1005,7 +1005,7 @@ moves.append( mvPsiMixtureAllocation(bd_mix, weight=taxa.size()) ))");
 
 Every age in the tree needs a move. Tips are extinction times, sampled by `mvFossilTipTimeUniform` between the present and the youngest occurrence. `mvNodeTimeSlideUniform` skips the root, so pair it with `mvRootTimeSlideUniform`.
 
-Fossil sampling rates can vary among species, as in `dnFBDRP`. An anagenetic species keeps its ancestor's component. `mvPsiMixtureAllocation` samples the components and `getPsiMixtureComponents()` reports them. The mixture needs `extended=TRUE`.
+Fossil sampling rates can vary among species, as in `dnFBDRP`. Each species draws its own component, whether it arose by budding, symmetric speciation or anagenesis. `mvPsiMixtureAllocation` samples the components and `getPsiMixtureComponents()` reports them. The mixture needs `extended=TRUE`.
 
 With `beta > 0` a speciation may also be symmetric (bifurcating): the ancestral species ends and both daughters begin new ones.
 

@@ -115,9 +115,7 @@ namespace RevBayesCore {
         bool                                            marginalizesExtinction(void) const override;
         double                                          rangeEndTerm(size_t i, size_t di, double d, double p_d = -1.0, double pbar_d = -1.0) const override;
         void                                            mixtureSymmetric(std::vector<double> &beta) const override;
-        void                                            mixtureExtraLnProbs(size_t i, std::vector<double> &ln_probs) const override;
-        void                                            mixtureStemSource(size_t i, std::vector<double> &w) const override;  //!< An anagenetic species starts in its ancestor's component.
-        std::vector<size_t>                             mixtureDependents(size_t i) const override;
+        void                                            mixtureAnagenetic(std::vector<double> &rate) const override;
         double                                          observedRangeRate(size_t j) const override { return anagenetic[j]; }  //!< No anagenesis inside an observed range.
         void                                            appendIntervalRates(size_t j, std::vector<double> &v) const override;
 
@@ -125,6 +123,7 @@ namespace RevBayesCore {
         void                                            updateRanges(void) override;
         void                                            setOccurrences(const std::vector<Taxon> &t) override;    //!< Sync the tree-side taxon copy, then adopt as the base does.
         double                                          symmetricAt(double age) const;                           //!< beta in the interval containing age, read from the parameter.
+        void                                            successorRates(double y, double &r_ana, double &r_sym) const;  //!< How a range ends where its successor begins, at a sampled ancestor of age y.
         void                                            normalizeContinuationFlags(void);                        //!< Repair the whole tree, refreshing the interval cache first.
         void                                            normalizeContinuationFlags(const TopologyNode &node);    //!< Make each node name exactly one continuing child.
         int                                             continuingSpecies(const TopologyNode &node) const;       //!< The taxon whose range this node belongs to, or -1 where none is named.

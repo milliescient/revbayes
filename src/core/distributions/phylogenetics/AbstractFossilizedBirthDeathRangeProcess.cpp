@@ -1724,13 +1724,15 @@ void AbstractFossilizedBirthDeathRangeProcess::prepareProbComputation( void ) co
         }
         mixture_weights = ( psi_mixture_weights != NULL ) ? std::vector<double>( psi_mixture_weights->getValue() ) : std::vector<double>(H, 1.0 / H);
 
-        // the closed form rests on a linearisation that symmetric speciation breaks
+        // the closed form takes neither symmetric speciation nor the fresh draw at an anagenesis
         mixtureSymmetric( mix_beta );
+        mixtureAnagenetic( mix_ana );
         mixture_numeric_on = false;
         for (double x : mix_beta) mixture_numeric_on = mixture_numeric_on || x > 0.0;
+        for (double x : mix_ana)  mixture_numeric_on = mixture_numeric_on || x > 0.0;
         if ( mixture_numeric_on == true )
         {
-            mixture_numeric.update( times, birth, death, fossil, mixture_rates, mixture_weights, homogeneous_rho->getValue(), mix_beta );
+            mixture_numeric.update( times, birth, death, fossil, mixture_rates, mixture_weights, homogeneous_rho->getValue(), mix_beta, mix_ana );
         }
         else
         {
@@ -1811,8 +1813,7 @@ void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, st
 
         ln_probs[h] += -( birth_death + mixture_rates[h]*sampling ) + ( lambda_pbar_o - lambda_pbar_d );
 
-        // the lineage stays in its component through an anagenesis, so it leaves no sample with p_h; the
-        // daughters of a symmetric speciation draw afresh
+        // a successor of any kind draws its own component
         if ( ranges[i].survived == false ) ln_probs[h] += rangeEndTerm( i, di, d, p[h], pbar_d );
     }
 }

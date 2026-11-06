@@ -11,20 +11,21 @@ using namespace RevBayesCore;
 
 void PsiMixtureNumeric::update( const std::vector<double> &times, const std::vector<double> &lambda, const std::vector<double> &mu,
                                 const std::vector<double> &psi, const std::vector<double> &rates, const std::vector<double> &weights,
-                                double r, const std::vector<double> &beta )
+                                double r, const std::vector<double> &beta, const std::vector<double> &anagenetic )
 {
     std::vector<double> b = beta.empty() ? std::vector<double>( times.size(), 0.0 ) : beta;
+    std::vector<double> a = anagenetic.empty() ? std::vector<double>( times.size(), 0.0 ) : anagenetic;
 
     // a change in what every interval shares drops the whole grid; otherwise only from the youngest changed interval
     bool all = ( num_components != rates.size() || starts != times || nu != rates || w != weights || rho != r || grid.empty() );
     size_t first = all ? 0 : times.size();
     for (size_t i = 0; first == times.size() && i < times.size(); i++)
     {
-        if ( lam[i] != lambda[i] || mu_[i] != mu[i] || psi_[i] != psi[i] || beta_[i] != b[i] ) first = i;
+        if ( lam[i] != lambda[i] || mu_[i] != mu[i] || psi_[i] != psi[i] || beta_[i] != b[i] || ana_[i] != a[i] ) first = i;
     }
 
     num_components = rates.size();
-    starts = times; lam = lambda; mu_ = mu; psi_ = psi; nu = rates; w = weights; rho = r; beta_ = b;
+    starts = times; lam = lambda; mu_ = mu; psi_ = psi; nu = rates; w = weights; rho = r; beta_ = b; ana_ = a;
 
     size_t H = num_components;
 
@@ -58,7 +59,7 @@ size_t PsiMixtureNumeric::findIndex( double t ) const
 double PsiMixtureNumeric::stepLength( size_t i ) const
 {
     double fastest = 0.0;
-    for (size_t h = 0; h < num_components; h++) fastest = std::max( fastest, lam[i] + mu_[i] + psi_[i]*nu[h] );
+    for (size_t h = 0; h < num_components; h++) fastest = std::max( fastest, lam[i] + mu_[i] + psi_[i]*nu[h] + ana_[i] );
     double h_max = std::min( step, step_rate / std::max( fastest, 1E-12 ) );
 
     // equal steps between the interval's ends; the oldest runs on without end, in steps of h_max
@@ -75,26 +76,26 @@ double PsiMixtureNumeric::stepLength( size_t i ) const
 void PsiMixtureNumeric::derivative( size_t i, const double *x, double *dx, size_t C ) const
 {
     size_t H = num_components;
-    double l = lam[i], m = mu_[i], f = psi_[i], b = beta_[i];
+    double l = lam[i], m = mu_[i], f = psi_[i], b = beta_[i], a = ana_[i];
 
     double pbar = 0.0;
     for (size_t h = 0; h < H; h++) pbar += w[h] * x[h];
     for (size_t h = 0; h < H; h++)
     {
-        dx[h] = m - ( l + m + f*nu[h] ) * x[h] + l * (1.0 - b) * x[h] * pbar + l * b * pbar * pbar;
+        dx[h] = m - ( l + m + f*nu[h] + a ) * x[h] + l * (1.0 - b) * x[h] * pbar + l * b * pbar * pbar + a * pbar;
     }
     dx[H] = l * (1.0 - b) * pbar;
 
-    // the variational equation: J_ak = delta_ak (-(l+m+f nu_a) + l(1-b) pbar) + (l(1-b) p_a + 2 l b pbar) w_k
+    // the variational equation: J_ak = delta_ak (-(l+m+f nu_a+a) + l(1-b) pbar) + (l(1-b) p_a + 2 l b pbar + a) w_k
     for (size_t c = 0; c < C; c++)
     {
         const double *q = &x[H + 1 + c*H];
         double *dq = &dx[H + 1 + c*H];
         double wq = 0.0;
         for (size_t k = 0; k < H; k++) wq += w[k] * q[k];
-        for (size_t a = 0; a < H; a++)
+        for (size_t k = 0; k < H; k++)
         {
-            dq[a] = ( -( l + m + f*nu[a] ) + l * (1.0 - b) * pbar ) * q[a] + ( l * (1.0 - b) * x[a] + 2.0 * l * b * pbar ) * wq;
+            dq[k] = ( -( l + m + f*nu[k] + a ) + l * (1.0 - b) * pbar ) * q[k] + ( l * (1.0 - b) * x[k] + 2.0 * l * b * pbar + a ) * wq;
         }
     }
 }
