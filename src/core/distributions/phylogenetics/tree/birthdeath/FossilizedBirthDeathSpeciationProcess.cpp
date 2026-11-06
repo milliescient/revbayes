@@ -489,12 +489,13 @@ void FossilizedBirthDeathSpeciationProcess::setValue(Tree *v, bool force)
     AbstractBirthDeathProcess::setValue(v, force);
     cached_events_level = 0;
 
-    // the per-taxon terms are read by tip index
+    // the per-taxon terms are read by tip index, and the tip moves read each tip's status, which a Newick drops
     const std::vector<TopologyNode*> nodes = this->getValue().getNodes();
     for (size_t i = 0; i < this->getValue().getNumberOfTips(); i++)
     {
         size_t j = find(taxa.begin(), taxa.end(), nodes[i]->getTaxon()) - taxa.begin();
         nodes[i]->setIndex(j);
+        if ( j < taxa.size() ) nodes[i]->setTaxon( taxa[j] );
     }
     this->getValue().orderNodesByIndex();
 
