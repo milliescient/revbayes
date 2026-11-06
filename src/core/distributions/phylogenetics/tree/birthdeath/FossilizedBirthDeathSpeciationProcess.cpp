@@ -991,6 +991,101 @@ void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e ) cons
 }
 
 
+/**
+ * On a sampled tree, draw species i's extinction from its conditional, as drawOrigination draws an origination.
+ * A species that is itself and unsampled at age top, and leaves nothing after, is still itself and unsampled at
+ * s with mass q~(top -> s) p(s), which is p(top) at top, so that mass, normalized, is the chance it ends below s.
+ * A sampled ancestor's species meets the first change of species on the path to its successor, a Poisson process
+ * at lambda_a + lambda (1-beta) p + 2 lambda beta p, with at least one change when the successor is sampled and
+ * otherwise ending at the symmetric node. An anagenesis or symmetric change ends it there; at a budding whose
+ * parent side left no sample it carries on unseen, and ends as a tip's species does from that age.
+ */
+double FossilizedBirthDeathSpeciationProcess::drawExtinction( size_t i ) const
+{
+    double present = getPresent();
+    if ( ranges[i].survived == true ) return present;
+
+    RandomNumberGenerator* rng = GLOBAL_RNG;
+    const TopologyNode &tip = getValue().getNode(i);
+    double tk = tip.getAge();
+
+    // the end of a species that is unsampled below top and leaves nothing
+    auto end_below = [&]( double top ) {
+        double rho = homogeneous_rho->getValue();
+        auto ln_mass = [&]( double s ) {
+            size_t si = findIndex(s);
+            double after = p( si, s );
+            if ( has_reporting_node == false ) after += rho * exp( lnQTildeFromPresent( si, s ) );
+            return lnQTildeFromPresent( findIndex(top), top ) - lnQTildeFromPresent( si, s ) + log( after );
+        };
+        double ln_u = log( rng->uniform01() ) + ln_mass( top );
+
+        // the atom at the present: alive and unseen
+        if ( ln_u <= ln_mass( present ) ) return present;
+
+        double lo = present, hi = top;
+        for (size_t n = 0; n < 200 && hi - lo > 1E-12*(1.0 + top); ++n)
+        {
+            double mid = 0.5 * (lo + hi);
+            if ( ln_mass( mid ) < ln_u ) lo = mid; else hi = mid;
+        }
+        return 0.5 * (lo + hi);
+    };
+
+    if ( tip.isSampledAncestorTip() == false || tip.isRoot() == true ) return end_below( tk );
+
+    // the successor's path: follow the sibling's continuation to a tip or to the symmetric node that ends it
+    const TopologyNode &sa_node = tip.getParent();
+    const TopologyNode *n = NULL;
+    for (size_t c = 0; c < sa_node.getNumberOfChildren(); c++)
+    {
+        if ( &sa_node.getChild(c) != &tip ) n = &sa_node.getChild(c);
+    }
+    while ( n->isTip() == false )
+    {
+        const TopologyNode *next = NULL;
+        for (size_t c = 0; c < n->getNumberOfChildren(); c++)
+        {
+            if ( n->getChild(c).continuesParentSpecies() ) next = &n->getChild(c);
+        }
+        if ( next == NULL ) break;
+        n = next;
+    }
+    bool named = n->isTip();
+    double bottom = ( named ? ranges[ n->getIndex() ].first : n->getAge() );
+
+    // the expected number of changes from the sampled ancestor down to t
+    auto changes = [&]( double t ) {
+        std::vector<double> hb, hs, ha;
+        hiddenEventIntegrals( std::vector<std::pair<double,double> >( 1, std::make_pair( t, tk ) ), hb, hs, ha );
+        return hb[0] + hs[0] + ha[0];
+    };
+    double total = changes( bottom );
+
+    // the first change comes after R changes' worth of rate, R exponential, truncated below total when named
+    double u = rng->uniform01();
+    double target = ( named ? -log( 1.0 - u * ( 1.0 - exp( -total ) ) ) : -log( u ) );
+    if ( target >= total ) return bottom;
+
+    double lo = bottom, hi = tk;
+    for (size_t k = 0; k < 200 && hi - lo > 1E-12*(1.0 + tk); ++k)
+    {
+        double mid = 0.5 * (lo + hi);
+        if ( changes( mid ) > target ) lo = mid; else hi = mid;
+    }
+    double t = 0.5 * (lo + hi);
+
+    // the change's mode, in proportion to its rate at t
+    size_t ti = findIndex(t);
+    double pt = p( ti, t );
+    double r_bud = birth[ti] * ( 1.0 - symmetric[ti] ) * pt;
+    double r_all = anagenetic[ti] + birth[ti] * ( 1.0 + symmetric[ti] ) * pt;
+    if ( rng->uniform01() * r_all < r_bud ) return end_below( t );
+
+    return t;
+}
+
+
 /** The per-branch speciation events, then the range methods of the base class. */
 void FossilizedBirthDeathSpeciationProcess::executeMethod( const std::string &n, const std::vector<const DagNode *> &args, RbVector<double> &rv ) const
 {
@@ -998,6 +1093,16 @@ void FossilizedBirthDeathSpeciationProcess::executeMethod( const std::string &n,
         { "getHiddenBuddings", &BranchEvents::hidden_budding }, { "getHiddenBifurcations", &BranchEvents::hidden_bifurcation },
         { "getHiddenAnageneses", &BranchEvents::hidden_anagenetic }, { "getObservedBuddings", &BranchEvents::observed_budding },
         { "getObservedBifurcations", &BranchEvents::observed_bifurcation }, { "getObservedAnageneses", &BranchEvents::observed_anagenetic } };
+
+    // a sampled tree integrates the extinctions out, so each call draws them from their conditional
+    if ( n == "getExtinctionTimes" && extended == false )
+    {
+        const_cast<FossilizedBirthDeathSpeciationProcess *>( this )->updateRanges();
+        prepareProbComputation();
+        rv.clear();
+        for (size_t i = 0; i < ranges.size(); i++) rv.push_back( drawExtinction( i ) );
+        return;
+    }
 
     if ( events.count( n ) == 1 )
     {

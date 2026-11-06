@@ -16,5 +16,7 @@ a sampled ancestor's range carried past it is rejected:
 TRUE	
 two children continuing one range is rejected:
 TRUE	
+the extinction draws lie between the present and each last appearance:
+TRUE	
 a checkpoint keeps a successor no taxon samples:
 TRUE	

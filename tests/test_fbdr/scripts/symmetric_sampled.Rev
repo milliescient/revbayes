@@ -32,6 +32,20 @@ x.setValue(trees[9])
 print(filename=out, append=TRUE, "two children continuing one range is rejected:\n")
 print(filename=out, append=TRUE, x.lnProbability() < -1E300, "\n")
 
+# The extinctions are integrated out of a sampled tree, so getExtinctionTimes draws each from its conditional,
+# between the present and the species' last appearance.
+x.setValue(trees[7])
+la <- x.getLastAppearances()
+within = TRUE
+for (k in 1:50) {
+    e <- x.getExtinctionTimes()
+    for (j in 1:e.size()) {
+        if (e[j] > la[j] + 1E-12 || e[j] < 0.0) within = FALSE
+    }
+}
+print(filename=out, append=TRUE, "the extinction draws lie between the present and each last appearance:\n")
+print(filename=out, append=TRUE, within, "\n")
+
 # A chain moving only z resumes at the posterior it stopped at, so a checkpoint keeps the modes.
 print(filename=out, append=TRUE, "a checkpoint keeps a successor no taxon samples:\n")
 z ~ dnUniform(0, 1)
