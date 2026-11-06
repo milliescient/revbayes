@@ -91,7 +91,7 @@ namespace RevBayesCore {
 
     protected:
         bool                                            marginalizesExtinction(void) const override { return extended == false; }
-        double                                          rangeEndTerm(size_t i, size_t di, double d) const override;
+        double                                          rangeEndTerm(size_t i, size_t di, double d, double p_d = -1.0) const override;
         void                                            mixtureStemSource(size_t i, std::vector<double> &w) const override;  //!< An anagenetic species starts in its ancestor's component.
         std::vector<size_t>                             mixtureDependents(size_t i) const override;
         double                                          observedRangeRate(size_t j) const override { return anagenetic[j]; }  //!< No anagenesis inside an observed range.

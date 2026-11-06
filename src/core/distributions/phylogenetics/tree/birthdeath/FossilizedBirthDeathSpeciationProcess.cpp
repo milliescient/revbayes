@@ -246,7 +246,7 @@ double FossilizedBirthDeathSpeciationProcess::computeLnProbabilityTimes( void ) 
 
 
 /** Close range i at d: an extinction, a symmetric speciation, or the marginalization limit. */
-double FossilizedBirthDeathSpeciationProcess::rangeEndTerm( size_t i, size_t di, double d ) const
+double FossilizedBirthDeathSpeciationProcess::rangeEndTerm( size_t i, size_t di, double d, double p_d ) const
 {
     // the symmetric node pays
     if ( species[i].ends_symmetric == true ) return 0.0;
@@ -257,7 +257,9 @@ double FossilizedBirthDeathSpeciationProcess::rangeEndTerm( size_t i, size_t di,
     // extinction, or an anagenetic or symmetric speciation that leaves no sampled descendant
     if ( extended == true )
     {
-        double pd = p( di, d );
+        // under a psi mixture the anagenetic successor keeps the component, whose p the caller passes;
+        // symmetric speciation, whose daughters draw afresh, is refused with a mixture
+        double pd = ( p_d >= 0.0 ? p_d : p( di, d ) );
         return log( death[di] + anagenetic[di] * pd + birth[di] * symmetric[di] * pd * pd );
     }
 

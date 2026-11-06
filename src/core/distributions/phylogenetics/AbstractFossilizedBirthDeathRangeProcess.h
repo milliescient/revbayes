@@ -129,7 +129,7 @@ namespace RevBayesCore {
 
     protected:
         virtual bool                                    marginalizesExtinction(void) const { return false; }        //!< True when the extinction times are integrated out.
-        virtual double                                  rangeEndTerm(size_t i, size_t di, double d) const { return log( death[di] ); } //!< Log term closing range i at d.
+        virtual double                                  rangeEndTerm(size_t i, size_t di, double d, double p_d = -1.0) const { return log( death[di] ); } //!< Log term closing range i at d; p_d is the lineage's chance to leave no sample from d, when a mixture component sets it.
         virtual double                                  rangeLnProb(size_t i);                                     //!< Birth-death density of range i.
         virtual double                                  originLnProb(void);                                        //!< Terms attaching to the origin rather than to a range.
         virtual double                                  conditionLnProb(void) const;                               //!< The conditioning normalization, where it applies to the process as a whole.

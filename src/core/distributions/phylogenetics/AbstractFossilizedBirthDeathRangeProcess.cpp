@@ -1798,7 +1798,8 @@ void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, st
 
         ln_probs[h] += -( birth_death + mixture_rates[h]*sampling ) + ( lambda_pbar_o - lambda_pbar_d );
 
-        if ( ranges[i].survived == false ) ln_probs[h] += rangeEndTerm( i, di, d );
+        // the lineage stays in its component through an anagenesis, so it leaves no sample with p_h
+        if ( ranges[i].survived == false ) ln_probs[h] += rangeEndTerm( i, di, d, p[h] );
     }
 }
 

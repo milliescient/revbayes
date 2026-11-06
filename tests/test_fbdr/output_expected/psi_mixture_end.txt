@@ -1,0 +1,2 @@
+a mixture of equal rates is the single rate, less the component weights:
+TRUE	

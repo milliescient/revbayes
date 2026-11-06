@@ -1,0 +1,19 @@
+# Under a psi mixture an extended range that ends unobserved closes with mu + lambda_a p_h(d): the anagenetic
+# successor keeps the component, so it leaves no sample with that component's p. Two components that both
+# sample at 2 psi are one psi of 2 psi, so the densities differ only by each taxon's component weight, 1/2.
+# Every line printed must be TRUE.
+taxa <- readTaxonData("data/fbdsp_symmetric.tsv")
+trees <- readTrees("data/fbdsp_symmetric.tre", treetype="clock")
+out = "output/psi_mixture_end.txt"
+
+plain ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=1.0, rho=1.0, lambda_a=0.5, origin=10.0, condition="time", extended=TRUE)
+mixed ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=0.5, rho=1.0, lambda_a=0.5, origin=10.0, condition="time", extended=TRUE,
+                psiMixtureRates=v(2.0, 2.0), psiMixtureWeights=simplex(1, 1))
+rp ~ dnFossilRecord(ranges=plain, reporting="complete"); rp.clamp(taxa)
+rm ~ dnFossilRecord(ranges=mixed, reporting="complete"); rm.clamp(taxa)
+plain.setValue(trees[1])
+mixed.setValue(trees[1])
+
+print(filename=out, "a mixture of equal rates is the single rate, less the component weights:\n")
+print(filename=out, append=TRUE, abs( mixed.lnProbability() - plain.lnProbability() - 5 * ln(0.5) ) < 1E-8, "\n")
+q()
