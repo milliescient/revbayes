@@ -81,9 +81,15 @@ const TypeSpec& Move_RotateNode::getClassTypeSpec(void)
  */
 std::string Move_RotateNode::getMoveName( void ) const
 {
-    std::string c_name = "RotateNode";
+    std::string c_name = "SpeciationMode";
 
     return c_name;
+}
+
+
+std::vector<std::string> Move_RotateNode::getMoveAliases( void ) const
+{
+    return std::vector<std::string>( 1, "RotateNode" );
 }
 
 

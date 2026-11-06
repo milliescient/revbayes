@@ -18,6 +18,9 @@ namespace RevBayesCore {
      * leaving every age and the topology alone. With symmetric speciation, a node's three states are
      * either child continuing or neither, and the move proposes one of the other two uniformly.
      *
+     * Once dnFBDSP holds the first changes of species on a sampled tree, half the proposals instead
+     * redraw one taxon's from its density given the tree, which only the characters then judge.
+     *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (June Walker)
      * @since 2026-07-19, version 1.0
@@ -54,6 +57,7 @@ namespace RevBayesCore {
         std::vector<TopologyNode*>              stored_children;
         std::vector<bool>                       stored_flags;                                                   //!< Each child's continuation before the proposal
         bool                                    failed;
+        bool                                    redrew;                                                         //!< The distribution undoes a redrawn first change itself
     };
 
 }

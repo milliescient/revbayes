@@ -1037,7 +1037,7 @@ moves.append( mvRootTimeSlideUniform(bd, origin=origin, weight = taxa.size()) )
 moves.append( mvFossilTipTimeUniform(bd, weight = taxa.size()) )
 
 # which lineage continues its ancestor's species at each speciation event
-moves.append( mvRotateNode(bd, weight = taxa.size()) )
+moves.append( mvSpeciationMode(bd, weight = taxa.size()) )
 
 # the first and last appearances, which the tree does not carry
 moves.append( mvStratigraphicRange(bd, weight = taxa.size()) ))");
@@ -3521,20 +3521,20 @@ moves.append( mvAdaptiveRJSwitch(theta,
 
 The move requires pure budding and refuses to be set up when `lambda_a > 0`.
 
-It never changes which species buds at a given birth age, so pair it with `mvRotateNode`. Ranges and node ages are untouched: use `mvFossilTipTimeUniform` for the extinction times and `mvNodeTimeSlideUniform` with `mvRootTimeSlideUniform` for the speciation times.)");
+It never changes which species buds at a given birth age, so pair it with `mvSpeciationMode`. Ranges and node ages are untouched: use `mvFossilTipTimeUniform` for the extinction times and `mvNodeTimeSlideUniform` with `mvRootTimeSlideUniform` for the speciation times.)");
 	help_strings[string("mvBuddingTopologyRedraw")][string("example")] = string(R"(tr ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, timeline=timeline, taxa=taxa)
 rec ~ dnFossilRecord(ranges=tr, reporting="firstlast")
 rec.clamp(taxa)
 
 moves.append( mvBuddingTopologyRedraw(tr, weight=taxa.size()) )
 # relabels which lineage carries each birth age; the Gibbs move cannot
-moves.append( mvRotateNode(tr, weight=taxa.size()) )
+moves.append( mvSpeciationMode(tr, weight=taxa.size()) )
 moves.append( mvFossilTipTimeUniform(tr, weight=taxa.size()) )
 moves.append( mvNodeTimeSlideUniform(tr, weight=taxa.size()) )
 moves.append( mvRootTimeSlideUniform(tr, origin, weight=2) ))");
 	help_strings[string("mvBuddingTopologyRedraw")][string("name")] = string(R"(mvBuddingTopologyRedraw)");
 	help_arrays[string("mvBuddingTopologyRedraw")][string("see_also")].push_back(string(R"(dnFossilizedBirthDeathSpeciation)"));
-	help_arrays[string("mvBuddingTopologyRedraw")][string("see_also")].push_back(string(R"(mvRotateNode)"));
+	help_arrays[string("mvBuddingTopologyRedraw")][string("see_also")].push_back(string(R"(mvSpeciationMode)"));
 	help_arrays[string("mvBuddingTopologyRedraw")][string("see_also")].push_back(string(R"(mvFNPR)"));
 	help_strings[string("mvBuddingTopologyRedraw")][string("title")] = string(R"(Gibbs draw of a budding topology)");
 	help_strings[string("mvBurstEvent")][string("name")] = string(R"(mvBurstEvent)");
@@ -3590,13 +3590,13 @@ moves.append( mvCharacterHistory(ctmc=X, qmap_site=Q, graph="tip",
 
 The expansion picks which daughter buds second, and draws that budding's age uniformly between the daughter and the first budding and the extinction uniformly between the present and the second budding. The collapse is determined. Candidates are all extinct fossil tips, so their number cancels.
 
-Use it with mvRotateNode(symmetric=TRUE) and mvCollapseExpandFossilBranch.)");
+Use it with mvSpeciationMode(symmetric=TRUE) and mvCollapseExpandFossilBranch.)");
 	help_strings[string("mvCollapseExpandSymmetric")][string("example")] = string(R"(beta ~ dnBeta(1, 1)
 tr ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, beta=beta, taxa=taxa)
-moves.append( mvRotateNode(tr, symmetric=TRUE, weight=taxa.size()) )
+moves.append( mvSpeciationMode(tr, symmetric=TRUE, weight=taxa.size()) )
 moves.append( mvCollapseExpandSymmetric(tr, weight=taxa.size()/5) ))");
 	help_strings[string("mvCollapseExpandSymmetric")][string("name")] = string(R"(mvCollapseExpandSymmetric)");
-	help_arrays[string("mvCollapseExpandSymmetric")][string("see_also")].push_back(string(R"(mvRotateNode)"));
+	help_arrays[string("mvCollapseExpandSymmetric")][string("see_also")].push_back(string(R"(mvSpeciationMode)"));
 	help_arrays[string("mvCollapseExpandSymmetric")][string("see_also")].push_back(string(R"(mvCollapseExpandFossilBranch)"));
 	help_strings[string("mvCollapseExpandSymmetric")][string("title")] = string(R"(Collapse or expand a sampled ancestor at a symmetric speciation)");
 	help_strings[string("mvConjugateInverseWishart")][string("name")] = string(R"(mvConjugateInverseWishart)");
@@ -4255,26 +4255,6 @@ remains unchanged for the tree branches.)");
 	help_strings[string("mvRateAgeBetaShift")][string("title")] = string(R"(The RateAgeBetaShift move)");
 	help_strings[string("mvRootTimeScaleBactrian")][string("name")] = string(R"(mvRootTimeScaleBactrian)");
 	help_strings[string("mvRootTimeSlideUniform")][string("name")] = string(R"(mvRootTimeSlideUniform)");
-	help_arrays[string("mvRotateNode")][string("authors")].push_back(string(R"(June Walker)"));
-	help_arrays[string("mvRotateNode")][string("authors")].push_back(string(R"(June Walker)"));
-	help_strings[string("mvRotateNode")][string("description")] = string(R"(Moves the continuation of an ancestral species between the children of a random internal node, leaving every node age and the topology unchanged.)");
-	help_strings[string("mvRotateNode")][string("details")] = string(R"(Under budding (asymmetric) speciation exactly one child of each node continues its ancestor's species, and the others begin new species there. Which one continues is a free parameter, separate from the topology and the node ages, and this move samples it. The new continuing child is drawn uniformly among the others.
-
-With symmetric=TRUE, for a tree with symmetric speciation (beta > 0), a node may also have no continuing child: its species ends there and both children begin new ones. The move then draws uniformly among the node's other states, one per child plus symmetric, so the proposal is its own reverse. Nodes with a sampled ancestor are left alone.)");
-	help_strings[string("mvRotateNode")][string("example")] = string(R"(tr ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, timeline=timeline, taxa=taxa)
-
-# which lineage continues the ancestral species at each speciation event
-moves.append( mvRotateNode(tr, weight=taxa.size()/2) )
-
-# with symmetric speciation, also between budding and symmetric
-beta ~ dnBeta(1, 1)
-tr_sym ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, beta=beta, taxa=taxa)
-moves.append( mvRotateNode(tr_sym, symmetric=TRUE, weight=taxa.size()/2) ))");
-	help_strings[string("mvRotateNode")][string("name")] = string(R"(mvRotateNode)");
-	help_arrays[string("mvRotateNode")][string("see_also")].push_back(string(R"(dnFossilizedBirthDeathSpeciation)"));
-	help_arrays[string("mvRotateNode")][string("see_also")].push_back(string(R"(mvBuddingTopologyRedraw)"));
-	help_arrays[string("mvRotateNode")][string("see_also")].push_back(string(R"(mvStratigraphicRange)"));
-	help_strings[string("mvRotateNode")][string("title")] = string(R"(Species continuation move)");
 	help_strings[string("mvSPR")][string("description")] = string(R"(Tree topology move that performs a Subtree Prune and Regraft (SPR) on
 an unrooted tree.)");
 	help_strings[string("mvSPR")][string("details")] = string(R"(`mvSPR` changes tree topology by cutting off a subtree and reattaching it
@@ -4412,6 +4392,28 @@ moves.append( mvSlideBactrian(x, tune=TRUE, weight=1) ))");
 	help_references[string("mvSlideBactrian")].push_back(RbHelpReference(R"(Yang Z, Rodríguez CE (2013). Searching for efficient Markov chain Monte Carlo proposal kernels. Proc. Natl. Acad. Sci. USA, 110(48):19307-19312.)",R"(10.1073/pnas.1311790110)",R"(https://www.pnas.org/doi/full/10.1073/pnas.1311790110 )"));
 	help_arrays[string("mvSlideBactrian")][string("see_also")].push_back(string(R"(mvSlide)"));
 	help_strings[string("mvSlideBactrian")][string("title")] = string(R"(Sliding-Window Mode Employing Bactrian Distribution)");
+	help_arrays[string("mvSpeciationMode")][string("authors")].push_back(string(R"(June Walker)"));
+	help_arrays[string("mvSpeciationMode")][string("authors")].push_back(string(R"(June Walker)"));
+	help_strings[string("mvSpeciationMode")][string("description")] = string(R"(Moves the continuation of an ancestral species between the children of a random internal node, leaving every node age and the topology unchanged. On a sampled tree whose per-branch event counts are read, it also redraws where a sampled ancestor's successor changed species. Also available as mvRotateNode.)");
+	help_strings[string("mvSpeciationMode")][string("details")] = string(R"(Under budding (asymmetric) speciation exactly one child of each node continues its ancestor's species, and the others begin new species there. Which one continues is a free parameter, separate from the topology and the node ages, and this move samples it. The new continuing child is drawn uniformly among the others.
+
+With symmetric=TRUE, for a tree with symmetric speciation (beta > 0), a node may also have no continuing child: its species ends there and both children begin new ones. The move then draws uniformly among the node's other states, one per child plus symmetric, so the proposal is its own reverse. Nodes with a sampled ancestor are left alone.
+
+On a sampled tree (extended=FALSE), a sampled ancestor's named successor first appears below it, so its lineage changed species at least once on the way down, unobserved. Once any of the per-branch event accessors (getHiddenBuddings and the others) is created, dnFBDSP holds the first of those changes as a latent: its age, and whether it was an anagenesis, a budding whose parent side left no sample, or a symmetric speciation whose other daughter left none. The accessors report it as that branch's observed event, and count hidden events only below it, so the same model reads both tree types. Half of this move's proposals then redraw one taxon's first change exactly from its density given the tree, so only what reads the counts decides their acceptance. Without the accessors there is no latent and the move only moves continuations.)");
+	help_strings[string("mvSpeciationMode")][string("example")] = string(R"(tr ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, timeline=timeline, taxa=taxa)
+
+# which lineage continues the ancestral species at each speciation event
+moves.append( mvSpeciationMode(tr, weight=taxa.size()/2) )
+
+# with symmetric speciation, also between budding and symmetric
+beta ~ dnBeta(1, 1)
+tr_sym ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, beta=beta, taxa=taxa)
+moves.append( mvSpeciationMode(tr_sym, symmetric=TRUE, weight=taxa.size()/2) ))");
+	help_strings[string("mvSpeciationMode")][string("name")] = string(R"(mvSpeciationMode)");
+	help_arrays[string("mvSpeciationMode")][string("see_also")].push_back(string(R"(dnFossilizedBirthDeathSpeciation)"));
+	help_arrays[string("mvSpeciationMode")][string("see_also")].push_back(string(R"(mvBuddingTopologyRedraw)"));
+	help_arrays[string("mvSpeciationMode")][string("see_also")].push_back(string(R"(mvStratigraphicRange)"));
+	help_strings[string("mvSpeciationMode")][string("title")] = string(R"(Speciation mode move)");
 	help_arrays[string("mvSpeciesNarrow")][string("authors")].push_back(string(R"(Sebastian Hoehna, Bastien Boussau)"));
 	help_strings[string("mvSpeciesNarrow")][string("description")] = string(R"(Makes a narrow-exchange move both in the species tree and in the gene trees that contain nodes of the relevant populations.)");
 	help_strings[string("mvSpeciesNarrow")][string("details")] = string(R"(The species tree must be ultrametric.
@@ -4762,7 +4764,7 @@ moves.append( mvStratigraphicRange(tr, weight=taxa.size()) ))");
 	help_references[string("mvStratigraphicRange")].push_back(RbHelpReference(R"(The fossilized birth-death model for the analysis of stratigraphic range data under different speciation modes. Stadler, Tanja et al. Journal of theoretical biology, 447:41-55.)",R"()",R"(https://www.sciencedirect.com/science/article/pii/S002251931830119X )"));
 	help_arrays[string("mvStratigraphicRange")][string("see_also")].push_back(string(R"(dnFossilizedBirthDeathSpeciation)"));
 	help_arrays[string("mvStratigraphicRange")][string("see_also")].push_back(string(R"(dnFossilRecord)"));
-	help_arrays[string("mvStratigraphicRange")][string("see_also")].push_back(string(R"(mvRotateNode)"));
+	help_arrays[string("mvStratigraphicRange")][string("see_also")].push_back(string(R"(mvSpeciationMode)"));
 	help_strings[string("mvStratigraphicRange")][string("title")] = string(R"(Stratigraphic range move)");
 	help_strings[string("mvSubtreeScale")][string("name")] = string(R"(mvSubtreeScale)");
 	help_strings[string("mvSymmetricMatrixElementSlide")][string("name")] = string(R"(mvSymmetricMatrixElementSlide)");

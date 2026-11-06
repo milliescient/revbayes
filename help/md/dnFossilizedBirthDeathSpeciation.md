@@ -52,7 +52,7 @@ moves.append( mvRootTimeSlideUniform(bd, origin=origin, weight = taxa.size()) )
 moves.append( mvFossilTipTimeUniform(bd, weight = taxa.size()) )
 
 # which lineage continues its ancestor's species at each speciation event
-moves.append( mvRotateNode(bd, weight = taxa.size()) )
+moves.append( mvSpeciationMode(bd, weight = taxa.size()) )
 
 # the first and last appearances, which the tree does not carry
 moves.append( mvStratigraphicRange(bd, weight = taxa.size()) )

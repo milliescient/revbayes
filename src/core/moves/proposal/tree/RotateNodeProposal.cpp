@@ -4,6 +4,7 @@
 #include <ostream>
 #include <vector>
 
+#include "FossilizedBirthDeathSpeciationProcess.h"
 #include "RandomNumberFactory.h"
 #include "RandomNumberGenerator.h"
 #include "RbConstants.h"
@@ -17,7 +18,8 @@ RotateNodeProposal::RotateNodeProposal( StochasticNode<Tree> *n, bool sym ) : Pr
     tree( n ),
     node_index( 0 ),
     symmetric( sym ),
-    failed( false )
+    failed( false ),
+    redrew( false )
 {
     addNode( tree );
 }
@@ -36,7 +38,7 @@ RotateNodeProposal* RotateNodeProposal::clone( void ) const
 
 const std::string& RotateNodeProposal::getProposalName( void ) const
 {
-    static std::string name = "RotateNode";
+    static std::string name = "SpeciationMode";
 
     return name;
 }
@@ -56,6 +58,15 @@ double RotateNodeProposal::doProposal( void )
     Tree& tau = tree->getValue();
 
     failed = false;
+    redrew = false;
+
+    FossilizedBirthDeathSpeciationProcess *fbdsp = dynamic_cast<FossilizedBirthDeathSpeciationProcess *>( &tree->getDistribution() );
+    if ( fbdsp != NULL && fbdsp->hasFirstChanges() == true && rng->uniform01() < 0.5 )
+    {
+        redrew = true;
+        size_t n = tau.getNumberOfTips();
+        return fbdsp->redrawFirstChange( std::min( n - 1, size_t( rng->uniform01() * n ) ) );
+    }
 
     // a sampled ancestor node is skipped: its continuation is forced onto the tip. A flip leaves the
     // set unchanged, so its size cancels.
@@ -121,7 +132,7 @@ void RotateNodeProposal::printParameterSummary(std::ostream &o, bool name_only) 
 
 void RotateNodeProposal::undoProposal( void )
 {
-    if ( failed == false )
+    if ( failed == false && redrew == false )
     {
         for (size_t c = 0; c < stored_children.size(); c++)
         {

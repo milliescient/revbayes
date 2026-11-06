@@ -307,6 +307,28 @@ void Dist_FBDSP::setConstParameter(const std::string& name, const RevPtr<const R
 }
 
 
+namespace {
+
+    /** An event accessor: on a sampled tree, the first changes of species it reads are live from its creation. */
+    class EventAccessor : public DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> > {
+    public:
+        EventAccessor( const std::string &n, const TimeTree *o ) : DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> >( n, o, new ArgumentRules(), true ), tree( o ) {}
+        EventAccessor* clone( void ) const { return new EventAccessor( *this ); }
+
+        RevBayesCore::TypedFunction< RevBayesCore::RbVector<double> >* createFunction( void ) const
+        {
+            const RevBayesCore::StochasticNode<RevBayesCore::Tree> *node = dynamic_cast<const RevBayesCore::StochasticNode<RevBayesCore::Tree> *>( tree->getDagNode() );
+            const RevBayesCore::FossilizedBirthDeathSpeciationProcess *d = ( node == NULL ? NULL : dynamic_cast<const RevBayesCore::FossilizedBirthDeathSpeciationProcess *>( &node->getDistribution() ) );
+            if ( d != NULL ) d->activateFirstChanges();
+            return DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> >::createFunction();
+        }
+
+    private:
+        const TimeTree *tree;
+    };
+}
+
+
 /** The appearances and the origination and extinction times. */
 RevLanguage::MethodTable Dist_FBDSP::getDistributionMethods( void ) const
 {
@@ -338,7 +360,7 @@ RevLanguage::MethodTable Dist_FBDSP::getDistributionMethods( void ) const
     for (const std::string &name : { "getHiddenBuddings", "getHiddenBifurcations", "getHiddenAnageneses",
                                      "getObservedBuddings", "getObservedBifurcations", "getObservedAnageneses" })
     {
-        methods.addFunction( new DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> >( name, variable, new ArgumentRules(), true ) );
+        methods.addFunction( new EventAccessor( name, variable ) );
     }
 
     return methods;

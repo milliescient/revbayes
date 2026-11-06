@@ -13,7 +13,7 @@ June Walker
 ## see_also
 dnFossilizedBirthDeathSpeciation
 dnFossilRecord
-mvRotateNode
+mvSpeciationMode
 ## example
 tr ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, taxa=taxa)
 

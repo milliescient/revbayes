@@ -89,6 +89,16 @@ namespace RevBayesCore {
         mutable BranchEvents                            cached_events;                                           //!< The last branchEvents, which every accessor of one tree state shares.
         mutable int                                     cached_events_level = 0;                                 //!< 0 stale, 1 observed only, 2 hidden too
         double                                          drawExtinction(size_t i) const;                                  //!< On a sampled tree, a draw of species i's extinction from its conditional.
+
+        //!< On a sampled tree, the first change of species on the path from a sampled ancestor down to its named successor:
+        //!< its age as a fraction u of that path, and its mode. Unused for any other taxon, which holds it under a
+        //!< uniform pseudo-prior. Only the event accessors need it, so it is live once one of them is read.
+        enum ChangeMode { ANAGENETIC_CHANGE = 0, BUDDING_CHANGE = 1, SYMMETRIC_CHANGE = 2 };
+        struct FirstChange { double u = 0.5; size_t mode = BUDDING_CHANGE; };
+        bool                                            hasFirstChanges(void) const { return first_changes_active; }
+        void                                            activateFirstChanges(void) const;                        //!< On a sampled tree, from when an event accessor is created.
+        double                                          redrawFirstChange(size_t i);                             //!< Draw taxon i's first change from its density, returning the Hastings ratio.
+        double                                          firstChangeLnDensity(size_t i) const;                    //!< Its density given the tree, in u, or the pseudo-prior.
         void                                            hiddenEventIntegrals(const std::vector<std::pair<double,double> > &spans, std::vector<double> &budding, std::vector<double> &bifurcation, std::vector<double> &anagenesis) const;  //!< The hidden events that change a lineage's species, by mode.
 
     protected:
@@ -142,6 +152,10 @@ namespace RevBayesCore {
         std::vector<double>                             simulateDivergenceTimes(size_t n, double origin, double present, double min, bool alwaysReturn) const override;                 //!< Simulate n speciation events.
 
         void                                            keepSpecialization(const DagNode *toucher) override;
+        double                                          firstChangeAge(size_t i) const;
+        double                                          lnNoSpeciesChange(double young, double old) const;      //!< An unsampled lineage keeps its species from age old down to young.
+        void                                            changeRates(double t, double r[3]) const;               //!< The rate of each mode of change of species on an unsampled lineage at t.
+        std::vector<size_t>                             pseudoPriorModes(void) const;
         void                                            restoreSpecialization(const DagNode *toucher) override;
         void                                            touchSpecialization(const DagNode *toucher, bool touchAll) override;
 
@@ -168,6 +182,12 @@ namespace RevBayesCore {
         const TreeRepresentation*                       representation;
 
         std::vector<SpeciesEntry>                       species;                                                 //!< One per taxon, as the last pull left it.
+
+        std::vector<FirstChange>                        first_changes;                                           //!< One per taxon.
+        mutable bool                                    first_changes_active = false;
+        bool                                            first_change_redrawn = false;
+        size_t                                          redrawn_taxon = 0;
+        FirstChange                                     stored_first_change;
         std::vector<SpeciesEntry>                       next_species;                                            //!< Where the tree pass builds the replacement.
         std::vector<SpeciesEntry>                       stored_species;                                          //!< The table as the proposal found it.
 

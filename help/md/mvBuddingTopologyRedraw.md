@@ -12,14 +12,14 @@ Each lineage is assigned an ancestor drawn uniformly from those alive at its bir
 
 The move requires pure budding and refuses to be set up when `lambda_a > 0`.
 
-It never changes which species buds at a given birth age, so pair it with `mvRotateNode`. Ranges and node ages are untouched: use `mvFossilTipTimeUniform` for the extinction times and `mvNodeTimeSlideUniform` with `mvRootTimeSlideUniform` for the speciation times.
+It never changes which species buds at a given birth age, so pair it with `mvSpeciationMode`. Ranges and node ages are untouched: use `mvFossilTipTimeUniform` for the extinction times and `mvNodeTimeSlideUniform` with `mvRootTimeSlideUniform` for the speciation times.
 
 ## authors
 June Walker
 
 ## see_also
 dnFossilizedBirthDeathSpeciation
-mvRotateNode
+mvSpeciationMode
 mvFNPR
 
 ## example
@@ -29,7 +29,7 @@ rec.clamp(taxa)
 
 moves.append( mvBuddingTopologyRedraw(tr, weight=taxa.size()) )
 # relabels which lineage carries each birth age; the Gibbs move cannot
-moves.append( mvRotateNode(tr, weight=taxa.size()) )
+moves.append( mvSpeciationMode(tr, weight=taxa.size()) )
 moves.append( mvFossilTipTimeUniform(tr, weight=taxa.size()) )
 moves.append( mvNodeTimeSlideUniform(tr, weight=taxa.size()) )
 moves.append( mvRootTimeSlideUniform(tr, origin, weight=2) )
