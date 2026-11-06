@@ -1,0 +1,72 @@
+#ifndef SymmetricCollapseExpandProposal_H
+#define SymmetricCollapseExpandProposal_H
+
+#include <cstddef>
+#include <iosfwd>
+#include <vector>
+
+#include "Proposal.h"
+#include "StochasticNode.h"
+#include "Tree.h"
+
+namespace RevBayesCore {
+
+    class TopologyNode;
+
+    /**
+     * On an extended tree, a sampled species that ends at a symmetric speciation sits as a sampled ancestor tip
+     * at that node, the range carried on into a symmetric node of the same age:
+     *
+     *     collapsed:  A(t_A)[ i(t_A, sampled ancestor) , B(t_A)[ D1 , D2 ] ]
+     *     expanded:   A(t_A)[ D1 , B(t_B)[ D2 , i(t_s) ] ]       t_A > t_B > t_s
+     *
+     * Geometry alone never puts two ages together, so this move maps the collapsed state to two buddings and a
+     * tip and back. The expand picks D2 among B's children and draws t_B uniformly above D2 and t_s uniformly
+     * above the present; the collapse is determined. The candidates are every extinct fossil tip, a number no
+     * move changes, so it cancels.
+     *
+     * @copyright Copyright 2009-
+     * @author The RevBayes Development Core Team (June Walker)
+     * @since 2026-11-05, version 1.0
+     */
+    class SymmetricCollapseExpandProposal : public Proposal {
+
+    public:
+        SymmetricCollapseExpandProposal( StochasticNode<Tree> *n );                                     //!< constructor
+
+        void                                    cleanProposal(void);
+        SymmetricCollapseExpandProposal*        clone(void) const;
+        double                                  doProposal(void);
+        const std::string&                      getProposalName(void) const;
+        double                                  getProposalTuningParameter(void) const;
+        void                                    prepareProposal(void);
+        void                                    printParameterSummary(std::ostream &o, bool name_only) const;
+        void                                    setProposalTuningParameter(double tp);
+        void                                    tune(double r);
+        void                                    undoProposal(void);
+
+    protected:
+        void                                    swapNodeInternal(DagNode *oldN, DagNode *newN);
+
+    private:
+        double                                  collapse(TopologyNode &i);
+        double                                  expand(TopologyNode &i);
+        void                                    rewire(TopologyNode &a, const std::vector<TopologyNode*> &a_kids, TopologyNode &b, const std::vector<TopologyNode*> &b_kids);
+
+        StochasticNode<Tree>*                   tree;
+        double                                  present;
+        bool                                    failed;
+
+        TopologyNode*                           stored_tip = NULL;
+        TopologyNode*                           stored_a = NULL;
+        TopologyNode*                           stored_b = NULL;
+        std::vector<TopologyNode*>              stored_a_kids;
+        std::vector<TopologyNode*>              stored_b_kids;
+        double                                  stored_b_age;
+        double                                  stored_tip_age;
+        bool                                    stored_sa;
+    };
+
+}
+
+#endif
