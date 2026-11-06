@@ -92,7 +92,7 @@ namespace RevBayesCore {
         void                                            hiddenEventIntegrals(const std::vector<std::pair<double,double> > &spans, std::vector<double> &budding, std::vector<double> &bifurcation, std::vector<double> &anagenesis) const;  //!< The hidden events that change a lineage's species, by mode.
 
     protected:
-        bool                                            marginalizesExtinction(void) const override { return extended == false; }
+        bool                                            marginalizesExtinction(void) const override;
         double                                          rangeEndTerm(size_t i, size_t di, double d, double p_d = -1.0, double pbar_d = -1.0) const override;
         void                                            mixtureSymmetric(std::vector<double> &beta) const override;
         void                                            mixtureExtraLnProbs(size_t i, std::vector<double> &ln_probs) const override;
@@ -126,12 +126,12 @@ namespace RevBayesCore {
         double                                          computeLnProbabilityTimes(void) const override;                            //!< Compute the log-transformed probability of the current value.
         double                                          computeLnProbabilityDivergenceTimes(void) const override;            //!< Compute the log-transformed probability of the current value.
 
-        bool                                            tipAgeConstrainedToRange(const Taxon &t) const override { return extended == false && t.isExtinct(); } //!< A non-extended extinct tip is its youngest appearance.
+        bool                                            tipAgeConstrainedToRange(const Taxon &t) const override; //!< A sampled tree's extinct tip is its youngest appearance.
         bool                                            validatesTipAgesOnSet(void) const override { return false; }        //!< The density's per-taxon check knows which tips are exempt.
 
         void                                            setMcmcMode(bool tf) override;
 
-        bool                                            isExtended(void) const override { return extended; }     //!< An extended tree ends each range at an extinction time.
+        bool                                            isExtended(void) const override;                         //!< An extended tree ends each range at an extinction time.
 
         double                                          lnProbNumTaxa(size_t n, double start, double end, bool MRCA) const override { throw RbException("Cannot compute P(nTaxa)."); }
         double                                          lnProbTreeShape(void) const override;
@@ -160,7 +160,12 @@ namespace RevBayesCore {
         bool                                            adoptSpeciesLabels(void);                               //!< Take the continuation flags from a tree's range labels.
         bool                                            adoptAppearances(void);                                 //!< Take the appearances from the tips' FAD and LAD.
 
-        bool                                            extended;                                                //!< Tips are extinction times, else those are marginalized out.
+        // What a tip, a sampled ancestor and an unobserved range end mean: the one difference between an extended
+        // tree, whose tips are extinctions, and a sampled one, whose tips are last appearances. Stateless.
+        class TreeRepresentation;
+        class ExtendedTree;
+        class SampledTree;
+        const TreeRepresentation*                       representation;
 
         std::vector<SpeciesEntry>                       species;                                                 //!< One per taxon, as the last pull left it.
         std::vector<SpeciesEntry>                       next_species;                                            //!< Where the tree pass builds the replacement.
