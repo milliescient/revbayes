@@ -80,21 +80,64 @@ void FossilizedBirthDeathRangeRateClassSolver::stemSwitches(double end, double t
         double t_end = ( i + 1 < r_times.size() ) ? std::min( hi, r_times[i+1] ) : hi;
         double len = t_end - t0;
 
-        // a stiff component's transient at either end of the stem: a mesh graded from 0.02 of its decay time
+        // Quadrature nodes y and weights wq. On the solver's own grid, Simpson over its equal cells needs no new
+        // integration; next to the stem's ends a stiff transient sits, so there the cells are graded from 0.02 of
+        // the fastest decay time. Without a grid, the whole piece is graded at both ends.
         double rate = r_lambda[i] + r_mu[i] + r_psi[i] * nu_max + r_ana[i];
-        double h_max = len / panels, h = std::min( h_max, 0.02 / rate );
-        std::vector<double> left( 1, 0.0 );
-        while ( left.back() + h < 0.5 * len && h < h_max ) { left.push_back( left.back() + h ); h *= 2.0; }
-        std::vector<double> x = left;
-        double rest = len - 2.0 * left.back();
-        size_t n_mid = std::max( size_t( 1 ), size_t( std::ceil( rest / h_max ) ) );
-        for (size_t j = 1; j <= n_mid; j++) x.push_back( left.back() + rest * j / n_mid );
-        for (size_t j = left.size() - 1; j-- > 0; ) x.push_back( len - left[j] );
+        std::vector<double> y, wq;
+        auto add = [&]( double t, double w )
+        {
+            if ( y.empty() == false && y.back() == t ) wq.back() += w;
+            else { y.push_back( t ); wq.push_back( w ); }
+        };
+        auto cell = [&]( double u, double v )
+        {
+            double w = ( v - u ) / 6.0;
+            add( u, w ); add( 0.5 * ( u + v ), 4.0 * w ); add( v, w );
+        };
+        // cells from u to v, graded from u, or from v when from_u is false
+        auto graded = [&]( double u, double v, bool from_u, double h_max )
+        {
+            std::vector<double> x( 1, 0.0 );
+            double len = v - u, h = std::min( h_max, 0.02 / rate );
+            while ( x.back() + h < len && h < h_max ) { x.push_back( x.back() + h ); h *= 2.0; }
+            double rest = len - x.back();
+            size_t n = std::max( size_t( 1 ), size_t( std::ceil( rest / h_max ) ) );
+            double last = x.back();
+            for (size_t j = 1; j <= n; j++) x.push_back( last + rest * j / n );
+            if ( from_u ) for (size_t j = 0; j + 1 < x.size(); j++) cell( u + x[j], u + x[j+1] );
+            else for (size_t j = x.size() - 1; j > 0; j--) cell( v - x[j], v - x[j-1] );
+        };
 
-        // the ages, youngest first, with each cell's midpoint for Simpson
-        std::vector<double> y;
-        for (size_t j = 0; j + 1 < x.size(); j++) { y.push_back( t0 + x[j] ); y.push_back( t0 + 0.5 * ( x[j] + x[j+1] ) ); }
-        y.push_back( t_end );
+        std::vector<double> G;
+        gridAges( t0, t_end, G );
+        if ( G.size() < 3 )
+        {
+            double half = 0.5 * ( t_end - t0 );
+            graded( t0, t0 + half, true, half / ( panels / 2 ) );
+            graded( t0 + half, t_end, false, half / ( panels / 2 ) );
+        }
+        else
+        {
+            double g = ( G.back() - G.front() ) / ( G.size() - 1 );
+            if ( t0 == end ) graded( t0, G.front(), true, g );
+            else cell( t0, G.front() );
+
+            // composite Simpson on the equal cells, the last three by Simpson's 3/8 when their number is odd
+            size_t n = G.size() - 1, even = ( n % 2 == 0 ? n : n - 3 );
+            for (size_t j = 0; j < even; j += 2)
+            {
+                add( G[j], g / 3.0 ); add( G[j+1], 4.0 * g / 3.0 ); add( G[j+2], g / 3.0 );
+            }
+            if ( even < n )
+            {
+                double w = 3.0 * g / 8.0;
+                add( G[n-3], w ); add( G[n-2], 3.0 * w ); add( G[n-1], 3.0 * w ); add( G[n], w );
+            }
+
+            if ( t_end == top ) graded( G.back(), t_end, false, g );
+            else cell( G.back(), t_end );
+        }
         size_t N = y.size();
 
         steps.resize( N - 1 );
@@ -150,11 +193,7 @@ void FossilizedBirthDeathRangeRateClassSolver::stemSwitches(double end, double t
                      scale * 2.0 * r_lambda[i] * r_beta[i] * pbar * a_sum,
                      scale * r_ana[i] * a_sum };
         }
-        for (size_t j = 0; j + 2 < N; j += 2)
-        {
-            double wgt = ( y[j+2] - y[j] ) / 6.0;
-            for (size_t m = 0; m < 3; m++) out[m] += wgt * ( f[j][m] + 4.0 * f[j+1][m] + f[j+2][m] );
-        }
+        for (size_t j = 0; j < N; j++) for (size_t m = 0; m < 3; m++) out[m] += wq[j] * f[j][m];
         t0 = t_end;
     }
 

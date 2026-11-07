@@ -291,12 +291,23 @@ double FossilizedBirthDeathRangeRateClassNumeric::lambdaPbarIntegral( double t0,
 }
 
 
+void FossilizedBirthDeathRangeRateClassNumeric::gridAges( double lo, double hi, std::vector<double> &ages ) const
+{
+    extendTo( hi );
+    ages.clear();
+    for (std::vector<double>::const_iterator g = std::upper_bound( grid.begin(), grid.end(), lo ); g != grid.end() && *g < hi; ++g) ages.push_back( *g );
+}
+
+
 void FossilizedBirthDeathRangeRateClassNumeric::sensitivity( double s, double t, const std::vector<size_t> &columns, std::vector<double> &Q, std::vector<double> &Q_scale ) const
 {
     size_t H = num_components, C = columns.size();
 
     size_t kt = gridBelow( t );
     size_t ks = gridBelow( s );
+
+    // from a grid point, the cached steps carry the columns without integrating
+    bool on_grid = ( s == grid[ks] && kt > ks );
 
     // from s up to the next grid point, or straight to t inside one step
     // p alone up to s, then p with the columns
@@ -308,7 +319,7 @@ void FossilizedBirthDeathRangeRateClassNumeric::sensitivity( double s, double t,
     std::copy( head.begin(), head.end(), state.begin() );
     for (size_t c = 0; c < C; c++) state[H + 1 + c*H + columns[c]] = 1.0;
     double first_to = ( kt == ks ) ? t : grid[ks + 1];
-    advance( state, s, first_to, C );
+    if ( on_grid == false ) advance( state, s, first_to, C );
 
     Q.assign( state.begin() + H + 1, state.end() );
     Q_scale.assign( C, 0.0 );
@@ -349,7 +360,7 @@ void FossilizedBirthDeathRangeRateClassNumeric::sensitivity( double s, double t,
     }
 
     // the cached whole steps between, rescaled now and then
-    for (size_t k = ks + 1; k < kt; k++)
+    for (size_t k = ( on_grid ? ks : ks + 1 ); k < kt; k++)
     {
         apply( &grid_step[k*H*H] );
         if ( ( k - ks ) % 8 == 0 ) rescale();

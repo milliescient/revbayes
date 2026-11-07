@@ -23,6 +23,8 @@ namespace RevBayesCore {
         virtual void            sensitivity(double s, double t, const std::vector<size_t> &columns,
                                             std::vector<double> &Q, std::vector<double> &Q_scale) const = 0;    //!< Columns of Q = dp(t)/dp(s) for ages s <= t, each scaled by exp(Q_scale).
 
+        virtual void            gridAges(double lo, double hi, std::vector<double> &ages) const { ages.clear(); }  //!< The solver's own grid points strictly between lo and hi, where it caches its steps.
+
         void                    stemSwitches(double end, double top, const std::vector<double> &source, long end_component,
                                              double lo, double hi, double out[3]) const;                       //!< Expected hidden species changes on [lo, hi] of a stem: budding, symmetric, anagenetic.
 
