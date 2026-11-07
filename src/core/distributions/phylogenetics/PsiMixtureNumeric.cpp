@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <complex>
 #include <limits>
 
 #include <boost/numeric/odeint.hpp> // IWYU pragma: keep
@@ -26,6 +27,7 @@ void PsiMixtureNumeric::update( const std::vector<double> &times, const std::vec
 
     num_components = rates.size();
     starts = times; lam = lambda; mu_ = mu; psi_ = psi; nu = rates; w = weights; rho = r; beta_ = b; ana_ = a;
+    etd_cache.clear(); etd_interval = size_t(-1);
 
     size_t H = num_components;
 
@@ -55,12 +57,25 @@ size_t PsiMixtureNumeric::findIndex( double t ) const
 }
 
 
-/** The step length in interval i: short against its fastest rate, so a fourth-order step is accurate. */
+bool PsiMixtureNumeric::isStiff( size_t i ) const
+{
+    for (size_t h = 0; h < num_components; h++) if ( ( lam[i] + mu_[i] + psi_[i]*nu[h] + ana_[i] ) * step > stiff_limit ) return true;
+    return false;
+}
+
+
+/** The step length in interval i: short against its fastest rate, or in a stiff interval against its fastest slow one. */
 double PsiMixtureNumeric::stepLength( size_t i ) const
 {
+    bool stiff = isStiff( i );
     double fastest = 0.0;
-    for (size_t h = 0; h < num_components; h++) fastest = std::max( fastest, lam[i] + mu_[i] + psi_[i]*nu[h] + ana_[i] );
-    double h_max = std::min( step, step_rate / std::max( fastest, 1E-12 ) );
+    for (size_t h = 0; h < num_components; h++)
+    {
+        double k = lam[i] + mu_[i] + psi_[i]*nu[h] + ana_[i];
+        if ( stiff == false || k * step <= stiff_limit ) fastest = std::max( fastest, k );
+    }
+    if ( stiff ) fastest = std::max( fastest, lam[i] + mu_[i] + ana_[i] );
+    double h_max = std::min( step, ( stiff ? etd_step_rate : step_rate ) / std::max( fastest, 1E-12 ) );
 
     // equal steps between the interval's ends; the oldest runs on without end, in steps of h_max
     if ( i + 1 < starts.size() )
@@ -104,9 +119,99 @@ void PsiMixtureNumeric::derivative( size_t i, const double *x, double *dx, size_
 /** One fixed eighth-order (Runge-Kutta-Fehlberg 7(8)) step of length h in interval i, in place, by a stepper kept per state size. */
 void PsiMixtureNumeric::rk4( size_t i, std::vector<double> &x, double h, size_t C ) const
 {
+    if ( isStiff( i ) ) { etd4( i, x, h, C ); return; }
     if ( steppers.size() <= C ) steppers.resize( C + 1 );
     auto system = [&]( const std::vector<double> &y, std::vector<double> &dy, double /*t*/ ) { derivative( i, y.data(), dy.data(), C ); };
     steppers[C].do_step( system, x, 0.0, h );
+}
+
+
+/**
+ * Cox and Matthews' ETDRK4 with the diagonal linear part L = -(lambda + mu + psi nu_h + a) of each p_h and each Q row,
+ * so a fast-sampled component's decay is solved exactly and the step need only resolve the slow rates. The
+ * coefficients are Kassam and Trefethen's contour means, accurate as hL goes to zero.
+ */
+void PsiMixtureNumeric::etd4( size_t i, std::vector<double> &x, double h, size_t C ) const
+{
+    // a fast transient (each Q column starts from the identity) has local error ~ exp(-k t) (k s)^5, so the substeps
+    // start at eps^(1/5)/k and grow as it decays, at most doubling
+    double k_max = 0.0, k_slow = std::numeric_limits<double>::infinity();
+    for (size_t c = 0; c < num_components; c++)
+    {
+        double k = lam[i] + mu_[i] + psi_[i]*nu[c] + ana_[i];
+        k_max = std::max( k_max, k );
+        if ( k * step > stiff_limit ) k_slow = std::min( k_slow, k );
+    }
+    double sub = 0.0, done = 0.0;
+    while ( done < h )
+    {
+        double allowed = 0.025 / k_max * std::exp( std::min( k_slow * done / 5.0, 600.0 ) );
+        double next = std::min( { sub > 0.0 ? 2.0 * sub : allowed, allowed, h - done } );
+        if ( h - done - next < 0.5 * next ) next = h - done;
+        etdStep( i, x, next, C );
+        done += next;
+        sub = next;
+    }
+}
+
+
+void PsiMixtureNumeric::etdStep( size_t i, std::vector<double> &x, double h, size_t C ) const
+{
+    size_t H = num_components, n = H + 1 + C*H;
+
+    if ( etd_interval != i || etd_cache.size() > 4096 ) { etd_cache.clear(); etd_interval = i; }
+    EtdCoefficients &etd = etd_cache[h];
+    if ( etd.E.empty() )
+    {
+        etd.E.assign( H + 1, 0.0 ); etd.E2 = etd.Q = etd.f1 = etd.f2 = etd.f3 = etd.E;
+        const size_t M = 32;
+        for (size_t h_ = 0; h_ <= H; h_++)
+        {
+            double L = ( h_ < H ) ? -( lam[i] + mu_[i] + psi_[i]*nu[h_] + ana_[i] ) : 0.0;
+            double z = L * h;
+            etd.E[h_] = std::exp( z ); etd.E2[h_] = std::exp( z / 2.0 );
+            std::complex<double> q = 0.0, a = 0.0, b = 0.0, c = 0.0;
+            for (size_t j = 0; j < M; j++)
+            {
+                std::complex<double> r = z + std::polar( 1.0, M_PI * ( j + 0.5 ) / M * 2.0 );
+                std::complex<double> e = std::exp( r ), r3 = r*r*r;
+                q += ( std::exp( r / 2.0 ) - 1.0 ) / r;
+                a += ( -4.0 - r + e * ( 4.0 - 3.0*r + r*r ) ) / r3;
+                b += ( 2.0 + r + e * ( -2.0 + r ) ) / r3;
+                c += ( -4.0 - 3.0*r - r*r + e * ( 4.0 - r ) ) / r3;
+            }
+            etd.Q[h_] = h * q.real() / M;
+            etd.f1[h_] = h * a.real() / M; etd.f2[h_] = h * b.real() / M; etd.f3[h_] = h * c.real() / M;
+        }
+    }
+
+    // which coefficient each entry takes: p_h and Q row h take component h, the integral the last
+    auto slot = [H]( size_t k ) { return k <= H ? k : ( k - H - 1 ) % H; };
+    etd_L.resize( n );
+    for (size_t k = 0; k < n; k++)
+    {
+        size_t s = slot( k );
+        etd_L[k] = ( s < H ) ? -( lam[i] + mu_[i] + psi_[i]*nu[s] + ana_[i] ) : 0.0;
+    }
+    auto nonlinear = [&]( const std::vector<double> &y, std::vector<double> &N ) {
+        N.resize( n );
+        derivative( i, y.data(), N.data(), C );
+        for (size_t k = 0; k < n; k++) N[k] -= etd_L[k] * y[k];
+    };
+
+    nonlinear( x, etd_N );
+    etd_a.resize( n ); etd_b.resize( n ); etd_c.resize( n );
+    for (size_t k = 0; k < n; k++) etd_a[k] = etd.E2[slot(k)] * x[k] + etd.Q[slot(k)] * etd_N[k];
+    nonlinear( etd_a, etd_Na );
+    for (size_t k = 0; k < n; k++) etd_b[k] = etd.E2[slot(k)] * x[k] + etd.Q[slot(k)] * etd_Na[k];
+    nonlinear( etd_b, etd_Nb );
+    for (size_t k = 0; k < n; k++) etd_c[k] = etd.E2[slot(k)] * etd_a[k] + etd.Q[slot(k)] * ( 2.0 * etd_Nb[k] - etd_N[k] );
+    nonlinear( etd_c, etd_Nc );
+    for (size_t k = 0; k < n; k++)
+    {
+        size_t s = slot( k );
+        x[k] = etd.E[s] * x[k] + etd.f1[s] * etd_N[k] + 2.0 * etd.f2[s] * ( etd_Na[k] + etd_Nb[k] ) + etd.f3[s] * etd_Nc[k];
+    }
 }
 
 

@@ -2,6 +2,7 @@
 #define PsiMixtureNumeric_H
 
 #include <cstddef>
+#include <map>
 #include <vector>
 
 #include <boost/numeric/odeint/stepper/runge_kutta_fehlberg78.hpp>
@@ -48,12 +49,22 @@ namespace RevBayesCore {
         double                  stepLength(size_t i) const;                                                 //!< The step in interval i, short against its fastest rate.
         void                    derivative(size_t i, const double *x, double *dx, size_t columns) const;
         void                    rk4(size_t i, std::vector<double> &x, double h, size_t columns) const;      //!< one fixed high-order step
+        bool                    isStiff(size_t i) const;                                                    //!< some component's decay rate times `step` exceeds `stiff_limit`
+        void                    etd4(size_t i, std::vector<double> &x, double h, size_t columns) const;     //!< ETDRK4 over h, on a mesh graded from the fastest decay time
+        void                    etdStep(size_t i, std::vector<double> &x, double h, size_t columns) const;  //!< one ETDRK4 step, exact in each component's linear decay
 
         size_t                  num_components = 0;
         std::vector<double>     starts, lam, mu_, psi_, beta_, ana_, nu, w;
         double                  rho = 1.0;
         double                  step = 0.5;                    //!< the longest step
         double                  step_rate = 0.5;                //!< the longest step times the interval's fastest rate
+        double                  stiff_limit = 2500.0;           //!< above it (a rate near 5000), RKF78 costs more than etd4, which steps against the slow rates only
+        double                  etd_step_rate = 0.1;            //!< the ETD step times the interval's fastest slow rate
+
+        struct EtdCoefficients { std::vector<double> E, E2, Q, f1, f2, f3; };
+        mutable std::map<double, EtdCoefficients> etd_cache;    //!< per step length, each per component then the integral
+        mutable size_t          etd_interval = size_t(-1);      //!< the interval etd_cache holds
+        mutable std::vector<double> etd_L, etd_N, etd_a, etd_b, etd_c, etd_Na, etd_Nb, etd_Nc;  //!< scratch
 
         mutable std::vector< boost::numeric::odeint::runge_kutta_fehlberg78< std::vector<double> > > steppers;  //!< one per number of Q columns, so none resizes
         mutable std::vector<double>               grid;         //!< grid ages, the present first
