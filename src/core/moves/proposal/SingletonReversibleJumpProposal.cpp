@@ -97,7 +97,9 @@ double SingletonReversibleJumpProposal::getProposalTuningParameter( void ) const
  */
 double SingletonReversibleJumpProposal::doProposal( void )
 {
+    failed = true;
     if ( eligible.empty() == true || rangeProcess().samplesSingletons() == false ) return RbConstants::Double::neginf;
+    failed = false;
 
     stored_index = eligible[ (size_t)( GLOBAL_RNG->uniform01() * eligible.size() ) ];
     stored_first = rangeProcess().getFirstAppearance( stored_index );
@@ -131,8 +133,8 @@ void SingletonReversibleJumpProposal::printParameterSummary(std::ostream &o, boo
 
 void SingletonReversibleJumpProposal::undoProposal( void )
 {
-    // the distribution restores the ages and the status
-    if ( matrix != NULL )
+    // the distribution restores the ages and the status; a proposal that never jumped has nothing to restore
+    if ( matrix != NULL && failed == false )
     {
         MatrixReal& v = matrix->getValue();
 

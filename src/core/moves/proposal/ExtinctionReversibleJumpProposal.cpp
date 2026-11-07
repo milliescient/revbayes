@@ -117,6 +117,9 @@ double ExtinctionReversibleJumpProposal::doProposal( void )
     // tau_K, which a tree does not carry
     double last    = ( matrix != NULL ? matrix->getValue()[stored_index][1]
                                       : rangeProcess().getLastAppearance( stored_index ) );
+    // stored first, so a rejection before the jump restores what is there
+    stored_death = ( matrix != NULL ? matrix->getValue()[stored_index][0] : tree->getValue().getNode( stored_index ).getAge() );
+
     double width   = last - present;
 
     if ( width <= 0.0 ) return RbConstants::Double::neginf;
@@ -129,7 +132,6 @@ double ExtinctionReversibleJumpProposal::doProposal( void )
     if ( matrix != NULL )
     {
         MatrixReal& v = matrix->getValue();
-        stored_death = v[stored_index][0];
         v[stored_index][0] = d;
 
         matrix->addTouchedElementIndex( stored_index * v.getNumberOfColumns() );
@@ -137,9 +139,7 @@ double ExtinctionReversibleJumpProposal::doProposal( void )
     else
     {
         // on an extended tree the tip age is the extinction time
-        TopologyNode& tip = tree->getValue().getNode( stored_index );
-        stored_death = tip.getAge();
-        tip.setAge( d );
+        tree->getValue().getNode( stored_index ).setAge( d );
     }
 
     return survived ? log( width ) : -log( width );

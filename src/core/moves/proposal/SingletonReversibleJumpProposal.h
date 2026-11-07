@@ -56,6 +56,7 @@ namespace RevBayesCore {
         std::vector<size_t>                     eligible;                                           //!< Taxa with one occurrence reported over an interval.
         size_t                                  stored_index = 0;                                   //!< The row touched, for the restore.
         double                                  stored_first = 0.0;
+        bool                                    failed = true;                                      //!< The last proposal returned before jumping.
     };
 
 }

@@ -1,0 +1,26 @@
+# mvExtinctionRJSwitch on an extended dnFBDSP where t2's youngest presence ends at the present, so its extinction
+# is pinned there and every jump for it is rejected before it moves. A rejected jump must leave t2 where it was,
+# not at an age stored for t1. Every line printed must be TRUE.
+seed(3)
+
+taxa <- readTaxonData("data/fbdsp_pinned_present.tsv")
+out = "output/pinned_present.txt"
+
+tr ~ dnFBDSP(taxa=taxa, lambda=0.5, mu=0.3, psi=0.8, rho=0.0, present=3.0, condition="time", origin=8.0)
+rec ~ dnFossilRecord(ranges=tr, reporting="presence")
+rec.clamp(taxa)
+d2 := tr.getExtinctionTimes()[2]
+
+moves = VectorMoves()
+moves.append( mvExtinctionRJSwitch(tr, weight=1) )
+m = mcmc(model(tr), [ mnFile(d2, filename="output/pinned_present.log", printgen=1) ], moves)
+m.run(generations=200)
+
+# the trace holds Iteration, then the Posterior, Likelihood and Prior mnFile prepends
+vals = readTrace("output/pinned_present.log", burnin=0)[5].getValues()
+pinned = TRUE
+for (j in 1:vals.size()) pinned = pinned && vals[j] == 3.0
+print(filename=out, "a rejected jump leaves a taxon pinned at the present there:\n")
+print(filename=out, append=TRUE, pinned, "\n")
+
+q()
