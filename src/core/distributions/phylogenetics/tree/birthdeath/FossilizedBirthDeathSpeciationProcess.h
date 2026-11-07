@@ -77,6 +77,7 @@ namespace RevBayesCore {
         bool                                            hasAnagenesis(void) const;                                          //!< True when any interval's anagenetic rate is positive.
         bool                                            hasSymmetricSpeciation(void) const;                                 //!< True when any interval's symmetric speciation probability is positive.
         bool                                            isModeSuccessor(const TopologyNode &n) const;                       //!< n begins its range at a sampled ancestor, and its flag holds how.
+        bool                                            hasTiedEvents(void) const;                                          //!< Two events share an age outside the collapsed pattern.
         bool                                            continuesRange(const TopologyNode &n) const;                        //!< n carries its parent's range on.
         bool                                            hasFreeSuccessorModes(void) const;                                  //!< A successor's flag may take either value.
         void                                            simulateClade(std::vector<TopologyNode *> &n, double age, double present, bool alwaysReturn) override;

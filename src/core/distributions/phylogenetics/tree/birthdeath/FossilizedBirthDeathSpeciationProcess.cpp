@@ -144,13 +144,34 @@ double FossilizedBirthDeathSpeciationProcess::computeLnProbabilityDivergenceTime
     double lnProb = const_cast<FossilizedBirthDeathSpeciationProcess*>(this)->computeLnProbabilityRanges();
 
     // a tree this process cannot produce
-    if ( invalid_continuation == true ) return RbConstants::Double::neginf;
+    if ( invalid_continuation == true || hasTiedEvents() == true ) return RbConstants::Double::neginf;
 
     lnProb += computeLnProbabilityTimes();
 
     lnProb += speciationModeLnProb();
 
     return lnProb;
+}
+
+
+/**
+ * Two events at one age have probability zero, except a symmetric speciation at its sampled ancestor's age, which the
+ * range carries into, and the tips at the present.
+ */
+bool FossilizedBirthDeathSpeciationProcess::hasTiedEvents( void ) const
+{
+    double present = times.front();
+    std::vector<double> ages;
+    for (const TopologyNode *n : value->getNodes())
+    {
+        if ( n->isSampledAncestorTip() == true || ( n->isTip() == true && n->getAge() == present ) ) continue;
+        if ( n->isRoot() == false && n->isTip() == false && n->getAge() == n->getParent().getAge()
+             && n->getParent().isSampledAncestorParent() == true && n->continuesParentSpecies() == true ) continue;
+        ages.push_back( n->getAge() );
+    }
+    std::sort( ages.begin(), ages.end() );
+
+    return std::adjacent_find( ages.begin(), ages.end() ) != ages.end();
 }
 
 
