@@ -6,8 +6,8 @@ taxa <- readTaxonData("data/fbdsp_symmetric.tsv")
 trees <- readTrees("data/fbdsp_symmetric.tre", treetype="clock")
 out = "output/psi_mixture_end.txt"
 
-plain ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=1.0, rho=1.0, lambda_a=0.5, origin=10.0, condition="time", extended=TRUE)
-mixed ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=0.5, rho=1.0, lambda_a=0.5, origin=10.0, condition="time", extended=TRUE,
+plain ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=1.0, rho=1.0, lambda_a=0.5, origin=10.0, condition="time")
+mixed ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=0.5, rho=1.0, lambda_a=0.5, origin=10.0, condition="time",
                 psiMixtureRates=v(2.0, 2.0), psiMixtureWeights=simplex(1, 1))
 rp ~ dnFossilRecord(ranges=plain, reporting="complete"); rp.clamp(taxa)
 rm ~ dnFossilRecord(ranges=mixed, reporting="complete"); rm.clamp(taxa)
@@ -18,8 +18,8 @@ print(filename=out, "a mixture of equal rates is the single rate, less the compo
 print(filename=out, append=TRUE, abs( mixed.lnProbability() - plain.lnProbability() - 5 * ln(0.5) ) < 1E-8, "\n")
 # With symmetric speciation the mixture is solved numerically, and the daughters of a symmetric speciation, and a
 # range no taxon samples, each draw their component afresh. Equal rates are still one psi, to the solver's tolerance.
-plain_b ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=1.0, rho=1.0, lambda_a=0.2, beta=0.4, origin=10.0, condition="time", extended=TRUE)
-mixed_b ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=0.5, rho=1.0, lambda_a=0.2, beta=0.4, origin=10.0, condition="time", extended=TRUE,
+plain_b ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=1.0, rho=1.0, lambda_a=0.2, beta=0.4, origin=10.0, condition="time")
+mixed_b ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=0.5, rho=1.0, lambda_a=0.2, beta=0.4, origin=10.0, condition="time",
                   psiMixtureRates=v(2.0, 2.0), psiMixtureWeights=simplex(1, 1))
 rpb ~ dnFossilRecord(ranges=plain_b, reporting="complete"); rpb.clamp(taxa)
 rmb ~ dnFossilRecord(ranges=mixed_b, reporting="complete"); rmb.clamp(taxa)

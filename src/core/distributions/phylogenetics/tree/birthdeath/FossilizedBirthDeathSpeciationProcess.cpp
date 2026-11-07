@@ -39,118 +39,6 @@ namespace RevBayesCore { template <class valueType> class RbVector; }
 
 using namespace RevBayesCore;
 
-/** The rules an extended tree and a sampled tree differ by, given the process whose rates they read. */
-class FossilizedBirthDeathSpeciationProcess::TreeRepresentation {
-public:
-    virtual ~TreeRepresentation() = default;
-
-    virtual bool        extended(void) const = 0;
-    virtual bool        tipIsLastAppearance(const Taxon &t) const = 0;
-    virtual double      extinctionTime(const FossilizedBirthDeathSpeciationProcess &f, size_t i) const = 0;
-
-    //!< A range closed unobserved at d; p_d and pbar_d its component's and a fresh draw's chance to leave no sample.
-    virtual double      endTerm(const FossilizedBirthDeathSpeciationProcess &f, size_t di, double d, double p_d, double pbar_d) const = 0;
-    //!< A range closed at its sampled ancestor.
-    virtual double      saEndTerm(const FossilizedBirthDeathSpeciationProcess &f, size_t di) const = 0;
-
-    //!< Taxon i, whose range follows a sampled ancestor.
-    virtual double      successorTerm(const FossilizedBirthDeathSpeciationProcess &f, size_t i) const = 0;
-    virtual RangeStart  unsampledSuccessorStart(void) const = 0;
-    //!< A range no taxon samples, following a sampled ancestor at age t.
-    virtual double      unsampledSuccessorTerm(const FossilizedBirthDeathSpeciationProcess &f, double t, bool anagenetic) const = 0;
-    //!< Whether the range at a sampled ancestor may carry on into its sibling.
-    virtual bool        mayContinuePastSampledAncestor(const TopologyNode &sa_node, const TopologyNode &sibling, bool symmetric) const = 0;
-
-    virtual bool        supportsMixture(void) const = 0;
-};
-
-
-/** Tips are extinctions: a sampled ancestor is an anagenesis, and its range passes only into a symmetric node at its age. */
-class FossilizedBirthDeathSpeciationProcess::ExtendedTree : public FossilizedBirthDeathSpeciationProcess::TreeRepresentation {
-public:
-    bool        extended(void) const override { return true; }
-    bool        tipIsLastAppearance(const Taxon &t) const override { return false; }
-    double      extinctionTime(const FossilizedBirthDeathSpeciationProcess &f, size_t i) const override { return f.ranges[i].death; }
-
-    // extinction, or an anagenetic or symmetric speciation that leaves no sampled descendant; under a psi mixture
-    // every successor draws its own component
-    double      endTerm(const FossilizedBirthDeathSpeciationProcess &f, size_t di, double d, double p_d, double pbar_d) const override
-    {
-        double pd = ( p_d >= 0.0 ? p_d : f.p( di, d ) );
-        double pb = ( pbar_d >= 0.0 ? pbar_d : pd );
-        return log( f.death[di] + f.anagenetic[di] * pb + f.birth[di] * f.symmetric[di] * pb * pb );
-    }
-    // the successor's term cancels it
-    double      saEndTerm(const FossilizedBirthDeathSpeciationProcess &f, size_t di) const override { return log( f.death[di] ); }
-
-    // the ancestor's range ended where the successor's began, not by extinction: by anagenesis, or by a symmetric
-    // speciation whose other daughter left no sample, as the successor's flag says
-    double      successorTerm(const FossilizedBirthDeathSpeciationProcess &f, size_t i) const override
-    {
-        double y = f.ranges[i].divergence;
-        size_t yi = f.findIndex( y );
-        double r_ana, r_sym;
-        f.successorRates( y, r_ana, r_sym );
-        return log( f.species[i].sa_anagenetic ? r_ana : r_sym ) - log( f.birth[yi] ) - log( f.death[yi] );
-    }
-    RangeStart  unsampledSuccessorStart(void) const override { return RangeStart::ANAGENESIS; }
-    double      unsampledSuccessorTerm(const FossilizedBirthDeathSpeciationProcess &f, double t, bool anagenetic) const override
-    {
-        double r_ana, r_sym;
-        f.successorRates( t, r_ana, r_sym );
-        return log( anagenetic ? r_ana : r_sym ) - log( f.death[ f.findIndex( t ) ] );
-    }
-
-    // the tip is the range's end, so the symmetric speciation sits at its age
-    bool        mayContinuePastSampledAncestor(const TopologyNode &sa_node, const TopologyNode &sibling, bool symmetric) const override
-    {
-        if ( symmetric == false || sibling.isTip() == true || sibling.getAge() != sa_node.getAge() ) return false;
-        for (size_t c = 0; c < sibling.getNumberOfChildren(); c++)
-        {
-            if ( sibling.getChild(c).continuesParentSpecies() == true ) return false;
-        }
-        return true;
-    }
-
-    bool        supportsMixture(void) const override { return true; }
-};
-
-
-/** Tips are last appearances: a sampled ancestor's lineage carries on, and its successor's start is integrated out. */
-class FossilizedBirthDeathSpeciationProcess::SampledTree : public FossilizedBirthDeathSpeciationProcess::TreeRepresentation {
-public:
-    bool        extended(void) const override { return false; }
-    bool        tipIsLastAppearance(const Taxon &t) const override { return t.isExtinct(); }
-    double      extinctionTime(const FossilizedBirthDeathSpeciationProcess &f, size_t i) const override { return f.drawExtinction( i ); }
-
-    // the lineage leaves nothing after tau_K; with no record node, either fate after it
-    double      endTerm(const FossilizedBirthDeathSpeciationProcess &f, size_t di, double d, double p_d, double pbar_d) const override
-    {
-        if ( f.has_reporting_node == false )
-        {
-            return log( f.p( di, d ) + f.homogeneous_rho->getValue() * exp( f.lnQTildeFromPresent( di, d ) ) );
-        }
-        return log( f.p( di, d ) );
-    }
-    double      saEndTerm(const FossilizedBirthDeathSpeciationProcess &f, size_t di) const override { return 0.0; }
-
-    // at least one change of species between the sampled ancestor and the successor's first appearance
-    double      successorTerm(const FossilizedBirthDeathSpeciationProcess &f, size_t i) const override
-    {
-        double y_a = f.ranges[i].divergence;
-        return log( 1.0 - exp( f.lnNoSpeciesChange( f.ranges[i].first, y_a ) ) ) - log( f.birth[ f.findIndex( y_a ) ] );
-    }
-    RangeStart  unsampledSuccessorStart(void) const override { return RangeStart::SAMPLED_ANCESTOR; }
-    double      unsampledSuccessorTerm(const FossilizedBirthDeathSpeciationProcess &f, double t, bool anagenetic) const override { return 0.0; }
-
-    // that range and a successor no taxon samples are one state, which the successor stands for
-    bool        mayContinuePastSampledAncestor(const TopologyNode &sa_node, const TopologyNode &sibling, bool symmetric) const override { return false; }
-
-    bool        supportsMixture(void) const override { return false; }
-};
-
-
-
 /**
  * Constructor. 
  * We delegate most parameters to the base class and initialize the members.
@@ -178,24 +66,12 @@ FossilizedBirthDeathSpeciationProcess::FossilizedBirthDeathSpeciationProcess(con
                                                            const std::string &incondition,
                                                            const std::vector<Taxon> &intaxa,
                                                            bool comp,
-                                                           bool ext,
                                                            double inpresent,
                                                            const TypedDagNode<RbVector<double> >* inmixture_rates,
                                                            const TypedDagNode<Simplex>* inmixture_weights) :
     AbstractBirthDeathProcess(ra, incondition, intaxa, true, NULL),
-    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, comp, NULL, inpresent, inmixture_rates, inmixture_weights),
-    representation( [ext]() -> const TreeRepresentation* {
-        static const ExtendedTree extended_tree{};
-        static const SampledTree sampled_tree{};
-        return ext ? static_cast<const TreeRepresentation*>( &extended_tree ) : &sampled_tree;
-    }() )
+    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, comp, NULL, inpresent, inmixture_rates, inmixture_weights)
 {
-    // these marginalizations are single-psi closed forms
-    if ( num_components > 1 && representation->supportsMixture() == false )
-    {
-        throw RbException("dnFBDSP: psiMixtureRates needs extended=true.");
-    }
-
     for(std::vector<const DagNode*>::iterator it = range_parameters.begin(); it != range_parameters.end(); it++)
     {
         addParameter(*it);
@@ -234,7 +110,6 @@ FossilizedBirthDeathSpeciationProcess::FossilizedBirthDeathSpeciationProcess(con
     }
 
     species        = std::vector<SpeciesEntry>(taxa.size());
-    first_changes  = std::vector<FirstChange>(taxa.size());
     next_species   = std::vector<SpeciesEntry>(taxa.size());
     stored_species = std::vector<SpeciesEntry>(taxa.size());
 
@@ -316,7 +191,12 @@ double FossilizedBirthDeathSpeciationProcess::speciationModeLnProb( void ) const
         if ( r.start == RangeStart::SPECIATION ) lnProb += log( birth[ti] );
 
         // the ancestor's end was charged mu, as computeLnProbabilityTimes cancels for a taxon
-        if ( r.start != RangeStart::SPECIATION ) lnProb += representation->unsampledSuccessorTerm( *this, r.top, r.anagenetic );
+        if ( r.start == RangeStart::SAMPLED_ANCESTOR )
+        {
+            double r_ana, r_sym;
+            successorRates( r.top, r_ana, r_sym );
+            lnProb += log( r.anagenetic ? r_ana : r_sym ) - log( death[ti] );
+        }
     }
 
     return lnProb;
@@ -331,27 +211,37 @@ double FossilizedBirthDeathSpeciationProcess::computeLnProbabilityTimes( void ) 
 {
     double lnProb = 0.0;
 
+    // a successor's range began where its sampled ancestor's ended, by anagenesis or by a symmetric speciation
+    // whose other daughter left no sample, as its flag says; this cancels the ancestor's mu and the successor's lambda
     for (size_t i = 0; i < taxa.size(); i++)
     {
-        // the parent species is a sampled ancestor
-        if ( species[i].parent_is_sa == true ) lnProb += representation->successorTerm( *this, i );
+        if ( species[i].parent_is_sa == false ) continue;
 
-        if ( first_changes_active == true ) lnProb += firstChangeLnDensity( i );
+        double y = ranges[i].divergence;
+        size_t yi = findIndex( y );
+        double r_ana, r_sym;
+        successorRates( y, r_ana, r_sym );
+        lnProb += log( species[i].sa_anagenetic ? r_ana : r_sym ) - log( birth[yi] ) - log( death[yi] );
     }
 
     return lnProb;
 }
 
 
-/** Close range i at d: an extinction, a symmetric speciation, or the marginalization limit. */
+/**
+ * Close range i at d. The symmetric node pays for its own; a successor's term cancels the mu at a sampled ancestor;
+ * otherwise extinction, or an anagenetic or symmetric speciation that leaves no sampled descendant, each successor
+ * drawing its own psi component.
+ */
 double FossilizedBirthDeathSpeciationProcess::rangeEndTerm( size_t i, size_t di, double d, double p_d, double pbar_d ) const
 {
-    // the symmetric node pays
     if ( species[i].ends_symmetric == true ) return 0.0;
 
-    if ( species[i].ends_at_sa == true ) return representation->saEndTerm( *this, di );
+    if ( species[i].ends_at_sa == true ) return log( death[di] );
 
-    return representation->endTerm( *this, di, d, p_d, pbar_d );
+    double pd = ( p_d >= 0.0 ? p_d : p( di, d ) );
+    double pb = ( pbar_d >= 0.0 ? pbar_d : pd );
+    return log( death[di] + anagenetic[di] * pb + birth[di] * symmetric[di] * pb * pb );
 }
 
 
@@ -558,14 +448,6 @@ std::string FossilizedBirthDeathSpeciationProcess::getHiddenStateString( void ) 
         // a Newick reads a zero-length tip as a sampled ancestor only beside a positive branch
         if ( tip.isSampledAncestorTip() == true ) tip.setNodeParameter( "sa", "1" );
         if ( num_components > 1 ) tip.setNodeParameter( "component", StringUtilities::to_string( ranges[i].component ) );
-        if ( first_changes_active == true )
-        {
-            std::stringstream c;
-            c.precision( 17 );
-            c << first_changes[i].u;
-            tip.setNodeParameter( "change_u", c.str() );
-            tip.setNodeParameter( "change_mode", StringUtilities::to_string( first_changes[i].mode ) );
-        }
     }
 
     // exact ages, since rounded branch lengths move a survivor off the present
@@ -721,15 +603,6 @@ bool FossilizedBirthDeathSpeciationProcess::adoptAppearances( void )
 
         std::optional<std::string> component = tip.eraseNodeParameter( "component" );
         if ( component.has_value() == true && size_t( atoi( component->c_str() ) ) < num_components ) ranges[i].component = atoi( component->c_str() );
-
-        std::optional<std::string> change_u    = tip.eraseNodeParameter( "change_u" );
-        std::optional<std::string> change_mode = tip.eraseNodeParameter( "change_mode" );
-        if ( change_u.has_value() == true && change_mode.has_value() == true )
-        {
-            first_changes[i].u    = atof( change_u->c_str() );
-            first_changes[i].mode = size_t( atoi( change_mode->c_str() ) );
-            first_changes_active  = true;
-        }
 
         if ( annotated == true ) dirty_taxa[i] = true;
     }
@@ -1133,8 +1006,7 @@ void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e, bool 
                 any_continues = true;
                 if ( sib.isSampledAncestorTip() ) sa_sibling = true;
             }
-            // on a sampled tree the successor's first change of species is placed below
-            if ( sa_sibling )               { if ( representation->extended() == true ) e.observed_anagenetic[idx] = 1.0; }
+            if ( sa_sibling )               e.observed_anagenetic[idx]  = 1.0;
             else if ( any_continues == false ) e.observed_bifurcation[idx] = 1.0;
             else                            e.observed_budding[idx]     = 1.0;
         }
@@ -1143,20 +1015,6 @@ void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e, bool 
         if ( s >= long( ranges.size() ) ) continue;
         double lo = ( s < 0 ? node->getAge() : std::max( node->getAge(), ranges[s].first ) );
         double hi = parent.getAge();
-
-        // on a sampled successor's path no species changes above its first change, which is observed
-        if ( s >= 0 && first_changes_active == true && species[s].parent_is_sa == true )
-        {
-            double t = firstChangeAge( s );
-            if ( node->getAge() < t && t <= hi )
-            {
-                size_t m = first_changes[s].mode;
-                if ( m == ANAGENETIC_CHANGE )     e.observed_anagenetic[idx]  = 1.0;
-                else if ( m == BUDDING_CHANGE )   e.observed_budding[idx]     = 1.0;
-                else                              e.observed_bifurcation[idx] = 1.0;
-            }
-            hi = std::min( hi, t );
-        }
 
         if ( hi > lo )
         {
@@ -1186,242 +1044,7 @@ void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e, bool 
 }
 
 
-/**
- * On a sampled tree, draw species i's extinction from its conditional, as drawOrigination draws an origination.
- * A species that is itself and unsampled at age top, and leaves nothing after, is still itself and unsampled at
- * s with mass q~(top -> s) p(s), which is p(top) at top, so that mass, normalized, is the chance it ends below s.
- * A sampled ancestor's species meets the first change of species on the path to its successor, a Poisson process
- * at lambda_a + lambda (1-beta) p + 2 lambda beta p, with at least one change when the successor is sampled and
- * otherwise ending at the symmetric node. An anagenesis or symmetric change ends it there; at a budding whose
- * parent side left no sample it carries on unseen, and ends as a tip's species does from that age.
- */
-double FossilizedBirthDeathSpeciationProcess::drawExtinction( size_t i ) const
-{
-    double present = getPresent();
-    if ( ranges[i].survived == true ) return present;
-
-    RandomNumberGenerator* rng = GLOBAL_RNG;
-    const TopologyNode &tip = getValue().getNode(i);
-    double tk = tip.getAge();
-
-    // the end of a species that is unsampled below top and leaves nothing
-    auto end_below = [&]( double top ) {
-        double rho = homogeneous_rho->getValue();
-        auto ln_mass = [&]( double s ) {
-            size_t si = findIndex(s);
-            double after = p( si, s );
-            if ( has_reporting_node == false ) after += rho * exp( lnQTildeFromPresent( si, s ) );
-            return lnQTildeFromPresent( findIndex(top), top ) - lnQTildeFromPresent( si, s ) + log( after );
-        };
-        double ln_u = log( rng->uniform01() ) + ln_mass( top );
-
-        // the atom at the present: alive and unseen
-        if ( ln_u <= ln_mass( present ) ) return present;
-
-        double lo = present, hi = top;
-        for (size_t n = 0; n < 200 && hi - lo > 1E-12*(1.0 + top); ++n)
-        {
-            double mid = 0.5 * (lo + hi);
-            if ( ln_mass( mid ) < ln_u ) lo = mid; else hi = mid;
-        }
-        return 0.5 * (lo + hi);
-    };
-
-    if ( tip.isSampledAncestorTip() == false || tip.isRoot() == true ) return end_below( tk );
-
-    // the successor's path: follow the sibling's continuation to a tip or to the symmetric node that ends it
-    const TopologyNode &sa_node = tip.getParent();
-    const TopologyNode *n = NULL;
-    for (size_t c = 0; c < sa_node.getNumberOfChildren(); c++)
-    {
-        if ( &sa_node.getChild(c) != &tip ) n = &sa_node.getChild(c);
-    }
-    while ( n->isTip() == false )
-    {
-        const TopologyNode *next = NULL;
-        for (size_t c = 0; c < n->getNumberOfChildren(); c++)
-        {
-            if ( continuesRange( n->getChild(c) ) ) next = &n->getChild(c);
-        }
-        if ( next == NULL ) break;
-        n = next;
-    }
-    bool named = n->isTip();
-    double bottom = ( named ? ranges[ n->getIndex() ].first : n->getAge() );
-
-    // the successor's first change is held, and at a budding the species carries on
-    if ( named == true && first_changes_active == true )
-    {
-        size_t b = n->getIndex();
-        double t = firstChangeAge( b );
-        return ( first_changes[b].mode == BUDDING_CHANGE ? end_below( t ) : t );
-    }
-
-    // the expected number of changes from the sampled ancestor down to t
-    auto changes = [&]( double t ) {
-        std::vector<double> hb, hs, ha;
-        hiddenEventIntegrals( std::vector<std::pair<double,double> >( 1, std::make_pair( t, tk ) ), hb, hs, ha );
-        return hb[0] + hs[0] + ha[0];
-    };
-    double total = changes( bottom );
-
-    // the first change comes after R changes' worth of rate, R exponential, truncated below total when named
-    double u = rng->uniform01();
-    double target = ( named ? -log( 1.0 - u * ( 1.0 - exp( -total ) ) ) : -log( u ) );
-    if ( target >= total ) return bottom;
-
-    double lo = bottom, hi = tk;
-    for (size_t k = 0; k < 200 && hi - lo > 1E-12*(1.0 + tk); ++k)
-    {
-        double mid = 0.5 * (lo + hi);
-        if ( changes( mid ) > target ) lo = mid; else hi = mid;
-    }
-    double t = 0.5 * (lo + hi);
-
-    // the change's mode, in proportion to its rate at t
-    size_t ti = findIndex(t);
-    double pt = p( ti, t );
-    double r_bud = birth[ti] * ( 1.0 - symmetric[ti] ) * pt;
-    double r_all = anagenetic[ti] + birth[ti] * ( 1.0 + symmetric[ti] ) * pt;
-    if ( rng->uniform01() * r_all < r_bud ) return end_below( t );
-
-    return t;
-}
-
-
-void FossilizedBirthDeathSpeciationProcess::activateFirstChanges( void ) const
-{
-    if ( representation->extended() == true || first_changes_active == true ) return;
-    first_changes_active = true;
-    cached_events_level  = 0;
-}
-
-
-/** The log chance that an unsampled lineage keeps its species from age old down to young. */
-double FossilizedBirthDeathSpeciationProcess::lnNoSpeciesChange( double young, double old ) const
-{
-    size_t yi = findIndex( young );
-    size_t oi = findIndex( old );
-
-    double ln_q  = q(yi, young) - q(oi, old);
-    double ln_qt = q(yi, young, true) - q(oi, old, true);
-    for (size_t j = yi; j < oi; j++)
-    {
-        ln_q  -= q_i[j];
-        ln_qt -= q_tilde_i[j];
-    }
-    return ln_q - ln_qt;
-}
-
-
-/** Anagenesis, a budding whose parent side leaves no sample, and a symmetric speciation whose other daughter leaves none. */
-void FossilizedBirthDeathSpeciationProcess::changeRates( double t, double r[3] ) const
-{
-    size_t ti = findIndex( t );
-    double pt = p( ti, t );
-    r[ANAGENETIC_CHANGE] = anagenetic[ti];
-    r[BUDDING_CHANGE]    = birth[ti] * ( 1.0 - symmetric[ti] ) * pt;
-    r[SYMMETRIC_CHANGE]  = 2.0 * birth[ti] * symmetric[ti] * pt;
-}
-
-
-double FossilizedBirthDeathSpeciationProcess::firstChangeAge( size_t i ) const
-{
-    double o = ranges[i].first;
-    return o + first_changes[i].u * ( ranges[i].divergence - o );
-}
-
-
-/** The modes the pseudo-prior draws from: every mode the rates allow. */
-std::vector<size_t> FossilizedBirthDeathSpeciationProcess::pseudoPriorModes( void ) const
-{
-    std::vector<size_t> m( 1, BUDDING_CHANGE );
-    if ( hasAnagenesis() == true )          m.push_back( ANAGENETIC_CHANGE );
-    if ( hasSymmetricSpeciation() == true ) m.push_back( SYMMETRIC_CHANGE );
-    return m;
-}
-
-
-/**
- * A named successor's first change at t, of mode m: none from y_a down to t, then m. In u, normalized by the
- * chance of at least one change, which successorTerm charges, so the two together are q~(y_a -> t) r_m(t) q(t -> o).
- */
-double FossilizedBirthDeathSpeciationProcess::firstChangeLnDensity( size_t i ) const
-{
-    const FirstChange &c = first_changes[i];
-
-    if ( representation->extended() == true || species[i].parent_is_sa == false )
-    {
-        std::vector<size_t> modes = pseudoPriorModes();
-        bool allowed = ( std::find( modes.begin(), modes.end(), c.mode ) != modes.end() );
-        return ( allowed ? -log( double( modes.size() ) ) : RbConstants::Double::neginf );
-    }
-
-    double y_a = ranges[i].divergence;
-    double o   = ranges[i].first;
-    double t   = firstChangeAge( i );
-
-    double r[3];
-    changeRates( t, r );
-
-    return log( r[c.mode] ) + lnNoSpeciesChange( t, y_a ) - log( -expm1( lnNoSpeciesChange( o, y_a ) ) ) + log( y_a - o );
-}
-
-
-/** An exact draw from the density above, so the tree's terms cancel and only what reads the change decides. */
-double FossilizedBirthDeathSpeciationProcess::redrawFirstChange( size_t i )
-{
-    updateRanges();
-    prepareProbComputation();
-
-    RandomNumberGenerator* rng = GLOBAL_RNG;
-
-    double ln_old = firstChangeLnDensity( i );
-
-    first_change_redrawn = true;
-    redrawn_taxon        = i;
-    stored_first_change  = first_changes[i];
-    cached_events_level  = 0;
-
-    FirstChange &c = first_changes[i];
-
-    if ( representation->extended() == true || species[i].parent_is_sa == false )
-    {
-        std::vector<size_t> modes = pseudoPriorModes();
-        c.u    = rng->uniform01();
-        c.mode = modes[ size_t( rng->uniform01() * modes.size() ) ];
-    }
-    else
-    {
-        double y_a = ranges[i].divergence;
-        double o   = ranges[i].first;
-
-        // the first change comes after an exponential amount of rate, truncated below the whole path's
-        double total  = -lnNoSpeciesChange( o, y_a );
-        double target = -log1p( rng->uniform01() * expm1( -total ) );
-
-        double lo = o, hi = y_a;
-        for (size_t k = 0; k < 200 && hi - lo > 1E-12*(1.0 + y_a); ++k)
-        {
-            double mid = 0.5 * (lo + hi);
-            if ( -lnNoSpeciesChange( mid, y_a ) > target ) lo = mid; else hi = mid;
-        }
-        double t = 0.5 * (lo + hi);
-
-        double r[3];
-        changeRates( t, r );
-        double x = rng->uniform01() * ( r[0] + r[1] + r[2] );
-        c.mode = ( x < r[ANAGENETIC_CHANGE] ? ANAGENETIC_CHANGE : ( x < r[ANAGENETIC_CHANGE] + r[BUDDING_CHANGE] ? BUDDING_CHANGE : SYMMETRIC_CHANGE ) );
-        c.u    = ( t - o ) / ( y_a - o );
-    }
-
-    return ln_old - firstChangeLnDensity( i );
-}
-
-
-bool FossilizedBirthDeathSpeciationProcess::isExtended( void ) const { return representation->extended(); }
-bool FossilizedBirthDeathSpeciationProcess::marginalizesExtinction( void ) const { return representation->extended() == false; }
-bool FossilizedBirthDeathSpeciationProcess::tipAgeConstrainedToRange( const Taxon &t ) const { return representation->tipIsLastAppearance( t ); }
+bool FossilizedBirthDeathSpeciationProcess::isExtended( void ) const { return true; }
 
 
 /**
@@ -1435,8 +1058,6 @@ Tree FossilizedBirthDeathSpeciationProcess::sampledTree( void ) const
 
     size_t unsampled_count = 0;
     labelSpecies( t.getRoot(), rangeLabel( t.getRoot(), unsampled_count ), unsampled_count );
-
-    if ( representation->extended() == false ) return t;
 
     std::vector<TopologyNode*> tips;
     for (size_t i = 0; i < taxa.size(); i++) tips.push_back( &t.getNode(i) );
@@ -1552,16 +1173,6 @@ void FossilizedBirthDeathSpeciationProcess::executeMethod( const std::string &n,
         { "getHiddenAnageneses", &BranchEvents::hidden_anagenetic }, { "getObservedBuddings", &BranchEvents::observed_budding },
         { "getObservedBifurcations", &BranchEvents::observed_bifurcation }, { "getObservedAnageneses", &BranchEvents::observed_anagenetic } };
 
-    // a sampled tree integrates the extinctions out, so its representation draws each from its conditional
-    if ( n == "getExtinctionTimes" )
-    {
-        const_cast<FossilizedBirthDeathSpeciationProcess *>( this )->updateRanges();
-        prepareProbComputation();
-        rv.clear();
-        for (size_t i = 0; i < ranges.size(); i++) rv.push_back( representation->extinctionTime( *this, i ) );
-        return;
-    }
-
     if ( events.count( n ) == 1 )
     {
         // the observed events need no hidden integral, so they work under any mixture
@@ -1603,13 +1214,13 @@ bool FossilizedBirthDeathSpeciationProcess::hasAnagenesis( void ) const
 
 
 /**
- * On an extended tree, the non-tip child of a sampled ancestor's node other than the symmetric node at its age that
+ * The non-tip child of a sampled ancestor's node other than the symmetric node at its age that
  * the range carries on into. Its range begins there either way, and its flag says whether its lineage bifurcated away
  * from the ancestor's: false for a symmetric speciation, true for an anagenesis.
  */
 bool FossilizedBirthDeathSpeciationProcess::isModeSuccessor( const TopologyNode &n ) const
 {
-    if ( representation->extended() == false || n.isRoot() == true || n.isSampledAncestorTip() == true ) return false;
+    if ( n.isRoot() == true || n.isSampledAncestorTip() == true ) return false;
 
     const TopologyNode &p = n.getParent();
     bool sa = false;
@@ -1632,7 +1243,7 @@ bool FossilizedBirthDeathSpeciationProcess::continuesRange( const TopologyNode &
 /** Whether both successor modes are possible, so its flag is free. */
 bool FossilizedBirthDeathSpeciationProcess::hasFreeSuccessorModes( void ) const
 {
-    return representation->extended() == true && hasAnagenesis() == true && hasSymmetricSpeciation() == true;
+    return hasAnagenesis() == true && hasSymmetricSpeciation() == true;
 }
 
 
@@ -2174,8 +1785,12 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
 
     if ( sa_tip == true && n_cont == 1 )
     {
-        // a range carries on past its sampled ancestor only into the symmetric speciation that ends it
-        if ( representation->mayContinuePastSampledAncestor( node, *past_sa, hasSymmetricSpeciation() ) == false ) invalid_continuation = true;
+        // a range carries on past its sampled ancestor only into the symmetric speciation that ends it, at its age
+        if ( hasSymmetricSpeciation() == false || past_sa->isTip() == true || past_sa->getAge() != node.getAge() ) invalid_continuation = true;
+        for (size_t c = 0; c < past_sa->getNumberOfChildren(); c++)
+        {
+            if ( past_sa->getChild(c).continuesParentSpecies() == true ) invalid_continuation = true;
+        }
     }
 
     // no child carries the species, so it ends here by symmetric speciation
@@ -2219,7 +1834,7 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
             else
             {
                 // a range no taxon samples begins here
-                RangeStart start = ( sa == false ? RangeStart::SPECIATION : representation->unsampledSuccessorStart() );
+                RangeStart start = ( sa == false ? RangeStart::SPECIATION : RangeStart::SAMPLED_ANCESTOR );
                 unsampled.push_back( UnsampledRange{ node.getAge(), sub.end_age, start, sa && child.continuesParentSpecies() } );
             }
             continue;
@@ -2347,7 +1962,7 @@ void FossilizedBirthDeathSpeciationProcess::prepareProbComputation( void ) const
 /** Re-take from each tip the ages it holds. */
 void FossilizedBirthDeathSpeciationProcess::repairRanges( void )
 {
-    // an extended tip may sit below its bins; a non-extended one is tau_K
+    // a tip is an extinction, which may sit below its bins
     for (size_t i = 0; i < getValue().getNumberOfNodes(); i++)
     {
         TopologyNode &node = getValue().getNode(i);
@@ -2357,21 +1972,13 @@ void FossilizedBirthDeathSpeciationProcess::repairRanges( void )
             size_t ti = node.getIndex();
             if ( ti >= taxa.size() ) continue;
 
-            bool constrained = representation->tipIsLastAppearance( taxa[ti] );
-            node.setTipAgeUnconstrained( constrained == false );
+            node.setTipAgeUnconstrained( true );
 
             double age = node.getAge();
 
             if ( ranges[ti].death != age )
             {
                 ranges[ti].death = age;
-                dirty_taxa[ti] = true;
-            }
-
-            if ( constrained == true && ( ranges[ti].last != age || ( ranges[ti].singleton && ranges[ti].first != age ) ) )
-            {
-                ranges[ti].last = age;
-                if ( ranges[ti].singleton == true ) ranges[ti].first = age;
                 dirty_taxa[ti] = true;
             }
         }
@@ -2431,9 +2038,9 @@ void FossilizedBirthDeathSpeciationProcess::updateRanges( void )
 }
 
 
+/** The tree's keep would otherwise reach the tree base only, and the range base must clear its stored proposal. */
 void FossilizedBirthDeathSpeciationProcess::keepSpecialization(const DagNode *toucher)
 {
-    first_change_redrawn = false;
     AbstractFossilizedBirthDeathRangeProcess::keepSpecialization(toucher);
 }
 
@@ -2442,9 +2049,6 @@ void FossilizedBirthDeathSpeciationProcess::restoreSpecialization(const DagNode 
 {
     species = stored_species;
     cached_events_level = 0;
-
-    if ( first_change_redrawn == true ) first_changes[redrawn_taxon] = stored_first_change;
-    first_change_redrawn = false;
 
     AbstractFossilizedBirthDeathRangeProcess::restoreSpecialization(toucher);
 }

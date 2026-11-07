@@ -110,8 +110,6 @@ RevBayesCore::FossilizedBirthDeathSpeciationProcess* Dist_FBDSP::createDistribut
         rt = static_cast<const ModelVector<RealPos> &>( timeline->getRevObject() ).getDagNode();
     }
 
-    bool ext = static_cast<const RlBoolean &>( extended->getRevObject() ).getValue();
-
     double pres = static_cast<const RealPos &>( present->getRevObject() ).getValue();
 
     // relative fossil sampling rates, one component drawn by each species at birth
@@ -138,7 +136,7 @@ RevBayesCore::FossilizedBirthDeathSpeciationProcess* Dist_FBDSP::createDistribut
         if ( vb != NULL ) for (double x : vb->getValue()) budding_only = budding_only && ( x == 0.0 );
     }
 
-    RevBayesCore::FossilizedBirthDeathSpeciationProcess* d = new RevBayesCore::FossilizedBirthDeathSpeciationProcess(sa, l, m, p, r, la, b, rt, cond, t, true, ext, pres, mr, mw);
+    RevBayesCore::FossilizedBirthDeathSpeciationProcess* d = new RevBayesCore::FossilizedBirthDeathSpeciationProcess(sa, l, m, p, r, la, b, rt, cond, t, true, pres, mr, mw);
 
     return d;
 }
@@ -237,9 +235,8 @@ const MemberRules& Dist_FBDSP::getParameterRules(void) const
         betaTypes.push_back( ModelVector<Probability>::getClassTypeSpec() );
         dist_member_rules.push_back( new ArgumentRule( "beta",  betaTypes, "The probability that a speciation is symmetric, ending its parent species with two new ones, rather than budding.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, new Probability(0.0) ) );
 
-        dist_member_rules.push_back( new ArgumentRule( "extended",  RlBoolean::getClassTypeSpec(), "Are the tips extinction times? If false the extinction times are marginalized out and each range ends at min(tau_K, youngest child birth).", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean(true) ) );
 
-        dist_member_rules.push_back( new ArgumentRule( "psiMixtureRates", ModelVector<RealPos>::getClassTypeSpec(), "The relative fossil sampling rate of each mixture component, which multiplies psi. Each new species draws its own component, however it arose. Needs extended=true. Left out, there is one component.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
+        dist_member_rules.push_back( new ArgumentRule( "psiMixtureRates", ModelVector<RealPos>::getClassTypeSpec(), "The relative fossil sampling rate of each mixture component, which multiplies psi. Each new species draws its own component, however it arose. Left out, there is one component.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
         dist_member_rules.push_back( new ArgumentRule( "psiMixtureWeights", Simplex::getClassTypeSpec(), "The probability of each mixture component. Left out, the weights are equal.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );
 
         rules_set = true;
@@ -283,10 +280,6 @@ void Dist_FBDSP::setConstParameter(const std::string& name, const RevPtr<const R
     {
         beta = var;
     }
-    else if ( name == "extended" )
-    {
-        extended = var;
-    }
     else if ( name == "origin" )
     {
         start_age = var;
@@ -307,26 +300,6 @@ void Dist_FBDSP::setConstParameter(const std::string& name, const RevPtr<const R
 }
 
 
-namespace {
-
-    /** An event accessor: on a sampled tree, the first changes of species it reads are live from its creation. */
-    class EventAccessor : public DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> > {
-    public:
-        EventAccessor( const std::string &n, const TimeTree *o ) : DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> >( n, o, new ArgumentRules(), true ), tree( o ) {}
-        EventAccessor* clone( void ) const { return new EventAccessor( *this ); }
-
-        RevBayesCore::TypedFunction< RevBayesCore::RbVector<double> >* createFunction( void ) const
-        {
-            const RevBayesCore::StochasticNode<RevBayesCore::Tree> *node = dynamic_cast<const RevBayesCore::StochasticNode<RevBayesCore::Tree> *>( tree->getDagNode() );
-            const RevBayesCore::FossilizedBirthDeathSpeciationProcess *d = ( node == NULL ? NULL : dynamic_cast<const RevBayesCore::FossilizedBirthDeathSpeciationProcess *>( &node->getDistribution() ) );
-            if ( d != NULL ) d->activateFirstChanges();
-            return DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> >::createFunction();
-        }
-
-    private:
-        const TimeTree *tree;
-    };
-}
 
 
 /** The appearances and the origination and extinction times. */
@@ -360,10 +333,10 @@ RevLanguage::MethodTable Dist_FBDSP::getDistributionMethods( void ) const
     for (const std::string &name : { "getHiddenBuddings", "getHiddenBifurcations", "getHiddenAnageneses",
                                      "getObservedBuddings", "getObservedBifurcations", "getObservedAnageneses" })
     {
-        methods.addFunction( new EventAccessor( name, variable ) );
+        methods.addFunction( new DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> >( name, variable, new ArgumentRules(), true ) );
     }
 
-    // the tree an extended tree projects to, for viewing: each species cut back to its last appearance. Not
+    // the sampled tree the tree projects to, for viewing: each species cut back to its last appearance. Not
     // forced, so it is projected only when something reads it, as a monitor does at each print
     methods.addFunction( new DistributionMemberFunction<Dist_FBDSP, TimeTree>( "getSampledTree", variable, new ArgumentRules(), false ) );
 

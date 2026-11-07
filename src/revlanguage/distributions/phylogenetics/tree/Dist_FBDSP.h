@@ -46,7 +46,6 @@ namespace RevLanguage {
 
         RevPtr<const RevVariable>                               lambda_a;                                                                               //!< The anagenetic speciation rate(s)
         RevPtr<const RevVariable>                               beta;                                                                                   //!< The probability that a speciation is symmetric
-        RevPtr<const RevVariable>                               extended;                                                                               //!< Whether tips are extinction times
         RevPtr<const RevVariable>                               start_age;                                                                              //!< The start time of the process since the origin
         RevPtr<const RevVariable>                               psi_mixture_rates;                                                                      //!< The relative psi of each mixture component
         RevPtr<const RevVariable>                               psi_mixture_weights;                                                                    //!< The mixture weights

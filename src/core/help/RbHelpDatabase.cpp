@@ -1003,15 +1003,15 @@ moves.append( mvPsiMixtureAllocation(bd_mix, weight=taxa.size()) ))");
 	help_strings[string("dnFossilizedBirthDeathSpeciation")][string("description")] = string(R"(The fossilized birth death speciation process (FBDSP) describes the diversification and sampling of extant and extinct species trees under a mixed model of asymmetric (budding) and anagenetic speciation.)");
 	help_strings[string("dnFossilizedBirthDeathSpeciation")][string("details")] = string(R"(Fossil species are represented by a collection of fossil occurrences with uncertainty. Speciation, extinction and sampling rates may be time-homogeneous or piecewise time-heterogeneous. If time-heterogeneous rates are provided, then a vector of rate change time-points must also be provided. Like `dnFBDRP`, this is the birth-death range process on its own (here over trees); pair it with a `dnFossilRecord` node clamped to the occurrences to add the probability of the fossil record. The first and last appearance of each species are latent and are not carried by the tree, so sample them with `mvStratigraphicRange`. By default the process runs to age zero. `present` moves that boundary, so a record truncated at a stratigraphic horizon is analysed in the ages it already carries: the timeline starts there, no occurrence may be younger, and `rho` applies at that age rather than at zero.
 
-Every age in the tree needs a move. Tips are extinction times, sampled by `mvFossilTipTimeUniform` between the present and the youngest occurrence. `mvNodeTimeSlideUniform` skips the root, so pair it with `mvRootTimeSlideUniform`.
+The tree is an extended tree: each extinct species' tip is its extinction time, below its last appearance, and an extant species' tip is at the present. Every age in the tree needs a move. Tips are sampled by `mvFossilTipTimeUniform` between the present and the youngest occurrence. `mvNodeTimeSlideUniform` skips the root, so pair it with `mvRootTimeSlideUniform`.
 
-Fossil sampling rates can vary among species, as in `dnFBDRP`. Each species draws its own component, whether it arose by budding, symmetric speciation or anagenesis. `mvPsiMixtureAllocation` samples the components and `getPsiMixtureComponents()` reports them. The mixture needs `extended=TRUE`.
+Fossil sampling rates can vary among species, as in `dnFBDRP`. Each species draws its own component, whether it arose by budding, symmetric speciation or anagenesis. `mvPsiMixtureAllocation` samples the components and `getPsiMixtureComponents()` reports them.
 
 With `beta > 0` a speciation may also be symmetric (bifurcating): the ancestral species ends and both daughters begin new ones.
 
-On an extended tree, a sampled ancestor's successor arose by anagenesis or by a symmetric speciation whose other daughter left no sample. The successor's continuation flag holds which: on where its lineage did not bifurcate away, so the speciation mode is read from the flags at every node. A Newick carries it as `successor=anagenetic` or `successor=symmetric` on the successor, and a successor without it is taken as anagenetic where lambda_a > 0.
+A sampled ancestor's successor arose by anagenesis or by a symmetric speciation whose other daughter left no sample. The successor's continuation flag holds which: on where its lineage did not bifurcate away, so the speciation mode is read from the flags at every node. A Newick carries it as `successor=anagenetic` or `successor=symmetric` on the successor, and a successor without it is taken as anagenetic where lambda_a > 0.
 
-On an extended tree, `getSampledTree()` returns the sampled tree it projects to: each extinct species cut back to its last appearance, with a sampled ancestor there where its lineage leads on, and each node's `species` label. It is computed only when something reads it, so a monitor can log it for viewing without slowing the chain.)");
+`getSampledTree()` returns the sampled tree the extended tree projects to: each extinct species cut back to its last appearance, with a sampled ancestor there where its lineage leads on, and each node's species label as `sp`. Its tips are last appearances, so they move with `mvStratigraphicRange` and not with the tip moves. Log it with `mnFile` for tree summaries; it is computed only when something reads it, so logging it does not slow the chain.)");
 	help_strings[string("dnFossilizedBirthDeathSpeciation")][string("example")] = string(R"(lambda ~ dnExp(10)
 mu ~ dnExp(10)
 psi ~ dnExp(10)
@@ -1044,7 +1044,11 @@ moves.append( mvFossilTipTimeUniform(bd, weight = taxa.size()) )
 moves.append( mvSpeciationMode(bd, weight = taxa.size()) )
 
 # the first and last appearances, which the tree does not carry
-moves.append( mvStratigraphicRange(bd, weight = taxa.size()) ))");
+moves.append( mvStratigraphicRange(bd, weight = taxa.size()) )
+
+# the sampled tree, tips at last appearances, for tree summaries
+sampled := bd.getSampledTree()
+monitors.append( mnFile(sampled, filename="output/sampled.trees", printgen=100) ))");
 	help_strings[string("dnFossilizedBirthDeathSpeciation")][string("name")] = string(R"(dnFossilizedBirthDeathSpeciation)");
 	help_references[string("dnFossilizedBirthDeathSpeciation")].push_back(RbHelpReference(R"(The fossilized birth-death model for the analysis of stratigraphic range data under different speciation modes. Stadler, Tanja et al. Journal of theoretical biology, 447:41-55.)",R"()",R"(https://www.sciencedirect.com/science/article/pii/S002251931830119X )"));
 	help_arrays[string("dnFossilizedBirthDeathSpeciation")][string("see_also")].push_back(string(R"(dnFossilizedBirthDeathRange)"));
@@ -3521,7 +3525,7 @@ moves.append( mvAdaptiveRJSwitch(theta,
 	help_strings[string("mvBranchLengthScale")][string("name")] = string(R"(mvBranchLengthScale)");
 	help_arrays[string("mvBuddingTopologyRedraw")][string("authors")].push_back(string(R"(June Walker)"));
 	help_strings[string("mvBuddingTopologyRedraw")][string("description")] = string(R"(Redraws the whole budding (asymmetric speciation) topology of a `dnFBDSP` tree, holding the species ranges fixed.)");
-	help_strings[string("mvBuddingTopologyRedraw")][string("details")] = string(R"(Each lineage is assigned an ancestor drawn uniformly from those alive at its birth. Given the ranges, every compatible tree has the same probability, so the draw is from the exact conditional and every proposal is accepted. With character data on the tree the move is still valid, but acceptance then rests on the likelihood, so pair it with `mvFNPR` or `mvNNI`. It needs an extended tree, and pure budding: lambda_a = 0 and beta = 0.
+	help_strings[string("mvBuddingTopologyRedraw")][string("details")] = string(R"(Each lineage is assigned an ancestor drawn uniformly from those alive at its birth. Given the ranges, every compatible tree has the same probability, so the draw is from the exact conditional and every proposal is accepted. With character data on the tree the move is still valid, but acceptance then rests on the likelihood, so pair it with `mvFNPR` or `mvNNI`. It needs pure budding: lambda_a = 0 and beta = 0.
 
 The move requires pure budding and refuses to be set up when `lambda_a > 0`.
 
@@ -3589,8 +3593,8 @@ moves.append( mvCharacterHistory(ctmc=X, qmap_site=Q, graph="tip",
 	help_strings[string("mvCollapseExpandFossilBranch")][string("name")] = string(R"(mvCollapseExpandFossilBranch)");
 	help_strings[string("mvCollapseExpandFossilBranch")][string("title")] = string(R"(Move to collapse or expand a fossil branch)");
 	help_arrays[string("mvCollapseExpandSymmetric")][string("authors")].push_back(string(R"(June Walker)"));
-	help_strings[string("mvCollapseExpandSymmetric")][string("description")] = string(R"(On an extended dnFBDSP tree with symmetric speciation, moves between a sampled species that ends at a symmetric speciation and the same species budding twice before its extinction.)");
-	help_strings[string("mvCollapseExpandSymmetric")][string("details")] = string(R"(On an extended tree a tip is a species' extinction. A sampled species that ends at a symmetric speciation is therefore a sampled ancestor tip at that node, with its range carried on into a symmetric node of the same age that holds the two daughters. Moves that change one age at a time can never bring those two ages together, so this move maps the state to the species budding the first daughter at that age, the second below it, and ending below that, and back.
+	help_strings[string("mvCollapseExpandSymmetric")][string("description")] = string(R"(On a dnFBDSP tree with symmetric speciation, moves between a sampled species that ends at a symmetric speciation and the same species budding twice before its extinction.)");
+	help_strings[string("mvCollapseExpandSymmetric")][string("details")] = string(R"(On a dnFBDSP tree a tip is a species' extinction. A sampled species that ends at a symmetric speciation is therefore a sampled ancestor tip at that node, with its range carried on into a symmetric node of the same age that holds the two daughters. Moves that change one age at a time can never bring those two ages together, so this move maps the state to the species budding the first daughter at that age, the second below it, and ending below that, and back.
 
 The expansion picks which daughter buds second, and draws that budding's age uniformly between the daughter and the first budding and the extinction uniformly between the present and the second budding. The collapse is determined. Candidates are all extinct fossil tips, so their number cancels.
 
@@ -4397,14 +4401,12 @@ moves.append( mvSlideBactrian(x, tune=TRUE, weight=1) ))");
 	help_arrays[string("mvSlideBactrian")][string("see_also")].push_back(string(R"(mvSlide)"));
 	help_strings[string("mvSlideBactrian")][string("title")] = string(R"(Sliding-Window Mode Employing Bactrian Distribution)");
 	help_arrays[string("mvSpeciationMode")][string("authors")].push_back(string(R"(June Walker)"));
-	help_strings[string("mvSpeciationMode")][string("description")] = string(R"(Moves the continuation of an ancestral species between the children of a random internal node, leaving every node age and the topology unchanged. On a sampled tree whose per-branch event counts are read, it also redraws where a sampled ancestor's successor changed species. Also available as mvRotateNode.)");
+	help_strings[string("mvSpeciationMode")][string("description")] = string(R"(Moves the continuation of an ancestral species between the children of a random internal node, leaving every node age and the topology unchanged. At a sampled ancestor it flips the successor between anagenesis and symmetric speciation. Also available as mvRotateNode.)");
 	help_strings[string("mvSpeciationMode")][string("details")] = string(R"(Under budding (asymmetric) speciation exactly one child of each node continues its ancestor's species, and the others begin new species there. Which one continues is a free parameter, separate from the topology and the node ages, and this move samples it. The new continuing child is drawn uniformly among the others.
 
 Where beta > 0, a node may also have no continuing child: its species ends there and both children begin new ones. The move then draws uniformly among the node's other states, one per child plus symmetric, so the proposal is its own reverse.
 
-At a sampled ancestor on an extended tree the tip carries the ancestor's species, which ends there, and the other child is its successor. The successor's flag says whether its lineage bifurcated away from the ancestor's: off for a symmetric speciation whose other daughter left no sample, on for an anagenesis, where the lineage carries on under a new species. Where both lambda_a and beta are positive, each successor joins the nodes the move picks from, and picking one flips its mode. Otherwise the mode is fixed by the rate that is positive.
-
-On a sampled tree (extended=FALSE), a sampled ancestor's named successor first appears below it, so its lineage changed species at least once on the way down, unobserved. Once any of the per-branch event accessors (getHiddenBuddings and the others) is created, dnFBDSP holds the first of those changes as a latent: its age, and whether it was an anagenesis, a budding whose parent side left no sample, or a symmetric speciation whose other daughter left none. The accessors report it as that branch's observed event, and count hidden events only below it, so the same model reads both tree types. Each named successor then joins the nodes the move picks from, and picking one redraws its first change exactly from its density given the tree, so only what reads the counts decides its acceptance. Without the accessors there is no latent and the move only moves continuations.)");
+At a sampled ancestor the tip carries the ancestor's species, which ends there, and the other child is its successor. The successor's flag says whether its lineage bifurcated away from the ancestor's: off for a symmetric speciation whose other daughter left no sample, on for an anagenesis, where the lineage carries on under a new species. Where both lambda_a and beta are positive, each successor joins the nodes the move picks from, and picking one flips its mode. Otherwise the mode is fixed by the rate that is positive.)");
 	help_strings[string("mvSpeciationMode")][string("example")] = string(R"(tr ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, timeline=timeline, taxa=taxa)
 
 # which lineage continues the ancestral species at each speciation event

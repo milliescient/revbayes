@@ -129,7 +129,6 @@ namespace RevBayesCore {
         const std::vector<const DagNode*>&              getRangeParameters(void) const { return range_parameters; } //!< The rate and timeline nodes a dnFossilRecord adopts as parents.
 
     protected:
-        virtual bool                                    marginalizesExtinction(void) const { return false; }        //!< True when the extinction times are integrated out.
         virtual double                                  rangeEndTerm(size_t i, size_t di, double d, double p_d = -1.0, double pbar_d = -1.0) const { return log( death[di] ); } //!< Log term closing range i at d; under a mixture p_d is the range's component's chance to leave no sample from d, pbar_d a fresh draw's.
         virtual void                                    mixtureSymmetric(std::vector<double> &beta) const { beta.clear(); }  //!< Each interval's chance of symmetric speciation, empty where there is none.
         virtual void                                    mixtureAnagenetic(std::vector<double> &rate) const { rate.clear(); }  //!< Each interval's anagenetic rate, empty where there is none.

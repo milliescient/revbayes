@@ -18,8 +18,8 @@ namespace RevBayesCore {
      * leaving every age and the topology alone. Where beta > 0, a node's three states are either child
      * continuing or neither, and the move proposes one of the other two uniformly.
      *
-     * Once dnFBDSP holds the first changes of species on a sampled tree, each named successor joins the
-     * nodes it picks from, and picking one redraws its first change from its density given the tree.
+     * On a dnFBDSP tree each sampled ancestor's successor joins the nodes it picks from, and picking one
+     * flips its mode between anagenesis and symmetric speciation.
      *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (June Walker)
@@ -57,7 +57,6 @@ namespace RevBayesCore {
         std::vector<TopologyNode*>              stored_children;
         std::vector<bool>                       stored_flags;                                                   //!< Each child's continuation before the proposal
         bool                                    failed;
-        bool                                    redrew;                                                         //!< The distribution undoes a redrawn first change itself
     };
 
 }

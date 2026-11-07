@@ -18,8 +18,7 @@ RotateNodeProposal::RotateNodeProposal( StochasticNode<Tree> *n ) : Proposal(),
     tree( n ),
     node_index( 0 ),
     symmetric( false ),
-    failed( false ),
-    redrew( false )
+    failed( false )
 {
     addNode( tree );
 }
@@ -50,38 +49,10 @@ double RotateNodeProposal::getProposalTuningParameter( void ) const
 }
 
 
-/** The named successor of each sampled ancestor: follow its sibling's continuation down to a tip. */
-static std::vector<size_t> namedSuccessors( const Tree &tau )
-{
-    std::vector<size_t> s;
-    for (size_t i = 0; i < tau.getNumberOfTips(); i++)
-    {
-        const TopologyNode &tip = tau.getNode(i);
-        if ( tip.isSampledAncestorTip() == false || tip.isRoot() == true ) continue;
-
-        const TopologyNode &sa_node = tip.getParent();
-        const TopologyNode *n = &sa_node.getChild( &sa_node.getChild(0) == &tip ? 1 : 0 );
-        while ( n->isTip() == false )
-        {
-            const TopologyNode *next = NULL;
-            for (size_t c = 0; c < n->getNumberOfChildren(); c++)
-            {
-                if ( n->getChild(c).continuesParentSpecies() ) next = &n->getChild(c);
-            }
-            if ( next == NULL ) break;
-            n = next;
-        }
-        if ( n->isTip() == true ) s.push_back( n->getIndex() );
-    }
-    return s;
-}
-
-
 /**
- * Pick uniformly among the internal nodes that can flip, the successors of sampled ancestors on an extended tree and,
- * once dnFBDSP holds them, the named successors of a sampled tree. A node moves its continuation to another child, or
- * with symmetric speciation to none; an extended successor flips between anagenesis and symmetric speciation; a
- * named successor redraws its first change.
+ * Pick uniformly among the internal nodes that can flip and the successors of sampled ancestors. A node moves its
+ * continuation to another child, or with symmetric speciation to none; a successor flips between anagenesis and
+ * symmetric speciation. A flip leaves both sets unchanged, so their sizes cancel.
  */
 double RotateNodeProposal::doProposal( void )
 {
@@ -90,17 +61,12 @@ double RotateNodeProposal::doProposal( void )
     Tree& tau = tree->getValue();
 
     failed = false;
-    redrew = false;
 
     FossilizedBirthDeathSpeciationProcess *fbdsp = dynamic_cast<FossilizedBirthDeathSpeciationProcess *>( &tree->getDistribution() );
     symmetric = ( fbdsp != NULL && fbdsp->hasSymmetricSpeciation() == true );
-    bool latents = ( fbdsp != NULL && fbdsp->hasFirstChanges() == true );
-    std::vector<size_t> successors;
-    if ( latents == true ) successors = namedSuccessors( tau );
 
-    // a sampled ancestor node's continuation is forced onto the tip, but on an extended tree the successor's flag
-    // holds whether it arose by anagenesis or a symmetric speciation. A flip leaves both sets unchanged, so their
-    // sizes cancel.
+    // a sampled ancestor node's continuation is forced onto the tip, but the successor's flag holds whether it arose
+    // by anagenesis or a symmetric speciation
     bool modes = ( fbdsp != NULL && fbdsp->hasFreeSuccessorModes() == true );
     std::vector<size_t> candidates, mode_nodes;
     for (size_t i = 0; i < tau.getNumberOfNodes(); i++)
@@ -119,7 +85,7 @@ double RotateNodeProposal::doProposal( void )
         if ( n_cont == 1 || ( symmetric == true && n_cont == 0 ) ) candidates.push_back( i );
     }
 
-    size_t total = candidates.size() + mode_nodes.size() + successors.size();
+    size_t total = candidates.size() + mode_nodes.size();
     if ( total == 0 )
     {
         failed = true;
@@ -128,12 +94,6 @@ double RotateNodeProposal::doProposal( void )
     }
 
     size_t k = size_t( rng->uniform01() * total );
-    if ( k >= candidates.size() + mode_nodes.size() )
-    {
-        redrew = true;
-        return fbdsp->redrawFirstChange( successors[ k - candidates.size() - mode_nodes.size() ] );
-    }
-
     if ( k >= candidates.size() )
     {
         TopologyNode &successor = tau.getNode( mode_nodes[ k - candidates.size() ] );
@@ -166,9 +126,7 @@ double RotateNodeProposal::doProposal( void )
         stored_children[c]->setContinuesParentSpecies( c == pick );
     }
 
-    // a flip can name a successor or unname one, which changes the reverse pick's chance
-    if ( latents == false ) return 0.0;
-    return log( double( total ) ) - log( double( candidates.size() + mode_nodes.size() + namedSuccessors( tau ).size() ) );
+    return 0.0;
 }
 
 
@@ -184,7 +142,7 @@ void RotateNodeProposal::printParameterSummary(std::ostream &o, bool name_only) 
 
 void RotateNodeProposal::undoProposal( void )
 {
-    if ( failed == false && redrew == false )
+    if ( failed == false )
     {
         for (size_t c = 0; c < stored_children.size(); c++)
         {

@@ -6,7 +6,7 @@ taxa <- readTaxonData("data/fbdsp_symmetric_pair.tsv")
 trees <- readTrees("data/fbdsp_symmetric_pair.tre", treetype="clock")
 out = "output/symmetric_move.txt"
 
-x ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=0.5, rho=1.0, beta=0.4, origin=10.0, condition="time", extended=TRUE)
+x ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=0.5, rho=1.0, beta=0.4, origin=10.0, condition="time")
 x.setValue(trees[2])
 sym <- x.lnProbability()
 x.setValue(trees[1])

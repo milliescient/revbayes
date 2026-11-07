@@ -633,7 +633,7 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilTotal()
         }
 
         num_rho_sampled   += ( taxa[i].isExtinct() == false );          // l
-        num_rho_unsampled += ( taxa[i].isExtinct() && ranges[i].survived && marginalizesExtinction() == false );    // n - m - l
+        num_rho_unsampled += ( taxa[i].isExtinct() && ranges[i].survived );    // n - m - l
 
         // an extant taxon with no fossil sample carries no reporting term
         if ( taxa[i].getMaxAge() == times.front() ) continue;
@@ -1113,11 +1113,6 @@ void AbstractFossilizedBirthDeathRangeProcess::executeMethod(const std::string &
         AbstractFossilizedBirthDeathRangeProcess *self = const_cast<AbstractFossilizedBirthDeathRangeProcess *>( this );
         self->updateRanges();
 
-        if ( n == "getExtinctionTimes" && marginalizesExtinction() == true )
-        {
-            throw RbException("getExtinctionTimes is unavailable when extended=false: the extinction times are marginalized out rather than sampled. Use getLastAppearances for the youngest occurrence ages, or extended=true to sample extinction times.");
-        }
-
         rv.clear();
         for (size_t i = 0; i < ranges.size(); i++)
         {
@@ -1197,10 +1192,10 @@ void AbstractFossilizedBirthDeathRangeProcess::initializeFirstLast(size_t i)
 
     double lo, hi;
 
-    // within its reported bin, and above the death unless that is marginalized
+    // within its reported bin, and above the death
     if ( augment_youngest )
     {
-        lo = marginalizesExtinction() ? taxa[i].getMinAge() : std::max( ranges[i].death, taxa[i].getMinAge() );
+        lo = std::max( ranges[i].death, taxa[i].getMinAge() );
         hi = std::min( ranges[i].last_max, ranges[i].divergence );
         ranges[i].last = ( hi > lo ) ? rng->uniform01()*(hi - lo) + lo : lo;
     }
@@ -1216,13 +1211,6 @@ void AbstractFossilizedBirthDeathRangeProcess::initializeFirstLast(size_t i)
 
     // a single occurrence is its own youngest
     if ( augment_youngest == false ) ranges[i].last = ranges[i].first;
-
-    // a non-extended extinct range ends at its youngest appearance
-    if ( marginalizesExtinction() == true && taxa[i].isExtinct() == true )
-    {
-        ranges[i].death = ranges[i].last;
-        ranges[i].survived = ( ranges[i].last == times.front() );
-    }
 
     dirty_taxa[i] = true;
 }
@@ -1264,7 +1252,7 @@ void AbstractFossilizedBirthDeathRangeProcess::warnIfInertNTaxaCondition( void )
 void AbstractFossilizedBirthDeathRangeProcess::warnIfNoSurvivalMove( void ) const
 {
     if ( has_survival_move == true || warned_no_survival == true ) return;
-    if ( marginalizesExtinction() == true || homogeneous_rho->getValue() == 1.0 ) return;
+    if ( homogeneous_rho->getValue() == 1.0 ) return;
 
     for (size_t i = 0; i < taxa.size(); i++)
     {
@@ -1323,21 +1311,9 @@ void AbstractFossilizedBirthDeathRangeProcess::resampleFirstLast(size_t i)
 
     dirty_taxa[i] = true;
 
-    // a non-extended extinct range ends at its tip
-    if ( marginalizesExtinction() == true && taxa[i].isExtinct() == true && ranges[i].singleton )
-    {
-        return;
-    }
-
     // data-fixed support
     double hi = ranges[i].first_max;
     ranges[i].first = GLOBAL_RNG->uniform01()*(ranges[i].first_min - hi) + hi;
-
-    // that tip is tau_K
-    if ( marginalizesExtinction() == true && taxa[i].isExtinct() == true )
-    {
-        return;
-    }
 
     // a single reported occurrence is its own youngest
     if ( ranges[i].singleton == false )

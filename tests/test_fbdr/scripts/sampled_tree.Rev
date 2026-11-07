@@ -1,20 +1,16 @@
 # getSampledTree projects an extended tree to the sampled tree: each extinct species cut back to its last
 # appearance, a sampled ancestor there where its lineage led on, and that path handed to its successor. The
 # first tree has t6 budded from t5 below t5's last appearance at 6; in the second t5 is the root's species,
-# sampled on the stem above the root. Each projection must be a sampled tree the extended=FALSE density
-# accepts, with every extinct tip at its last appearance. Every line printed must be TRUE.
+# sampled on the stem above the root. Each projection must hold that one sampled ancestor and
+# the expected root age. Every line printed must be TRUE.
 taxa <- readTaxonData("data/fbdsp_sampled_tree.tsv")
 trees <- readTrees("data/fbdsp_sampled_tree.tre", treetype="clock")
 out = "output/sampled_tree.txt"
 
 x ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=0.5, rho=1.0, lambda_a=0.2, beta=0.4,
-            origin=10.0, condition="time", extended=TRUE)
+            origin=10.0, condition="time")
 rx ~ dnFossilRecord(ranges=x, reporting="complete")
 rx.clamp(taxa)
-z ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=0.5, rho=1.0, lambda_a=0.2, beta=0.4,
-            origin=10.0, condition="time", extended=FALSE)
-rz ~ dnFossilRecord(ranges=z, reporting="complete")
-rz.clamp(taxa)
 
 names = v("a child budded below a species' last appearance makes it a sampled ancestor:",
           "a last appearance above the root is a sampled ancestor at a new root:")
@@ -22,10 +18,8 @@ roots = v(9.0, 6.0)
 for (k in 1:2) {
     x.setValue(trees[k])
     st <- x.getSampledTree()
-    z.setValue(st)
     print(filename=out, append=(k > 1), names[k] + "\n")
-    print(filename=out, append=TRUE, x.lnProbability() + rx.lnProbability() > -1E300 &&
-          z.lnProbability() + rz.lnProbability() > -1E300 && z.numSampledAncestors() == 1 &&
+    print(filename=out, append=TRUE, x.lnProbability() + rx.lnProbability() > -1E300 && st.numSampledAncestors() == 1 &&
           abs(st.rootAge() - roots[k]) < 1E-12, "\n")
 }
 

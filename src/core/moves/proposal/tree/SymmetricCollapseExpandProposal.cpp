@@ -28,7 +28,7 @@ SymmetricCollapseExpandProposal::SymmetricCollapseExpandProposal( StochasticNode
     const TreeDistributionProperties *props = dynamic_cast<const TreeDistributionProperties *>( &tree->getDistribution() );
     if ( props == NULL || props->isExtended() == false || props->tracksSpeciesContinuation() == false )
     {
-        throw RbException("mvCollapseExpandSymmetric needs an extended tree that tracks which child continues each species, as dnFBDSP with extended=TRUE does.");
+        throw RbException("mvCollapseExpandSymmetric needs an extended tree that tracks which child continues each species, as dnFBDSP does.");
     }
 
     const AbstractFossilizedBirthDeathRangeProcess *range = dynamic_cast<const AbstractFossilizedBirthDeathRangeProcess *>( &tree->getDistribution() );

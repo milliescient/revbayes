@@ -56,7 +56,7 @@ namespace RevBayesCore {
         TopologyNode*                           storedNode;
         double                                  storedAge;
         bool                                    failed;
-        bool                                    orients = false;                                                //!< On an extended dnFBDSP tree, the flags pair a budding's orientation with a successor's mode
+        bool                                    orients = false;                                                //!< On a dnFBDSP tree, the flags pair a budding's orientation with a successor's mode
         bool                                    storedFlag = false;
         const FossilizedBirthDeathSpeciationProcess* fbdsp = NULL;
     

@@ -21,7 +21,7 @@ rec ~ dnFossilRecord(ranges=bd, reporting="presence")
 rec.clamp(taxa)
 
 ext ~ dnFBDSP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
-              condition="time", origin=origin, extended=TRUE)
+              condition="time", origin=origin)
 rec_ext ~ dnFossilRecord(ranges=ext, reporting="presence")
 rec_ext.clamp(taxa)
 

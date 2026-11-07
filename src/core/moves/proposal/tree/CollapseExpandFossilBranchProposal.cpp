@@ -128,9 +128,9 @@ double CollapseExpandFossilBranchProposal::doProposal( void )
     double u = rng->uniform01();
     storedNode = fossils[ size_t(u*fossils.size()) ];
 
-    // on an extended dnFBDSP tree the budding's orientation becomes the successor's mode and back
+    // on a dnFBDSP tree the budding's orientation becomes the successor's mode and back
     fbdsp   = dynamic_cast<const FossilizedBirthDeathSpeciationProcess *>( &tau->getDistribution() );
-    orients = ( fbdsp != NULL && static_cast<const TreeDistributionProperties *>( fbdsp )->isExtended() == true );
+    orients = ( fbdsp != NULL );
     storedFlag = storedNode->continuesParentSpecies();
     
     double hr = 0;

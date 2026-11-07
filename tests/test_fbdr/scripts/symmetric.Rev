@@ -16,7 +16,7 @@ names = v("budding", "budding with the other daughter continuing", "a symmetric 
           "a sampled ancestor ending at a symmetric speciation")
 
 x ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=0.5, rho=1.0, lambda_a=0.2, beta=0.4,
-            origin=10.0, condition="time", extended=TRUE)
+            origin=10.0, condition="time")
 
 x.setValue(trees[1])
 base <- x.lnProbability()
@@ -50,7 +50,7 @@ same = TRUE
 for (k in v(5, 8, 11, 12)) {
     z ~ dnUniform(0, 1)
     tr ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=0.5, rho=1.0, lambda_a=0.2, beta=0.4,
-                 origin=10.0, condition="time", extended=TRUE)
+                 origin=10.0, condition="time")
     tr.setValue(trees[k])
     for (pass in 1:2) {
         log = "output/symmetric_" + k + "_" + pass + ".log"
