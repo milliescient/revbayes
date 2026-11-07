@@ -1,7 +1,9 @@
 #ifndef PsiMixtureSolver_H
 #define PsiMixtureSolver_H
 
+#include <array>
 #include <cstddef>
+#include <map>
 #include <vector>
 
 namespace RevBayesCore {
@@ -27,12 +29,14 @@ namespace RevBayesCore {
     protected:
         void                    setRates(const std::vector<double> &times, const std::vector<double> &lambda, const std::vector<double> &mu,
                                          const std::vector<double> &psi, const std::vector<double> &rates, const std::vector<double> &weights,
-                                         const std::vector<double> &beta, const std::vector<double> &anagenetic);  //!< The arguments stemSwitches reads; empty beta or anagenetic is zero.
+                                         double rho, const std::vector<double> &beta, const std::vector<double> &anagenetic);  //!< The arguments stemSwitches reads; empty beta or anagenetic is zero.
 
     private:
         size_t                  rateIndex(double t) const;
 
         std::vector<double>     r_times, r_lambda, r_mu, r_psi, r_nu, r_w, r_beta, r_ana;
+        double                  r_rho = -1.0;
+        mutable std::map<std::vector<double>, std::array<double,3> > switch_cache;    //!< stemSwitches by its arguments, until the rates change
         mutable std::vector<double>              Q, Q_scale, p, M;
         mutable std::vector<std::vector<double> > steps, fwd, bwd;
     };

@@ -14,7 +14,7 @@ void PsiMixtureNumeric::update( const std::vector<double> &times, const std::vec
                                 const std::vector<double> &psi, const std::vector<double> &rates, const std::vector<double> &weights,
                                 double r, const std::vector<double> &beta, const std::vector<double> &anagenetic )
 {
-    setRates( times, lambda, mu, psi, rates, weights, beta, anagenetic );
+    setRates( times, lambda, mu, psi, rates, weights, r, beta, anagenetic );
     std::vector<double> b = beta.empty() ? std::vector<double>( times.size(), 0.0 ) : beta;
     std::vector<double> a = anagenetic.empty() ? std::vector<double>( times.size(), 0.0 ) : anagenetic;
 

@@ -9,11 +9,18 @@ using namespace RevBayesCore;
 
 void PsiMixtureSolver::setRates(const std::vector<double> &times, const std::vector<double> &lambda, const std::vector<double> &mu,
                                 const std::vector<double> &psi, const std::vector<double> &rates, const std::vector<double> &weights,
-                                const std::vector<double> &beta, const std::vector<double> &anagenetic)
+                                double rho, const std::vector<double> &beta, const std::vector<double> &anagenetic)
 {
-    r_times = times; r_lambda = lambda; r_mu = mu; r_psi = psi; r_nu = rates; r_w = weights;
-    r_beta = beta.empty() ? std::vector<double>( times.size(), 0.0 ) : beta;
-    r_ana  = anagenetic.empty() ? std::vector<double>( times.size(), 0.0 ) : anagenetic;
+    std::vector<double> b = beta.empty() ? std::vector<double>( times.size(), 0.0 ) : beta;
+    std::vector<double> a = anagenetic.empty() ? std::vector<double>( times.size(), 0.0 ) : anagenetic;
+
+    // a tree move leaves the rates alone, so the cached stem switches stay valid
+    if ( times == r_times && lambda == r_lambda && mu == r_mu && psi == r_psi && rates == r_nu && weights == r_w
+         && rho == r_rho && b == r_beta && a == r_ana ) return;
+
+    r_times = times; r_lambda = lambda; r_mu = mu; r_psi = psi; r_nu = rates; r_w = weights; r_rho = rho;
+    r_beta = b; r_ana = a;
+    switch_cache.clear();
 }
 
 
@@ -34,6 +41,15 @@ size_t PsiMixtureSolver::rateIndex(double t) const
 void PsiMixtureSolver::stemSwitches(double end, double top, const std::vector<double> &source, long end_component,
                                     double lo, double hi, double out[3]) const
 {
+    std::vector<double> key = { end, top, double( end_component ), lo, hi };
+    key.insert( key.end(), source.begin(), source.end() );
+    std::map<std::vector<double>, std::array<double,3> >::const_iterator hit = switch_cache.find( key );
+    if ( hit != switch_cache.end() )
+    {
+        for (size_t m = 0; m < 3; m++) out[m] = hit->second[m];
+        return;
+    }
+
     size_t H = getNumberOfComponents();
     std::vector<size_t> all( H );
     for (size_t h = 0; h < H; h++) all[h] = h;
@@ -141,4 +157,8 @@ void PsiMixtureSolver::stemSwitches(double end, double top, const std::vector<do
         }
         t0 = t_end;
     }
+
+    // a rejected tree move returns to cached states, so keep them; a long run of new ones is bounded
+    if ( switch_cache.size() > 100000 ) switch_cache.clear();
+    switch_cache[key] = { out[0], out[1], out[2] };
 }
