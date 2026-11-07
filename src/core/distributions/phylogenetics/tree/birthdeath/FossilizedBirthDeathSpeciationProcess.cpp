@@ -1184,17 +1184,23 @@ void FossilizedBirthDeathSpeciationProcess::executeMethod( const std::string &n,
 /** The per-branch speciation events, then the range methods of the base class. */
 void FossilizedBirthDeathSpeciationProcess::executeMethod( const std::string &n, const std::vector<const DagNode *> &args, RbVector<double> &rv ) const
 {
-    const std::map<std::string, std::vector<double> BranchEvents::*> events = {
-        { "getHiddenBuddings", &BranchEvents::hidden_budding }, { "getHiddenBifurcations", &BranchEvents::hidden_bifurcation },
-        { "getHiddenAnageneses", &BranchEvents::hidden_anagenetic }, { "getObservedBuddings", &BranchEvents::observed_budding },
-        { "getObservedBifurcations", &BranchEvents::observed_bifurcation }, { "getObservedAnageneses", &BranchEvents::observed_anagenetic } };
-
-    if ( events.count( n ) == 1 )
+    if ( n == "getHiddenSpeciation" || n == "getObservedSpeciation" )
     {
         // the observed events need no hidden integral, so they work under any mixture
+        bool hidden = ( n == "getHiddenSpeciation" );
+        const std::string &mode = static_cast<const TypedDagNode<std::string> *>( args[0] )->getValue();
         BranchEvents e;
-        branchEvents( e, n.find( "Hidden" ) != std::string::npos );
-        const std::vector<double> &want = e.*( events.at( n ) );
+        branchEvents( e, hidden );
+
+        bool bud = ( mode == "all" || mode == "budding" || mode == "cladogenesis" );
+        bool bif = ( mode == "all" || mode == "bifurcation" || mode == "cladogenesis" );
+        bool ana = ( mode == "all" || mode == "anagenesis" );
+        const std::vector<double> &b = ( hidden ? e.hidden_budding : e.observed_budding );
+        const std::vector<double> &s = ( hidden ? e.hidden_bifurcation : e.observed_bifurcation );
+        const std::vector<double> &a = ( hidden ? e.hidden_anagenetic : e.observed_anagenetic );
+        std::vector<double> want( b.size(), 0.0 );
+        for (size_t i = 0; i < want.size(); i++) want[i] = ( bud ? b[i] : 0.0 ) + ( bif ? s[i] : 0.0 ) + ( ana ? a[i] : 0.0 );
+
         // indexed as dnPhyloCTMC's branchRates are, with no entry for the root
         if ( value->getRoot().getIndex() + 1 != want.size() )
         {

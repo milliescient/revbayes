@@ -330,10 +330,12 @@ RevLanguage::MethodTable Dist_FBDSP::getDistributionMethods( void ) const
 
     // by branch, as dnPhyloCTMC's branchRates are: the Poisson means of the hidden speciations above each
     // species' tau_1, and the observed event that began the species
-    for (const std::string &name : { "getHiddenBuddings", "getHiddenBifurcations", "getHiddenAnageneses",
-                                     "getObservedBuddings", "getObservedBifurcations", "getObservedAnageneses" })
+    for (const std::string &name : { "getHiddenSpeciation", "getObservedSpeciation" })
     {
-        methods.addFunction( new DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> >( name, variable, new ArgumentRules(), true ) );
+        std::vector<std::string> modes = { "all", "budding", "bifurcation", "anagenesis", "cladogenesis" };
+        ArgumentRules* mode_rules = new ArgumentRules();
+        mode_rules->push_back( new OptionRule( "mode", new RlString("all"), modes, "The speciation mode: cladogenesis is budding and bifurcation, all is every mode." ) );
+        methods.addFunction( new DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> >( name, variable, mode_rules, true ) );
     }
 
     // the sampled tree the tree projects to, for viewing: each species cut back to its last appearance. Not

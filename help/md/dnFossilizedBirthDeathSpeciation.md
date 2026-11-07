@@ -17,6 +17,8 @@ A sampled ancestor's successor arose by anagenesis or by a symmetric speciation 
 
 `getSampledTree()` returns the sampled tree the extended tree projects to: each extinct species cut back to its last appearance, with a sampled ancestor there where its lineage leads on, and each node's species label as `sp`. Its tips are last appearances, so they move with `mvStratigraphicRange` and not with the tip moves. Log it with `mnFile` for tree summaries; it is computed only when something reads it, so logging it does not slow the chain.
 
+`getObservedSpeciation(mode)` and `getHiddenSpeciation(mode)` return per-branch counts, indexed as dnPhyloCTMC's `branchRates` are. The observed count is the event that began the branch's species; the hidden count is the expected number of unobserved speciations along the branch. `mode` is `"budding"`, `"bifurcation"`, `"anagenesis"`, `"cladogenesis"` (budding and bifurcation), or `"all"` (the default).
+
 ## authors
 June Walker
 ## see_also
