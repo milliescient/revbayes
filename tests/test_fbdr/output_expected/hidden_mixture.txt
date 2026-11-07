@@ -1,0 +1,5 @@
+the stem's hidden counts by mode match the forward-backward:
+TRUE	
+TRUE	
+TRUE	
+TRUE	

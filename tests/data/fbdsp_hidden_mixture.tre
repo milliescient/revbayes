@@ -1,0 +1,4 @@
+(t1[&sp=t1]:2.0,(t2[&sp=t2,FAD=1.0,LAD=0.8,component=0]:1.0,t3[&sp=t3,FAD=1.1,LAD=0.9,component=0]:0.9)[&sp=t2]:0.5)[&sp=t1];
+(t1[&sp=t1]:2.0,(t2[&sp=t2,FAD=1.0,LAD=0.8,component=1]:1.0,t3[&sp=t3,FAD=1.1,LAD=0.9,component=0]:0.9)[&sp=t2]:0.5)[&sp=t1];
+(t1[&sp=t1]:2.0,(t2[&sp=t2,FAD=1.0,LAD=0.8,component=2]:1.0,t3[&sp=t3,FAD=1.1,LAD=0.9,component=0]:0.9)[&sp=t2]:0.5)[&sp=t1];
+(t1[&sp=t1]:2.0,(t2[&sp=t2,FAD=1.0,LAD=0.8,component=0]:0.7,t3[&sp=t3,FAD=1.1,LAD=0.9,component=0]:0.6)[&sp=u0]:0.8)[&sp=t1];

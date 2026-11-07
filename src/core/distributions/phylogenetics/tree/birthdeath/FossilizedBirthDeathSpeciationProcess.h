@@ -83,8 +83,6 @@ namespace RevBayesCore {
         void                                            simulateClade(std::vector<TopologyNode *> &n, double age, double present, bool alwaysReturn) override;
         bool                                            allowsSampledAncestors(void) const override { return true; }        //!< The density rejects them where lambda_a = 0.
         bool                                            tracksSpeciesContinuation(void) const override { return true; }
-        double                                          hiddenSpeciationIntegral(double t0, double t1) const;               //!< int (lambda p + lambda_a) dt from age t0 up to t1.
-        std::vector<double>                             hiddenSpeciationIntegrals(const std::vector<std::pair<double,double> > &spans) const;  //!< The same over many spans, preparing the rates once.
         std::vector<double>                             anageneticIntegrals(const std::vector<std::pair<double,double> > &spans) const;        //!< int lambda_a dt over each span, the anagenetic part of the above.
         std::vector<const DagNode*>                     getRateParameters(void) const;                                      //!< Every node the rates and p(t) depend on.
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const override;  //!< The per-branch speciation events, then the base's range methods.
@@ -95,6 +93,9 @@ namespace RevBayesCore {
         void                                            branchEvents(BranchEvents &e, bool hidden = true) const;
         mutable BranchEvents                            cached_events;                                           //!< The last branchEvents, which every accessor of one tree state shares.
         mutable int                                     cached_events_level = 0;                                 //!< 0 stale, 1 observed only, 2 hidden too
+        struct Stem { double top; double end; long end_component; std::vector<double> source; };  //!< end_component -1: summed over
+        Stem                                            stemOf(const TopologyNode &node, long s) const;          //!< The stem the branch above node lies on.
+        void                                            mixtureHiddenEvents(const std::vector<std::pair<double,double> > &spans, const std::vector<Stem> &stems, std::vector<double> &budding, std::vector<double> &bifurcation, std::vector<double> &anagenesis) const;  //!< hiddenEventIntegrals under the psi mixture, by forward-backward.
         void                                            hiddenEventIntegrals(const std::vector<std::pair<double,double> > &spans, std::vector<double> &budding, std::vector<double> &bifurcation, std::vector<double> &anagenesis) const;  //!< The hidden events that change a lineage's species, by mode.
 
     protected:

@@ -1,0 +1,4 @@
+taxon	min_age	max_age	status
+t1	0	0	extant
+t2	0.8	1.0	extinct
+t3	0.9	1.1	extinct

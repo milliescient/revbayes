@@ -1,0 +1,29 @@
+# Hidden speciation counts under a psi mixture with beta > 0, against a forward-backward over the stem's components
+# that matched a forward simulation. Trees 1-3 put t2's stem (divergence 2, first fossil 1) across a budding node, with
+# t2 in each component; tree 4 has an unsampled range from 2 down to a symmetric node at 1.2. Every line must be TRUE.
+taxa <- readTaxonData("data/fbdsp_hidden_mixture.tsv")
+trees <- readTrees("data/fbdsp_hidden_mixture.tre", treetype="clock")
+out = "output/hidden_mixture.txt"
+
+x ~ dnFBDSP(taxa=taxa, lambda=0.6, mu=0.8, psi=0.4, rho=1.0, lambda_a=0.3, beta=0.4, origin=3.0, condition="time",
+            psiMixtureRates=v(0.2, 1, 3), psiMixtureWeights=simplex(0.3, 0.4, 0.3))
+
+# budding, bifurcation, anagenesis: t2's stem in components 1-3, then the unsampled range
+ref = [ [0.1419, 0.1847, 0.2611], [0.1574, 0.2047, 0.2905], [0.2001, 0.2598, 0.3724], [0.1305, 0.1703, 0.2363] ]
+modes = v("budding", "bifurcation", "anagenesis")
+
+print(filename=out, "the stem's hidden counts by mode match the forward-backward:\n")
+for (k in 1:4) {
+    x.setValue(trees[k])
+    ok = TRUE
+    for (m in 1:3) {
+        h = x.getHiddenSpeciation(mode=modes[m])
+        # entries 2 and 4 are t2's two branches; entry 4 alone is the unsampled range
+        got = h[4]
+        if (k < 4) got = got + h[2]
+        ok = ok && abs(got - ref[k][m]) < 2E-4
+    }
+    print(filename=out, append=TRUE, ok, "\n")
+}
+
+q()

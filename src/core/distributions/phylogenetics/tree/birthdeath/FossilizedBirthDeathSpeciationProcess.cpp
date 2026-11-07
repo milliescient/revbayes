@@ -790,52 +790,6 @@ bool FossilizedBirthDeathSpeciationProcess::hasSymmetricSpeciation( void ) const
 }
 
 
-/** int_{t0}^{t1} ( lambda p(t) + lambda_a ) dt for ages t0 <= t1. */
-double FossilizedBirthDeathSpeciationProcess::hiddenSpeciationIntegral(double t0, double t1) const
-{
-    return hiddenSpeciationIntegrals( std::vector<std::pair<double,double> >( 1, std::make_pair( t0, t1 ) ) )[0];
-}
-
-
-std::vector<double> FossilizedBirthDeathSpeciationProcess::hiddenSpeciationIntegrals(const std::vector<std::pair<double,double> > &spans) const
-{
-    prepareProbComputation();
-
-    std::vector<double> out;
-    out.reserve( spans.size() );
-    for (const std::pair<double,double> &span : spans)
-    {
-        double t0 = span.first, t1 = span.second;
-        double total = 0.0;
-
-        // a hidden daughter draws its own component, so it goes unsampled with probability pbar
-        if ( num_components > 1 && t0 < t1 )
-        {
-            total = mixtureLambdaPbarIntegral( t0, t1 );
-            for (size_t i = findIndex(t0); t0 < t1; i++)
-            {
-                double end = ( i + 1 < num_intervals ) ? std::min( t1, times[i+1] ) : t1;
-                total += anagenetic[i] * (end - t0);
-                t0 = end;
-            }
-            out.push_back( total );
-            continue;
-        }
-
-        for (size_t i = findIndex(t0); t0 < t1; i++)
-        {
-            double end = ( i + 1 < num_intervals ) ? std::min( t1, times[i+1] ) : t1;
-            double dt  = end - t0;
-            total += 0.5 * ( q(i, end) - q(i, t0) + (birth[i] + death[i] + fossil[i]) * dt ) + anagenetic[i] * dt;
-            t0 = end;
-        }
-        out.push_back( total );
-    }
-
-    return out;
-}
-
-
 /** int_{t0}^{t1} lambda_a dt for each span of ages t0 <= t1. */
 std::vector<double> FossilizedBirthDeathSpeciationProcess::anageneticIntegrals(const std::vector<std::pair<double,double> > &spans) const
 {
@@ -867,7 +821,6 @@ std::vector<double> FossilizedBirthDeathSpeciationProcess::anageneticIntegrals(c
  */
 void FossilizedBirthDeathSpeciationProcess::hiddenEventIntegrals(const std::vector<std::pair<double,double> > &spans, std::vector<double> &budding, std::vector<double> &bifurcation, std::vector<double> &anagenesis) const
 {
-    std::vector<double> all = hiddenSpeciationIntegrals( spans );
     anagenesis = anageneticIntegrals( spans );
     budding.assign( spans.size(), 0.0 );
     bifurcation.assign( spans.size(), 0.0 );
@@ -875,13 +828,6 @@ void FossilizedBirthDeathSpeciationProcess::hiddenEventIntegrals(const std::vect
     for (size_t k = 0; k < spans.size(); k++)
     {
         double t0 = spans[k].first, t1 = spans[k].second;
-
-        // the mixture is refused with symmetric speciation, so all of it is budding
-        if ( num_components > 1 )
-        {
-            budding[k] = all[k] - anagenesis[k];
-            continue;
-        }
 
         // int lambda p dt, split by each interval's beta
         for (size_t i = findIndex(t0); t0 < t1; i++)
@@ -891,6 +837,166 @@ void FossilizedBirthDeathSpeciationProcess::hiddenEventIntegrals(const std::vect
             budding[k]     += ( 1.0 - symmetric[i] ) * lp;
             bifurcation[k] += 2.0 * symmetric[i] * lp;
             t0 = end;
+        }
+    }
+}
+
+
+static double logAdd( double x, double y )
+{
+    if ( x == RbConstants::Double::neginf ) return y;
+    if ( y == RbConstants::Double::neginf ) return x;
+    return std::max( x, y ) + log1p( exp( -std::fabs( x - y ) ) );
+}
+
+
+/** The stem a branch lies on: from its range's top down to its first appearance, or to the symmetric node ending it. */
+FossilizedBirthDeathSpeciationProcess::Stem FossilizedBirthDeathSpeciationProcess::stemOf( const TopologyNode &node, long s ) const
+{
+    Stem st;
+    if ( s >= 0 )
+    {
+        st.top = ranges[s].divergence;
+        st.end = ranges[s].first;
+        st.end_component = long( ranges[s].component );
+        mixtureStemSource( size_t( s ), st.source );
+        return st;
+    }
+
+    // a range no taxon samples starts fresh and is summed over the component it ends in
+    const TopologyNode *n = &node;
+    while ( n->isRoot() == false && continuesRange( *n ) == true ) n = &n->getParent();
+    st.top = ( n->isRoot() == true ? getOriginAge() : n->getParent().getAge() );
+
+    n = &node;
+    for (bool down = true; down == true; )
+    {
+        down = false;
+        for (size_t c = 0; c < n->getNumberOfChildren(); c++)
+        {
+            if ( continuesRange( n->getChild(c) ) == true ) { n = &n->getChild(c); down = true; break; }
+        }
+    }
+    st.end = n->getAge();
+    st.end_component = -1;
+    st.source = mixture_weights;
+    return st;
+}
+
+
+/**
+ * Under the psi mixture, the hidden events that change a lineage's species on each span of its stem, by forward-backward
+ * over the stem's components: a(t) from the stem's top, g(t) to its end, and E[N] = int a(t) r(t) (w . g(t)) dt / P.
+ * A budding hands the lineage on from a parent left in its own component k, at lambda (1-beta) p_k.
+ */
+void FossilizedBirthDeathSpeciationProcess::mixtureHiddenEvents(const std::vector<std::pair<double,double> > &spans, const std::vector<Stem> &stems, std::vector<double> &budding, std::vector<double> &bifurcation, std::vector<double> &anagenesis) const
+{
+    prepareProbComputation();
+
+    size_t H = num_components;
+    std::vector<size_t> all( H ), one( 1 );
+    for (size_t h = 0; h < H; h++) all[h] = h;
+
+    budding.assign( spans.size(), 0.0 );
+    bifurcation.assign( spans.size(), 0.0 );
+    anagenesis.assign( spans.size(), 0.0 );
+
+    std::vector<double> Q, Q_scale, p, g( H ), a( H );
+    double lp;
+
+    // log of g's components, as g_e = Q[e] e^scale summed over the end components
+    auto backward = [&]( const Stem &st, double t, std::vector<double> &lg )
+    {
+        lg.assign( H, RbConstants::Double::neginf );
+        if ( st.end_component >= 0 ) { one[0] = size_t( st.end_component ); mixtureSensitivity( st.end, t, one, Q, Q_scale ); }
+        else                         mixtureSensitivity( st.end, t, all, Q, Q_scale );
+        size_t cols = Q_scale.size();
+        for (size_t e = 0; e < H; e++)
+        {
+            for (size_t c = 0; c < cols; c++)
+            {
+                if ( Q[c*H + e] > 0.0 ) lg[e] = logAdd( lg[e], log( Q[c*H + e] ) + Q_scale[c] );
+            }
+        }
+    };
+    auto logDot = [&]( const std::vector<double> &x, const std::vector<double> &ly )
+    {
+        double r = RbConstants::Double::neginf;
+        for (size_t e = 0; e < H; e++) if ( x[e] > 0.0 ) r = logAdd( r, log( x[e] ) + ly[e] );
+        return r;
+    };
+
+    std::vector<double> lg;
+
+    // the integrand at t, for each mode
+    auto integrand = [&]( const Stem &st, double ln_P, size_t i, double t, double f[3] )
+    {
+        mixtureSensitivity( t, st.top, all, Q, Q_scale );
+        for (size_t c = 0; c < H; c++)
+        {
+            double x = 0.0;
+            for (size_t e = 0; e < H; e++) x += st.source[e] * Q[c*H + e];
+            a[c] = ( x > 0.0 ? log( x ) + Q_scale[c] : RbConstants::Double::neginf );
+        }
+        backward( st, t, lg );
+        double ln_wg = logDot( mixture_weights, lg );
+
+        mixtureAt( t, p, lp );
+        double pbar = 0.0, ln_bud = RbConstants::Double::neginf, ln_a = RbConstants::Double::neginf;
+        for (size_t c = 0; c < H; c++)
+        {
+            pbar += mixture_weights[c] * p[c];
+            ln_a = logAdd( ln_a, a[c] );
+            if ( p[c] > 0.0 ) ln_bud = logAdd( ln_bud, a[c] + log( p[c] ) );
+        }
+        double scale = exp( ln_wg - ln_P );
+        f[0] = scale * birth[i] * ( 1.0 - symmetric[i] ) * exp( ln_bud );
+        f[1] = scale * 2.0 * birth[i] * symmetric[i] * pbar * exp( ln_a );
+        f[2] = scale * anagenetic[i] * exp( ln_a );
+    };
+
+    double nu_max = 0.0;
+    for (size_t c = 0; c < H; c++) nu_max = std::max( nu_max, mixture_rates[c] );
+
+    const size_t panels = 32;
+    for (size_t k = 0; k < spans.size(); k++)
+    {
+        const Stem &st = stems[k];
+        backward( st, st.top, lg );
+        double ln_P = logDot( st.source, lg );
+
+        double t0 = spans[k].first, t1 = spans[k].second;
+        for (size_t i = findIndex(t0); t0 < t1; i++)
+        {
+            double t_end = ( i + 1 < num_intervals ) ? std::min( t1, times[i+1] ) : t1;
+            double len = t_end - t0;
+
+            // a stiff component's transient at either end of the stem: a mesh graded from 0.02 of its decay time
+            double rate = birth[i] + death[i] + fossil[i] * nu_max + anagenetic[i];
+            double h_max = len / panels, h = std::min( h_max, 0.02 / rate );
+            std::vector<double> left( 1, 0.0 );
+            while ( left.back() + h < 0.5 * len && h < h_max ) { left.push_back( left.back() + h ); h *= 2.0; }
+            std::vector<double> x = left;
+            double rest = len - 2.0 * left.back();
+            size_t n_mid = std::max( size_t( 1 ), size_t( std::ceil( rest / h_max ) ) );
+            for (size_t j = 1; j <= n_mid; j++) x.push_back( left.back() + rest * j / n_mid );
+            for (size_t j = left.size() - 1; j-- > 0; ) x.push_back( len - left[j] );
+
+            // Simpson on each cell
+            double fa[3], fm[3], fb[3];
+            integrand( st, ln_P, i, t0, fa );
+            for (size_t j = 0; j + 1 < x.size(); j++)
+            {
+                double u = t0 + x[j], v = t0 + x[j+1];
+                integrand( st, ln_P, i, 0.5 * ( u + v ), fm );
+                integrand( st, ln_P, i, v, fb );
+                double wgt = ( v - u ) / 6.0;
+                budding[k]     += wgt * ( fa[0] + 4.0 * fm[0] + fb[0] );
+                bifurcation[k] += wgt * ( fa[1] + 4.0 * fm[1] + fb[1] );
+                anagenesis[k]  += wgt * ( fa[2] + 4.0 * fm[2] + fb[2] );
+                for (size_t m = 0; m < 3; m++) fa[m] = fb[m];
+            }
+            t0 = t_end;
         }
     }
 }
@@ -978,11 +1084,6 @@ long FossilizedBirthDeathSpeciationProcess::speciesBelow( const TopologyNode &no
  */
 void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e, bool hidden ) const
 {
-    if ( hidden == true && num_components > 1 && hasSymmetricSpeciation() == true )
-    {
-        throw RbException("The hidden speciation counts do not yet combine a psi mixture with symmetric speciation.");
-    }
-
     // six accessors read one tree state, so compute it once
     if ( cached_events_level >= ( hidden ? 2 : 1 ) )
     {
@@ -1002,6 +1103,7 @@ void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e, bool 
 
     std::vector<size_t> at;
     std::vector<std::pair<double,double> > spans;
+    std::vector<Stem> stems;
     for (const TopologyNode *node : t.getNodes())
     {
         if ( node->isRoot() ) continue;
@@ -1036,6 +1138,7 @@ void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e, bool 
         {
             at.push_back( idx );
             spans.push_back( std::make_pair( lo, hi ) );
+            if ( hidden == true && num_components > 1 ) stems.push_back( stemOf( *node, s ) );
         }
     }
 
@@ -1047,7 +1150,8 @@ void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e, bool 
     }
 
     std::vector<double> hb, hs, ha;
-    hiddenEventIntegrals( spans, hb, hs, ha );
+    if ( num_components > 1 ) mixtureHiddenEvents( spans, stems, hb, hs, ha );
+    else                      hiddenEventIntegrals( spans, hb, hs, ha );
     for (size_t k = 0; k < at.size(); k++)
     {
         e.hidden_budding[ at[k] ]     = hb[k];
