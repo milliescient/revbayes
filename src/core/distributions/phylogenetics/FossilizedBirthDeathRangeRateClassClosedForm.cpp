@@ -1,4 +1,4 @@
-#include "PsiMixtureSolution.h"
+#include "FossilizedBirthDeathRangeRateClassClosedForm.h"
 
 #include <algorithm>
 #include <cmath>
@@ -107,7 +107,7 @@ namespace {
 }
 
 
-size_t PsiMixtureSolution::findIndex( double t ) const
+size_t FossilizedBirthDeathRangeRateClassClosedForm::findIndex( double t ) const
 {
     size_t i = 0;
     while ( i + 1 < intervals.size() && intervals[i+1].start <= t ) i++;
@@ -116,7 +116,7 @@ size_t PsiMixtureSolution::findIndex( double t ) const
 
 
 /** Store a mode, dividing its left vector by u.v so that the modes sum to the identity. */
-void PsiMixtureSolution::addMode( Interval &I, double s, const std::vector<double> &vy, double vz, const std::vector<double> &uy, double uz ) const
+void FossilizedBirthDeathRangeRateClassClosedForm::addMode( Interval &I, double s, const std::vector<double> &vy, double vz, const std::vector<double> &uy, double uz ) const
 {
     double n = vz * uz;
     for (size_t h = 0; h < num_components; h++) n += vy[h] * uy[h];
@@ -130,7 +130,7 @@ void PsiMixtureSolution::addMode( Interval &I, double s, const std::vector<doubl
 
 
 /** The eigensystem of one interval's generator, and the coefficients of p0 in it. */
-void PsiMixtureSolution::solve( Interval &I, double lambda, double mu, double psi, const std::vector<double> &p0 ) const
+void FossilizedBirthDeathRangeRateClassClosedForm::solve( Interval &I, double lambda, double mu, double psi, const std::vector<double> &p0 ) const
 {
     size_t H = num_components;
 
@@ -336,7 +336,7 @@ void PsiMixtureSolution::solve( Interval &I, double lambda, double mu, double ps
 
 
 /** p a time dt above the interval's start, and ln z, with z = 1 at the start. */
-void PsiMixtureSolution::pAt( const Interval &I, double dt, std::vector<double> &p, double &ln_z ) const
+void FossilizedBirthDeathRangeRateClassClosedForm::pAt( const Interval &I, double dt, std::vector<double> &p, double &ln_z ) const
 {
     size_t H = num_components, K = I.rate.size();
 
@@ -358,7 +358,7 @@ void PsiMixtureSolution::pAt( const Interval &I, double dt, std::vector<double> 
  * dp(to)/dp(from) applied to C columns within one interval: e_b for each b in unit, or else the
  * columns of in. out[c*H + a] holds the result divided by exp(scale[c]).
  */
-void PsiMixtureSolution::localApply( const Interval &I, double from, double to, const std::vector<size_t> *unit, const double *in,
+void FossilizedBirthDeathRangeRateClassClosedForm::localApply( const Interval &I, double from, double to, const std::vector<size_t> *unit, const double *in,
                                      size_t C, double *out, double *scale ) const
 {
     size_t H = num_components, K = I.rate.size();
@@ -436,7 +436,7 @@ void PsiMixtureSolution::localApply( const Interval &I, double from, double to, 
 }
 
 
-void PsiMixtureSolution::update( const std::vector<double> &times, const std::vector<double> &lambda, const std::vector<double> &mu,
+void FossilizedBirthDeathRangeRateClassClosedForm::update( const std::vector<double> &times, const std::vector<double> &lambda, const std::vector<double> &mu,
                                  const std::vector<double> &psi, const std::vector<double> &rates, const std::vector<double> &weights,
                                  double rho )
 {
@@ -493,7 +493,7 @@ void PsiMixtureSolution::update( const std::vector<double> &times, const std::ve
 }
 
 
-void PsiMixtureSolution::at( double t, std::vector<double> &p, double &lambda_pbar ) const
+void FossilizedBirthDeathRangeRateClassClosedForm::at( double t, std::vector<double> &p, double &lambda_pbar ) const
 {
     const Interval &I = intervals[ findIndex(t) ];
 
@@ -503,7 +503,7 @@ void PsiMixtureSolution::at( double t, std::vector<double> &p, double &lambda_pb
 }
 
 
-double PsiMixtureSolution::lambdaPbarIntegral( double t0, double t1 ) const
+double FossilizedBirthDeathRangeRateClassClosedForm::lambdaPbarIntegral( double t0, double t1 ) const
 {
     std::vector<double> p;
     double l0, l1;
@@ -514,7 +514,7 @@ double PsiMixtureSolution::lambdaPbarIntegral( double t0, double t1 ) const
 
 
 /** Q over a whole interval, row-major on the scale of its largest column, for the ranges it lies inside. */
-void PsiMixtureSolution::wholeInterval( Interval &I, double dt ) const
+void FossilizedBirthDeathRangeRateClassClosedForm::wholeInterval( Interval &I, double dt ) const
 {
     size_t H = num_components;
 
@@ -537,7 +537,7 @@ void PsiMixtureSolution::wholeInterval( Interval &I, double dt ) const
 
 
 /** Columns of Q = dp(t)/dp(s), one per component in columns, Q[c*H + a] = dp_a(t)/dp_columns[c](s) / exp(Q_scale[c]). */
-void PsiMixtureSolution::sensitivity( double s, double t, const std::vector<size_t> &columns, std::vector<double> &Q, std::vector<double> &Q_scale ) const
+void FossilizedBirthDeathRangeRateClassClosedForm::sensitivity( double s, double t, const std::vector<size_t> &columns, std::vector<double> &Q, std::vector<double> &Q_scale ) const
 {
     size_t H = num_components, C = columns.size();
     size_t i = findIndex(s), j = findIndex(t);

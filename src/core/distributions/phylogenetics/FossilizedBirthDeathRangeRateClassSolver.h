@@ -1,5 +1,5 @@
-#ifndef PsiMixtureSolver_H
-#define PsiMixtureSolver_H
+#ifndef FossilizedBirthDeathRangeRateClassSolver_H
+#define FossilizedBirthDeathRangeRateClassSolver_H
 
 #include <array>
 #include <cstddef>
@@ -9,13 +9,13 @@
 namespace RevBayesCore {
 
     /**
-     * @brief What both psi mixture solvers give: p, the lambda integral and the stem matrix Q, plus the hidden species
-     * changes on a stem, which follow from them.
+     * @brief A rate class each new species draws, as the solvers give it: p, the lambda integral and the stem matrix Q,
+     * plus the hidden species changes on a stem, which follow from them.
      */
-    class PsiMixtureSolver {
+    class FossilizedBirthDeathRangeRateClassSolver {
 
     public:
-        virtual                ~PsiMixtureSolver(void) {}
+        virtual                ~FossilizedBirthDeathRangeRateClassSolver(void) {}
 
         virtual size_t          getNumberOfComponents(void) const = 0;
         virtual void            at(double t, std::vector<double> &p, double &lambda_pbar) const = 0;            //!< p of each component at age t, and the lambda integral from the present up to t.

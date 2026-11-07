@@ -1,20 +1,20 @@
-#ifndef PsiMixtureNumeric_H
-#define PsiMixtureNumeric_H
+#ifndef FossilizedBirthDeathRangeRateClassNumeric_H
+#define FossilizedBirthDeathRangeRateClassNumeric_H
 
 #include <cstddef>
 #include <map>
 #include <vector>
 
-#include "PsiMixtureSolver.h"
+#include "FossilizedBirthDeathRangeRateClassSolver.h"
 
 #include <boost/numeric/odeint/stepper/runge_kutta_fehlberg78.hpp>
 
 namespace RevBayesCore {
 
     /**
-     * @brief Extinction probabilities under a mixture of psi multiples drawn at birth, integrated with fixed eighth-order steps.
+     * @brief Extinction probabilities under rate classes that scale psi, integrated with fixed eighth-order steps.
      *
-     * The same quantities as PsiMixtureSolution, for any beta and anagenetic rate a: every new species draws a
+     * The same quantities as FossilizedBirthDeathRangeRateClassClosedForm, for any beta and anagenetic rate a: every new species draws a
      * component, so symmetric speciation adds lambda beta pbar^2 to dp_h/dt, which breaks the linearisation the
      * closed form rests on, and anagenesis moves the lineage to a fresh draw.
      *
@@ -28,15 +28,15 @@ namespace RevBayesCore {
      * A change of arguments drops the grid from the youngest interval it touches. A query integrates only the
      * pieces between its ages and the nearest grid points, and multiplies the cached step propagators between.
      */
-    class PsiMixtureNumeric : public PsiMixtureSolver {
+    class FossilizedBirthDeathRangeRateClassNumeric : public FossilizedBirthDeathRangeRateClassSolver {
 
     public:
-        PsiMixtureNumeric(void) = default;
+        FossilizedBirthDeathRangeRateClassNumeric(void) = default;
 
         void                    update(const std::vector<double> &times, const std::vector<double> &lambda, const std::vector<double> &mu,
                                        const std::vector<double> &psi, const std::vector<double> &rates, const std::vector<double> &weights,
                                        double rho, const std::vector<double> &beta,
-                                       const std::vector<double> &anagenetic);                               //!< As PsiMixtureSolution::update, with each interval's beta and anagenetic rate.
+                                       const std::vector<double> &anagenetic);                               //!< As FossilizedBirthDeathRangeRateClassClosedForm::update, with each interval's beta and anagenetic rate.
         size_t                  getNumberOfComponents(void) const override { return num_components; }
         void                    at(double t, std::vector<double> &p, double &lambda_pbar) const override;            //!< p of each component at age t, and int lambda (1-beta) pbar from the present up to t.
         double                  lambdaPbarIntegral(double t0, double t1) const override;                             //!< int lambda (1-beta) pbar between ages t0 <= t1.

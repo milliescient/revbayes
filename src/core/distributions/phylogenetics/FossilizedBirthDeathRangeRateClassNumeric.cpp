@@ -1,4 +1,4 @@
-#include "PsiMixtureNumeric.h"
+#include "FossilizedBirthDeathRangeRateClassNumeric.h"
 
 #include <algorithm>
 #include <cmath>
@@ -10,7 +10,7 @@
 using namespace RevBayesCore;
 
 
-void PsiMixtureNumeric::update( const std::vector<double> &times, const std::vector<double> &lambda, const std::vector<double> &mu,
+void FossilizedBirthDeathRangeRateClassNumeric::update( const std::vector<double> &times, const std::vector<double> &lambda, const std::vector<double> &mu,
                                 const std::vector<double> &psi, const std::vector<double> &rates, const std::vector<double> &weights,
                                 double r, const std::vector<double> &beta, const std::vector<double> &anagenetic )
 {
@@ -51,14 +51,14 @@ void PsiMixtureNumeric::update( const std::vector<double> &times, const std::vec
 }
 
 
-size_t PsiMixtureNumeric::findIndex( double t ) const
+size_t FossilizedBirthDeathRangeRateClassNumeric::findIndex( double t ) const
 {
     size_t i = std::upper_bound( starts.begin(), starts.end(), t ) - starts.begin();
     return i == 0 ? 0 : i - 1;
 }
 
 
-bool PsiMixtureNumeric::isStiff( size_t i ) const
+bool FossilizedBirthDeathRangeRateClassNumeric::isStiff( size_t i ) const
 {
     for (size_t h = 0; h < num_components; h++) if ( ( lam[i] + mu_[i] + psi_[i]*nu[h] + ana_[i] ) * step > stiff_limit ) return true;
     return false;
@@ -66,7 +66,7 @@ bool PsiMixtureNumeric::isStiff( size_t i ) const
 
 
 /** The step length in interval i: short against its fastest rate, or in a stiff interval against its fastest slow one. */
-double PsiMixtureNumeric::stepLength( size_t i ) const
+double FossilizedBirthDeathRangeRateClassNumeric::stepLength( size_t i ) const
 {
     bool stiff = isStiff( i );
     double fastest = 0.0;
@@ -89,7 +89,7 @@ double PsiMixtureNumeric::stepLength( size_t i ) const
 
 
 /** The derivative of p (H), the lambda integral, then C columns of Q (H each), in interval i. */
-void PsiMixtureNumeric::derivative( size_t i, const double *x, double *dx, size_t C ) const
+void FossilizedBirthDeathRangeRateClassNumeric::derivative( size_t i, const double *x, double *dx, size_t C ) const
 {
     size_t H = num_components;
     double l = lam[i], m = mu_[i], f = psi_[i], b = beta_[i], a = ana_[i];
@@ -118,7 +118,7 @@ void PsiMixtureNumeric::derivative( size_t i, const double *x, double *dx, size_
 
 
 /** One fixed eighth-order (Runge-Kutta-Fehlberg 7(8)) step of length h in interval i, in place, by a stepper kept per state size. */
-void PsiMixtureNumeric::rk4( size_t i, std::vector<double> &x, double h, size_t C ) const
+void FossilizedBirthDeathRangeRateClassNumeric::rk4( size_t i, std::vector<double> &x, double h, size_t C ) const
 {
     if ( isStiff( i ) ) { etd4( i, x, h, C ); return; }
     if ( steppers.size() <= C ) steppers.resize( C + 1 );
@@ -132,7 +132,7 @@ void PsiMixtureNumeric::rk4( size_t i, std::vector<double> &x, double h, size_t 
  * so a fast-sampled component's decay is solved exactly and the step need only resolve the slow rates. The
  * coefficients are Kassam and Trefethen's contour means, accurate as hL goes to zero.
  */
-void PsiMixtureNumeric::etd4( size_t i, std::vector<double> &x, double h, size_t C ) const
+void FossilizedBirthDeathRangeRateClassNumeric::etd4( size_t i, std::vector<double> &x, double h, size_t C ) const
 {
     // a fast transient (each Q column starts from the identity) has local error ~ exp(-k t) (k s)^5, so the substeps
     // start at eps^(1/5)/k and grow as it decays, at most doubling
@@ -156,7 +156,7 @@ void PsiMixtureNumeric::etd4( size_t i, std::vector<double> &x, double h, size_t
 }
 
 
-void PsiMixtureNumeric::etdStep( size_t i, std::vector<double> &x, double h, size_t C ) const
+void FossilizedBirthDeathRangeRateClassNumeric::etdStep( size_t i, std::vector<double> &x, double h, size_t C ) const
 {
     size_t H = num_components, n = H + 1 + C*H;
 
@@ -220,7 +220,7 @@ void PsiMixtureNumeric::etdStep( size_t i, std::vector<double> &x, double h, siz
  * Advance the state from one age to an older one within one interval, in steps no longer than the interval's,
  * all equal, so the result is a smooth function of the ages.
  */
-void PsiMixtureNumeric::advance( std::vector<double> &state, double from, double to, size_t C ) const
+void FossilizedBirthDeathRangeRateClassNumeric::advance( std::vector<double> &state, double from, double to, size_t C ) const
 {
     if ( to <= from ) return;
     size_t i = findIndex( from );
@@ -233,7 +233,7 @@ void PsiMixtureNumeric::advance( std::vector<double> &state, double from, double
 
 
 /** Extend the grid out to age t, one interval step at a time, each step's propagator kept. */
-void PsiMixtureNumeric::extendTo( double t ) const
+void FossilizedBirthDeathRangeRateClassNumeric::extendTo( double t ) const
 {
     size_t H = num_components;
     std::vector<double> &s = ext_state;
@@ -261,14 +261,14 @@ void PsiMixtureNumeric::extendTo( double t ) const
 }
 
 
-size_t PsiMixtureNumeric::gridBelow( double t ) const
+size_t FossilizedBirthDeathRangeRateClassNumeric::gridBelow( double t ) const
 {
     extendTo( t );
     return std::upper_bound( grid.begin(), grid.end(), t ) - grid.begin() - 1;
 }
 
 
-void PsiMixtureNumeric::at( double t, std::vector<double> &p, double &lambda_pbar ) const
+void FossilizedBirthDeathRangeRateClassNumeric::at( double t, std::vector<double> &p, double &lambda_pbar ) const
 {
     size_t k = gridBelow( t );
     size_t H = num_components;
@@ -281,7 +281,7 @@ void PsiMixtureNumeric::at( double t, std::vector<double> &p, double &lambda_pba
 }
 
 
-double PsiMixtureNumeric::lambdaPbarIntegral( double t0, double t1 ) const
+double FossilizedBirthDeathRangeRateClassNumeric::lambdaPbarIntegral( double t0, double t1 ) const
 {
     std::vector<double> p;
     double l0, l1;
@@ -291,7 +291,7 @@ double PsiMixtureNumeric::lambdaPbarIntegral( double t0, double t1 ) const
 }
 
 
-void PsiMixtureNumeric::sensitivity( double s, double t, const std::vector<size_t> &columns, std::vector<double> &Q, std::vector<double> &Q_scale ) const
+void FossilizedBirthDeathRangeRateClassNumeric::sensitivity( double s, double t, const std::vector<size_t> &columns, std::vector<double> &Q, std::vector<double> &Q_scale ) const
 {
     size_t H = num_components, C = columns.size();
 

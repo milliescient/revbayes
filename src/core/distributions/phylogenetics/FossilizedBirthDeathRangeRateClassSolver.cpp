@@ -2,12 +2,12 @@
 #include <array>
 #include <cmath>
 
-#include "PsiMixtureSolver.h"
+#include "FossilizedBirthDeathRangeRateClassSolver.h"
 
 using namespace RevBayesCore;
 
 
-void PsiMixtureSolver::setRates(const std::vector<double> &times, const std::vector<double> &lambda, const std::vector<double> &mu,
+void FossilizedBirthDeathRangeRateClassSolver::setRates(const std::vector<double> &times, const std::vector<double> &lambda, const std::vector<double> &mu,
                                 const std::vector<double> &psi, const std::vector<double> &rates, const std::vector<double> &weights,
                                 double rho, const std::vector<double> &beta, const std::vector<double> &anagenetic)
 {
@@ -24,7 +24,7 @@ void PsiMixtureSolver::setRates(const std::vector<double> &times, const std::vec
 }
 
 
-size_t PsiMixtureSolver::rateIndex(double t) const
+size_t FossilizedBirthDeathRangeRateClassSolver::rateIndex(double t) const
 {
     size_t i = 0;
     while ( i + 1 < r_times.size() && r_times[i+1] <= t ) ++i;
@@ -38,7 +38,7 @@ size_t PsiMixtureSolver::rateIndex(double t) const
  * E[N] = int a(t) r(t) (w . g(t)) dt / (a . g). A budding hands the lineage on from a parent left in its own component k,
  * at lambda (1-beta) p_k; a symmetric speciation's other daughter is fresh, at 2 lambda beta pbar; anagenesis at its rate.
  */
-void PsiMixtureSolver::stemSwitches(double end, double top, const std::vector<double> &source, long end_component,
+void FossilizedBirthDeathRangeRateClassSolver::stemSwitches(double end, double top, const std::vector<double> &source, long end_component,
                                     double lo, double hi, double out[3]) const
 {
     std::vector<double> key = { end, top, double( end_component ), lo, hi };

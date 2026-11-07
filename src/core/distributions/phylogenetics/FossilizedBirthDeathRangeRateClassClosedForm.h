@@ -1,23 +1,23 @@
-#ifndef PsiMixtureSolution_H
-#define PsiMixtureSolution_H
+#ifndef FossilizedBirthDeathRangeRateClassClosedForm_H
+#define FossilizedBirthDeathRangeRateClassClosedForm_H
 
 #include <cstddef>
 #include <vector>
 
-#include "PsiMixtureSolver.h"
+#include "FossilizedBirthDeathRangeRateClassSolver.h"
 
 namespace RevBayesCore {
 
     /**
-     * @brief Extinction probabilities under a mixture of psi multiples drawn at birth.
+     * @brief Extinction probabilities under rate classes that scale psi, in closed form.
      *
      * With p_h = y_h / z the system is linear, so each interval keeps its eigensystem and p,
      * int lambda pbar and Q = dp(t)/dp(s) are closed forms.
      */
-    class PsiMixtureSolution : public PsiMixtureSolver {
+    class FossilizedBirthDeathRangeRateClassClosedForm : public FossilizedBirthDeathRangeRateClassSolver {
 
     public:
-        PsiMixtureSolution(void) = default;
+        FossilizedBirthDeathRangeRateClassClosedForm(void) = default;
 
         void                    update(const std::vector<double> &times, const std::vector<double> &lambda, const std::vector<double> &mu,
                                        const std::vector<double> &psi, const std::vector<double> &rates, const std::vector<double> &weights,
