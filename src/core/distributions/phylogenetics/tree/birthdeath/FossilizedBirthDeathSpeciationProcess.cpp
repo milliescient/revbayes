@@ -1,4 +1,5 @@
 #include <optional>
+#include <array>
 #include <functional>
 #include <sstream>
 #include <cstdlib>
@@ -842,14 +843,6 @@ void FossilizedBirthDeathSpeciationProcess::hiddenEventIntegrals(const std::vect
 }
 
 
-static double logAdd( double x, double y )
-{
-    if ( x == RbConstants::Double::neginf ) return y;
-    if ( y == RbConstants::Double::neginf ) return x;
-    return std::max( x, y ) + log1p( exp( -std::fabs( x - y ) ) );
-}
-
-
 /** The stem a branch lies on: from its range's top down to its first appearance, or to the symmetric node ending it. */
 FossilizedBirthDeathSpeciationProcess::Stem FossilizedBirthDeathSpeciationProcess::stemOf( const TopologyNode &node, long s ) const
 {
@@ -886,7 +879,7 @@ FossilizedBirthDeathSpeciationProcess::Stem FossilizedBirthDeathSpeciationProces
 
 /**
  * Under the psi mixture, the hidden events that change a lineage's species on each span of its stem, by forward-backward
- * over the stem's components: a(t) from the stem's top, g(t) to its end, and E[N] = int a(t) r(t) (w . g(t)) dt / P.
+ * over the stem's components: a(t) from the stem's top, g(t) to its end, and E[N] = int a(t) r(t) (w . g(t)) dt / (a . g).
  * A budding hands the lineage on from a parent left in its own component k, at lambda (1-beta) p_k.
  */
 void FossilizedBirthDeathSpeciationProcess::mixtureHiddenEvents(const std::vector<std::pair<double,double> > &spans, const std::vector<Stem> &stems, std::vector<double> &budding, std::vector<double> &bifurcation, std::vector<double> &anagenesis) const
@@ -894,76 +887,40 @@ void FossilizedBirthDeathSpeciationProcess::mixtureHiddenEvents(const std::vecto
     prepareProbComputation();
 
     size_t H = num_components;
-    std::vector<size_t> all( H ), one( 1 );
+    std::vector<size_t> all( H );
     for (size_t h = 0; h < H; h++) all[h] = h;
 
     budding.assign( spans.size(), 0.0 );
     bifurcation.assign( spans.size(), 0.0 );
     anagenesis.assign( spans.size(), 0.0 );
 
-    std::vector<double> Q, Q_scale, p, g( H ), a( H );
-    double lp;
-
-    // log of g's components, as g_e = Q[e] e^scale summed over the end components
-    auto backward = [&]( const Stem &st, double t, std::vector<double> &lg )
-    {
-        lg.assign( H, RbConstants::Double::neginf );
-        if ( st.end_component >= 0 ) { one[0] = size_t( st.end_component ); mixtureSensitivity( st.end, t, one, Q, Q_scale ); }
-        else                         mixtureSensitivity( st.end, t, all, Q, Q_scale );
-        size_t cols = Q_scale.size();
-        for (size_t e = 0; e < H; e++)
-        {
-            for (size_t c = 0; c < cols; c++)
-            {
-                if ( Q[c*H + e] > 0.0 ) lg[e] = logAdd( lg[e], log( Q[c*H + e] ) + Q_scale[c] );
-            }
-        }
-    };
-    auto logDot = [&]( const std::vector<double> &x, const std::vector<double> &ly )
-    {
-        double r = RbConstants::Double::neginf;
-        for (size_t e = 0; e < H; e++) if ( x[e] > 0.0 ) r = logAdd( r, log( x[e] ) + ly[e] );
-        return r;
-    };
-
-    std::vector<double> lg;
-
-    // the integrand at t, for each mode
-    auto integrand = [&]( const Stem &st, double ln_P, size_t i, double t, double f[3] )
-    {
-        mixtureSensitivity( t, st.top, all, Q, Q_scale );
-        for (size_t c = 0; c < H; c++)
-        {
-            double x = 0.0;
-            for (size_t e = 0; e < H; e++) x += st.source[e] * Q[c*H + e];
-            a[c] = ( x > 0.0 ? log( x ) + Q_scale[c] : RbConstants::Double::neginf );
-        }
-        backward( st, t, lg );
-        double ln_wg = logDot( mixture_weights, lg );
-
-        mixtureAt( t, p, lp );
-        double pbar = 0.0, ln_bud = RbConstants::Double::neginf, ln_a = RbConstants::Double::neginf;
-        for (size_t c = 0; c < H; c++)
-        {
-            pbar += mixture_weights[c] * p[c];
-            ln_a = logAdd( ln_a, a[c] );
-            if ( p[c] > 0.0 ) ln_bud = logAdd( ln_bud, a[c] + log( p[c] ) );
-        }
-        double scale = exp( ln_wg - ln_P );
-        f[0] = scale * birth[i] * ( 1.0 - symmetric[i] ) * exp( ln_bud );
-        f[1] = scale * 2.0 * birth[i] * symmetric[i] * pbar * exp( ln_a );
-        f[2] = scale * anagenetic[i] * exp( ln_a );
-    };
-
     double nu_max = 0.0;
     for (size_t c = 0; c < H; c++) nu_max = std::max( nu_max, mixture_rates[c] );
+
+    std::vector<double> Q, Q_scale, p, M;
+    std::vector<std::vector<double> > steps, fwd, bwd;
+    double lp;
+
+    // M[c*H + e]: from component e at age t down to c at age s <= t, up to a common factor
+    auto stepMatrix = [&]( double s, double t, std::vector<double> &m )
+    {
+        mixtureSensitivity( s, t, all, Q, Q_scale );
+        double top = *std::max_element( Q_scale.begin(), Q_scale.end() );
+        m.resize( H*H );
+        for (size_t c = 0; c < H; c++) for (size_t e = 0; e < H; e++) m[c*H + e] = Q[c*H + e] * exp( Q_scale[c] - top );
+    };
+    auto normalize = []( std::vector<double> &v )
+    {
+        double mx = *std::max_element( v.begin(), v.end() );
+        if ( mx > 0.0 ) for (double &x : v) x /= mx;
+    };
 
     const size_t panels = 32;
     for (size_t k = 0; k < spans.size(); k++)
     {
         const Stem &st = stems[k];
-        backward( st, st.top, lg );
-        double ln_P = logDot( st.source, lg );
+        std::vector<double> end_vec( H, st.end_component >= 0 ? 0.0 : 1.0 );
+        if ( st.end_component >= 0 ) end_vec[ st.end_component ] = 1.0;
 
         double t0 = spans[k].first, t1 = spans[k].second;
         for (size_t i = findIndex(t0); t0 < t1; i++)
@@ -982,19 +939,70 @@ void FossilizedBirthDeathSpeciationProcess::mixtureHiddenEvents(const std::vecto
             for (size_t j = 1; j <= n_mid; j++) x.push_back( left.back() + rest * j / n_mid );
             for (size_t j = left.size() - 1; j-- > 0; ) x.push_back( len - left[j] );
 
-            // Simpson on each cell
-            double fa[3], fm[3], fb[3];
-            integrand( st, ln_P, i, t0, fa );
-            for (size_t j = 0; j + 1 < x.size(); j++)
+            // the ages, youngest first, with each cell's midpoint for Simpson
+            std::vector<double> y;
+            for (size_t j = 0; j + 1 < x.size(); j++) { y.push_back( t0 + x[j] ); y.push_back( t0 + 0.5 * ( x[j] + x[j+1] ) ); }
+            y.push_back( t_end );
+            size_t N = y.size();
+
+            steps.resize( N - 1 );
+            for (size_t j = 0; j + 1 < N; j++) stepMatrix( y[j], y[j+1], steps[j] );
+
+            // a from the stem's top down, then step by step to the youngest age
+            fwd.assign( N, std::vector<double>( H, 0.0 ) );
+            if ( y[N-1] < st.top )
             {
-                double u = t0 + x[j], v = t0 + x[j+1];
-                integrand( st, ln_P, i, 0.5 * ( u + v ), fm );
-                integrand( st, ln_P, i, v, fb );
-                double wgt = ( v - u ) / 6.0;
-                budding[k]     += wgt * ( fa[0] + 4.0 * fm[0] + fb[0] );
-                bifurcation[k] += wgt * ( fa[1] + 4.0 * fm[1] + fb[1] );
-                anagenesis[k]  += wgt * ( fa[2] + 4.0 * fm[2] + fb[2] );
-                for (size_t m = 0; m < 3; m++) fa[m] = fb[m];
+                stepMatrix( y[N-1], st.top, M );
+                for (size_t c = 0; c < H; c++) for (size_t e = 0; e < H; e++) fwd[N-1][c] += st.source[e] * M[c*H + e];
+            }
+            else fwd[N-1] = st.source;
+            normalize( fwd[N-1] );
+            for (size_t j = N - 1; j-- > 0; )
+            {
+                for (size_t c = 0; c < H; c++) for (size_t e = 0; e < H; e++) fwd[j][c] += fwd[j+1][e] * steps[j][c*H + e];
+                normalize( fwd[j] );
+            }
+
+            // g from the stem's end up, then step by step to the oldest age
+            bwd.assign( N, std::vector<double>( H, 0.0 ) );
+            if ( y[0] > st.end )
+            {
+                stepMatrix( st.end, y[0], M );
+                for (size_t e = 0; e < H; e++) for (size_t c = 0; c < H; c++) bwd[0][e] += M[c*H + e] * end_vec[c];
+            }
+            else bwd[0] = end_vec;
+            normalize( bwd[0] );
+            for (size_t j = 1; j < N; j++)
+            {
+                for (size_t e = 0; e < H; e++) for (size_t c = 0; c < H; c++) bwd[j][e] += steps[j-1][c*H + e] * bwd[j-1][c];
+                normalize( bwd[j] );
+            }
+
+            // the integrand by mode; a . g normalizes each point, so the vectors' scales cancel
+            std::vector<std::array<double,3> > f( N );
+            for (size_t j = 0; j < N; j++)
+            {
+                mixtureAt( y[j], p, lp );
+                double pbar = 0.0, ag = 0.0, a_sum = 0.0, a_p = 0.0, wg = 0.0;
+                for (size_t c = 0; c < H; c++)
+                {
+                    pbar  += mixture_weights[c] * p[c];
+                    ag    += fwd[j][c] * bwd[j][c];
+                    a_sum += fwd[j][c];
+                    a_p   += fwd[j][c] * p[c];
+                    wg    += mixture_weights[c] * bwd[j][c];
+                }
+                double scale = ( ag > 0.0 ? wg / ag : 0.0 );
+                f[j] = { scale * birth[i] * ( 1.0 - symmetric[i] ) * a_p,
+                         scale * 2.0 * birth[i] * symmetric[i] * pbar * a_sum,
+                         scale * anagenetic[i] * a_sum };
+            }
+            for (size_t j = 0; j + 2 < N; j += 2)
+            {
+                double wgt = ( y[j+2] - y[j] ) / 6.0;
+                budding[k]     += wgt * ( f[j][0] + 4.0 * f[j+1][0] + f[j+2][0] );
+                bifurcation[k] += wgt * ( f[j][1] + 4.0 * f[j+1][1] + f[j+2][1] );
+                anagenesis[k]  += wgt * ( f[j][2] + 4.0 * f[j+1][2] + f[j+2][2] );
             }
             t0 = t_end;
         }
