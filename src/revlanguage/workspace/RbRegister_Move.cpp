@@ -218,7 +218,6 @@
 #include "Move_FNPR.h"
 #include "Move_RotateNode.h"
 #include "Move_CollapseExpandSymmetric.h"
-#include "Move_ExtinctionTimeGibbs.h"
 #include "Move_BuddingTopologyRedraw.h"
 #include "Move_FossilSiteTimeSlideUniform.h"
 #include "Move_FossilTipTimeUniform.h"
@@ -452,7 +451,6 @@ void RevLanguage::Workspace::initializeMoveGlobalWorkspace(void)
         addType( new Move_FNPR()                             );
         addType( new Move_RotateNode()                       );
         addType( new Move_CollapseExpandSymmetric() );
-        addType( new Move_ExtinctionTimeGibbs() );
         addType( new Move_BuddingTopologyRedraw()             );
         addType( new Move_FossilSiteTimeSlideUniform()       );
         addType( new Move_FossilTipTimeUniform()             );

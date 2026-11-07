@@ -1,2 +1,2 @@
-(t1[&range=t1,FAD=1.5,LAD=1.5]:5.0,t2[&range=t2,FAD=2.5,LAD=2.5]:5.0)[&range=t1];
-(t1[&range=t1,FAD=1.5,LAD=1.5]:5.0,t2[&range=t2,FAD=2.5,LAD=2.5]:5.0)[&range=u0];
+(t1[&sp=t1,FAD=1.5,LAD=1.5]:5.0,t2[&sp=t2,FAD=2.5,LAD=2.5]:5.0)[&sp=t1];
+(t1[&sp=t1,FAD=1.5,LAD=1.5]:5.0,t2[&sp=t2,FAD=2.5,LAD=2.5]:5.0)[&sp=u0];

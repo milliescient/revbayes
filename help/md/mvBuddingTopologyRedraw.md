@@ -8,7 +8,7 @@ Gibbs draw of a budding topology
 Redraws the whole budding (asymmetric speciation) topology of a `dnFBDSP` tree, holding the species ranges fixed.
 
 ## details
-Each lineage is assigned an ancestor drawn uniformly from those alive at its birth. Given the ranges, every compatible tree has the same probability, so the draw is from the exact conditional and every proposal is accepted. With character data on the tree the move is still valid, but acceptance then rests on the likelihood, so pair it with `mvFNPR` or `mvNNI`.
+Each lineage is assigned an ancestor drawn uniformly from those alive at its birth. Given the ranges, every compatible tree has the same probability, so the draw is from the exact conditional and every proposal is accepted. With character data on the tree the move is still valid, but acceptance then rests on the likelihood, so pair it with `mvFNPR` or `mvNNI`. It needs an extended tree, and pure budding: lambda_a = 0 and beta = 0.
 
 The move requires pure budding and refuses to be set up when `lambda_a > 0`.
 

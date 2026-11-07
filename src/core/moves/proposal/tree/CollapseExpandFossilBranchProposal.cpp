@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "DistributionUniform.h"
+#include "FossilizedBirthDeathSpeciationProcess.h"
 #include "CollapseExpandFossilBranchProposal.h"
 #include "RandomNumberFactory.h"
 #include "RandomNumberGenerator.h"
@@ -126,6 +127,11 @@ double CollapseExpandFossilBranchProposal::doProposal( void )
     // pick a random fossil node
     double u = rng->uniform01();
     storedNode = fossils[ size_t(u*fossils.size()) ];
+
+    // on an extended dnFBDSP tree the budding's orientation becomes the successor's mode and back
+    fbdsp   = dynamic_cast<const FossilizedBirthDeathSpeciationProcess *>( &tau->getDistribution() );
+    orients = ( fbdsp != NULL && static_cast<const TreeDistributionProperties *>( fbdsp )->isExtended() == true );
+    storedFlag = storedNode->continuesParentSpecies();
     
     double hr = 0;
     if ( storedNode->isSampledAncestorTip() == true )
@@ -188,12 +194,20 @@ double CollapseExpandFossilBranchProposal::collapseBranch(TopologyNode &n)
         return RbConstants::Double::neginf;
     }
 
+    // a budding only: the sibling keeps its flag, anagenesis where it continued, a symmetric speciation where n did
+    if ( orients == true && n.continuesParentSpecies() == sibling->continuesParentSpecies() )
+    {
+        failed = true;
+        return RbConstants::Double::neginf;
+    }
+
     // store the old age of the parent
     storedAge = parent.getAge();
     
     // set the age of the parent node equal to my age
     parent.setAge( n.getAge() );
     n.setSampledAncestor( true );
+    if ( orients == true ) n.setContinuesParentSpecies( true );
     
     // compute the Jacobian term
     double lnJacobian = - log(max_age - min_age);
@@ -244,8 +258,9 @@ double CollapseExpandFossilBranchProposal::expandBranch(TopologyNode &n)
         max_age = parent.getParent().getAge();
     }
     
-    // test that the max age is larger than the min age
-    if ( max_age <= min_age )
+    // test that the max age is larger than the min age; a range carried into a symmetric node at the
+    // sampled ancestor's age is mvCollapseExpandSymmetric's, since a collapse cannot bring it back
+    if ( max_age <= min_age || ( orients == true && fbdsp->isModeSuccessor( *sibling ) == false ) )
     {
         failed = true;
         return RbConstants::Double::neginf;
@@ -260,6 +275,7 @@ double CollapseExpandFossilBranchProposal::expandBranch(TopologyNode &n)
     // set the age of the parent node equal to the new age
     n.setSampledAncestor( false );
     parent.setAge( new_age );
+    if ( orients == true ) n.setContinuesParentSpecies( sibling->continuesParentSpecies() == false );
     
     // compute the Jacobian term
     double lnJacobian = log(max_age - min_age);
@@ -315,6 +331,7 @@ void CollapseExpandFossilBranchProposal::undoProposal( void )
             storedNode->getParent().setAge( storedAge );
             storedNode->setSampledAncestor( true );
         }
+        storedNode->setContinuesParentSpecies( storedFlag );
     }
     
 }

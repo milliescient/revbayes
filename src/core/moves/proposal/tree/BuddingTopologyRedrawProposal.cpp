@@ -6,6 +6,7 @@
 #include "RbConstants.h"
 #include "RbException.h"
 #include "Tree.h"
+#include "TreeDistributionProperties.h"
 
 using namespace RevBayesCore;
 
@@ -22,6 +23,11 @@ BuddingTopologyRedrawProposal::BuddingTopologyRedrawProposal( StochasticNode<Tre
     if ( dist != NULL && dist->hasAnagenesis() == true )
     {
         throw RbException("mvBuddingTopologyRedraw draws uniformly over compatible topologies, which is the conditional only under pure budding, so lambda_a > 0 is unsupported.");
+    }
+
+    if ( dist != NULL && static_cast<const TreeDistributionProperties *>( dist )->isExtended() == false )
+    {
+        throw RbException("mvBuddingTopologyRedraw needs an extended tree; on a sampled tree (extended=FALSE) it does not draw from the conditional.");
     }
 
     if ( dist != NULL && dist->hasSymmetricSpeciation() == true )

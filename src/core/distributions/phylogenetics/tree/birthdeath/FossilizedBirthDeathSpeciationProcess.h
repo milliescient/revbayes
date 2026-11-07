@@ -15,11 +15,12 @@ namespace RevBayesCore {
         bool ends_at_sa     = false;    //!< The range ends at a sampled ancestor, so its lineage carries on.
         bool ends_symmetric = false;    //!< The range ends at an observed symmetric speciation, which its node pays for.
         int  sa_parent      = -1;       //!< With parent_is_sa, the range sampled at that node.
+        bool sa_anagenetic  = false;    //!< With parent_is_sa on an extended tree, the range began by anagenesis, not a symmetric speciation.
 
         bool operator==(const SpeciesEntry &e) const
                 {
                     return parent_is_sa == e.parent_is_sa && ends_at_sa == e.ends_at_sa
-                           && ends_symmetric == e.ends_symmetric && sa_parent == e.sa_parent;
+                           && ends_symmetric == e.ends_symmetric && sa_parent == e.sa_parent && sa_anagenetic == e.sa_anagenetic;
                 }
 
     };
@@ -69,13 +70,16 @@ namespace RevBayesCore {
 
         void                                            setValue(Tree *v, bool force=false) override;                       //!< Adopt a tree's annotations, or draw the state it does not carry.
 
-        std::string                                     getHiddenStateString(void) const override;                          //!< The tree annotated with the range labels, appearances and statuses a Newick drops.
+        std::string                                     getHiddenStateString(void) const override;                          //!< The tree annotated with the species labels, appearances and statuses a Newick drops.
         void                                            setHiddenStateFromString(const std::string &s) override;
         void                                            redrawValue(void) override;
         void                                            redrawValue(SimulationCondition c) override;                        //!< Redraw without reaching the inherited simulator
         bool                                            redrawTopology(void);                                               //!< Gibbs-redraw the budding topology with the ranges fixed. Pure budding only.
         bool                                            hasAnagenesis(void) const;                                          //!< True when any interval's anagenetic rate is positive.
         bool                                            hasSymmetricSpeciation(void) const;                                 //!< True when any interval's symmetric speciation probability is positive.
+        bool                                            isModeSuccessor(const TopologyNode &n) const;                       //!< n begins its range at a sampled ancestor, and its flag holds how.
+        bool                                            continuesRange(const TopologyNode &n) const;                        //!< n carries its parent's range on.
+        bool                                            hasFreeSuccessorModes(void) const;                                  //!< A successor's flag may take either value.
         void                                            simulateClade(std::vector<TopologyNode *> &n, double age, double present, bool alwaysReturn) override;
         bool                                            allowsSampledAncestors(void) const override { return true; }        //!< The density rejects them where lambda_a = 0.
         bool                                            tracksSpeciesContinuation(void) const override { return true; }
@@ -85,7 +89,7 @@ namespace RevBayesCore {
         std::vector<const DagNode*>                     getRateParameters(void) const;                                      //!< Every node the rates and p(t) depend on.
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const override;  //!< The per-branch speciation events, then the base's range methods.
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, Tree &rv) const override;              //!< getSampledTree.
-        Tree                                            sampledTree(void) const;                                 //!< The tree cut back to each species' last appearance, with range labels.
+        Tree                                            sampledTree(void) const;                                 //!< The tree cut back to each species' last appearance, with species labels.
         //!< By node index: the Poisson means of the hidden speciations on each branch, and the observed event that began the species.
         struct BranchEvents { std::vector<double> hidden_budding, hidden_bifurcation, hidden_anagenetic, observed_budding, observed_bifurcation, observed_anagenetic; };
         void                                            branchEvents(BranchEvents &e, bool hidden = true) const;
@@ -93,12 +97,6 @@ namespace RevBayesCore {
         mutable int                                     cached_events_level = 0;                                 //!< 0 stale, 1 observed only, 2 hidden too
         double                                          drawExtinction(size_t i) const;                                  //!< On a sampled tree, a draw of species i's extinction from its conditional.
 
-        //!< On an extended tree, tip i's extinction given everything else: q~(tau_K -> d) times its end, between the
-        //!< present and the younger of tau_K and its parent's age. Exact for one psi; mvExtinctionTimeGibbs proposes from it.
-        void                                            prepareForProposal(void) { updateRanges(); prepareProbComputation(); }  //!< The ranges and rates as the current tree and parameters have them.
-        bool                                            extinctionWindow(size_t i, double &lo, double &hi) const;
-        double                                          drawExtinctionTime(size_t i) const;
-        double                                          extinctionTimeLnDensity(size_t i, double d) const;
 
         //!< On a sampled tree, the first change of species on the path from a sampled ancestor down to its named successor:
         //!< its age as a fraction u of that path, and its mode. Unused for any other taxon, which holds it under a
@@ -127,6 +125,8 @@ namespace RevBayesCore {
         void                                            normalizeContinuationFlags(void);                        //!< Repair the whole tree, refreshing the interval cache first.
         void                                            normalizeContinuationFlags(const TopologyNode &node);    //!< Make each node name exactly one continuing child.
         int                                             continuingSpecies(const TopologyNode &node) const;       //!< The taxon whose range this node belongs to, or -1 where none is named.
+        long                                            speciesBelow(const TopologyNode &node) const;            //!< The taxon whose lineage runs through this node, or -1.
+        bool                                            defaultSuccessorAnagenetic(void) const;                  //!< The mode a successor takes when nothing says.
 
         //!< The range running through a subtree, or -1 while it is unnamed.
         struct RangeFlow { int species; double end_age; };
@@ -135,7 +135,7 @@ namespace RevBayesCore {
         //!< A range no taxon samples, from where it began to the symmetric speciation that ended it. At a sampled
         //!< ancestor it begins by anagenesis in an extended tree, and in a sampled tree it carries on that lineage.
         enum class RangeStart { SPECIATION, ANAGENESIS, SAMPLED_ANCESTOR };
-        struct UnsampledRange { double top; double end; RangeStart start; int sa_species; };  //!< sa_species: the sampled ancestor it begins at, else -1
+        struct UnsampledRange { double top; double end; RangeStart start; bool anagenetic; };  //!< anagenetic: begun at a sampled ancestor by anagenesis
         double                                          speciationModeLnProb(void) const;                        //!< The mode of each speciation, and the ranges no taxon samples.
         double                                          unsampledMixtureLnProb(const UnsampledRange &r, const std::vector<double> &source) const;  //!< An unsampled range's path under the mixture, starting in source.
 
@@ -180,7 +180,7 @@ namespace RevBayesCore {
 
         void                                            labelSpecies(TopologyNode &node, const std::string &s, size_t &unsampled_count) const;  //!< Stamp the range each node belongs to, top down.
         std::string                                     rangeLabel(const TopologyNode &node, size_t &unsampled_count) const;                  //!< A taxon's index, or a fresh id for a range no taxon samples.
-        bool                                            adoptSpeciesLabels(void);                               //!< Take the continuation flags from a tree's range labels.
+        bool                                            adoptSpeciesLabels(void);                               //!< Take the continuation flags from a tree's species labels.
         bool                                            adoptAppearances(void);                                 //!< Take the appearances from the tips' FAD and LAD.
 
         // What a tip, a sampled ancestor and an unobserved range end mean: the one difference between an extended

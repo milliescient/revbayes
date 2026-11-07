@@ -14,9 +14,13 @@ an anagenesis into a range no taxon samples:
 TRUE	
 a sampled ancestor ending at a symmetric speciation:
 TRUE	
-a sampled ancestor's range carried past it is rejected:
+a sampled ancestor's label carried on names an anagenetic successor:
+TRUE	
+a symmetric speciation at a sampled ancestor, the other daughter unsampled:
+TRUE	
+a symmetric speciation at a sampled ancestor into a range no taxon samples:
 TRUE	
 a range reaching two tips is rejected:
 TRUE	
-a checkpoint keeps a range no taxon samples, and a sampled ancestor at a symmetric speciation:
+a checkpoint keeps a range no taxon samples, a sampled ancestor at a symmetric speciation, and a successor's mode:
 TRUE	

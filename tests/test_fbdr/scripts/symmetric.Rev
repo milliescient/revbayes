@@ -1,15 +1,15 @@
-# Symmetric speciation on an extended dnFBDSP tree. The trees carry each node's range label, so the
+# Symmetric speciation on an extended dnFBDSP tree. The trees carry each node's species label, so the
 # speciation mode at every node is fixed. The expected differences between trees come from an
 # independent R implementation of the density, whose terms were checked by simulation:
 #   budding 1-beta, symmetric 2 lambda beta, a range no taxon samples q from its top to its end,
-#   an unobserved end mu + lambda_a p + lambda beta p^2, and a sampled ancestor's successor lambda_a + 2 lambda beta p,
-#   the R implementation's lambda_a there corrected by log(1 + 2 lambda beta p / lambda_a).
+#   an unobserved end mu + lambda_a p + lambda beta p^2, and a sampled ancestor's successor lambda_a. A successor
+#   annotated symmetric pays 2 lambda beta p(y) instead, which shifts it by log(2 lambda beta p(y) / lambda_a).
 # Differences cancel the tree-shape constant. Every line printed must be TRUE.
 taxa <- readTaxonData("data/fbdsp_symmetric.tsv")
 trees <- readTrees("data/fbdsp_symmetric.tre", treetype="clock")
 out = "output/symmetric.txt"
 
-expected = v(0.0, 0.0, 0.2876820725, 0.2876820725, 0.2876820725, 1.9354046692, 2.8559121622, 2.6872798958)
+expected = v(0.0, 0.0, 0.2876820725, 0.2876820725, 0.2876820725, 1.4228119316, 2.3433194246, 2.6872798958)
 names = v("budding", "budding with the other daughter continuing", "a symmetric speciation ending a range no taxon samples",
           "a range no taxon samples beginning at the origin", "a range no taxon samples running through a budding",
           "anagenesis at a sampled ancestor", "an anagenesis into a range no taxon samples",
@@ -26,17 +26,28 @@ for (i in 1:expected.size()) {
     print(filename=out, append=TRUE, abs(x.lnProbability() - base - expected[i]) < 1E-8, "\n")
 }
 
+# the successor's flag is its mode, so a label carried past the sampled ancestor names an anagenesis
 x.setValue(trees[9])
-print(filename=out, append=TRUE, "a sampled ancestor's range carried past it is rejected:\n")
-print(filename=out, append=TRUE, x.lnProbability() < -1E300, "\n")
+print(filename=out, append=TRUE, "a sampled ancestor's label carried on names an anagenetic successor:\n")
+print(filename=out, append=TRUE, x.lnProbability() > -1E300, "\n")
+
+# p(5.5) = 0.2092545188 at the trees' successor age
+symmetric_expected = v(1.0217587668, 1.9422662598)
+symmetric_names = v("a symmetric speciation at a sampled ancestor, the other daughter unsampled",
+                    "a symmetric speciation at a sampled ancestor into a range no taxon samples")
+for (i in 1:2) {
+    x.setValue(trees[10 + i])
+    print(filename=out, append=TRUE, symmetric_names[i] + ":\n")
+    print(filename=out, append=TRUE, abs(x.lnProbability() - base - symmetric_expected[i]) < 1E-8, "\n")
+}
 x.setValue(trees[10])
 print(filename=out, append=TRUE, "a range reaching two tips is rejected:\n")
 print(filename=out, append=TRUE, x.lnProbability() < -1E300, "\n")
 
 # A chain moving only z resumes at the posterior it stopped at, so a checkpoint keeps the modes.
-print(filename=out, append=TRUE, "a checkpoint keeps a range no taxon samples, and a sampled ancestor at a symmetric speciation:\n")
+print(filename=out, append=TRUE, "a checkpoint keeps a range no taxon samples, a sampled ancestor at a symmetric speciation, and a successor's mode:\n")
 same = TRUE
-for (k in v(5, 8)) {
+for (k in v(5, 8, 11, 12)) {
     z ~ dnUniform(0, 1)
     tr ~ dnFBDSP(taxa=taxa, lambda=0.8, mu=0.3, psi=0.5, rho=1.0, lambda_a=0.2, beta=0.4,
                  origin=10.0, condition="time", extended=TRUE)

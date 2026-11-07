@@ -97,8 +97,7 @@ double WilsonBaldingProposal::doProposal( void )
 
     bool from_sampled_ancestor = sibling->isSampledAncestorTip();
 
-    // a range carried past its sampled ancestor into a symmetric node: the regraft onto a fossil makes only an
-    // anagenesis, so it could never come back
+    // a regraft onto a fossil makes only a successor with its flag off, so a pruned node with it on could never come back
     if ( from_sampled_ancestor == true && budding == true && node->continuesParentSpecies() == true )
     {
         failed = true;

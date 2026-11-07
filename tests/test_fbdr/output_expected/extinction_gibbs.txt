@@ -1,4 +1,0 @@
-every extinction stays between the present and its last appearance:
-TRUE	
-and every one moves:
-TRUE	
