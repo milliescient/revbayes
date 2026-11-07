@@ -177,6 +177,14 @@ double FixedNodeheightPruneAndRegraftProposal::doProposal( void )
         return RbConstants::Double::neginf; // fail proposal
     }
     
+    // the reverse regrafts onto the brother's branch, which must strictly cross the parent's age: refuse a
+    // zero-length branch above the parent or the brother, as a sampled ancestor at a bifurcation has
+    if ( brother->getAge() >= parent->getAge() || grandparent->getAge() <= parent->getAge() )
+    {
+        failed = true;
+        return RbConstants::Double::neginf;
+    }
+
     size_t index = size_t(rng->uniform01() * new_brothers.size());
     TopologyNode* newBro = new_brothers[index];
     
