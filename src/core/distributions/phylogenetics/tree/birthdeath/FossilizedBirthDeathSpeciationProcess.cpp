@@ -668,7 +668,6 @@ void FossilizedBirthDeathSpeciationProcess::redrawValue(void)
     for (size_t i = 0; i < n; ++i)
     {
         TopologyNode* tip = new TopologyNode( taxa[i], i );
-        tip->setTipAgeUnconstrained( true );
         tip->setAge( ranges[i].death );
         top[i] = tip;
     }
@@ -1433,7 +1432,6 @@ bool FossilizedBirthDeathSpeciationProcess::redrawTopology( void )
     for (size_t i = 0; i < n; ++i)
     {
         TopologyNode* tip = new TopologyNode( taxa[i], i );
-        tip->setTipAgeUnconstrained( true );
         tip->setAge( ranges[i].death );
         top[i] = tip;
     }
@@ -2105,8 +2103,6 @@ void FossilizedBirthDeathSpeciationProcess::repairRanges( void )
         {
             size_t ti = node.getIndex();
             if ( ti >= taxa.size() ) continue;
-
-            node.setTipAgeUnconstrained( true );
 
             double age = node.getAge();
 
