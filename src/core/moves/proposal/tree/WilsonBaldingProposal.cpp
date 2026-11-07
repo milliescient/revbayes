@@ -97,6 +97,15 @@ double WilsonBaldingProposal::doProposal( void )
 
     bool from_sampled_ancestor = sibling->isSampledAncestorTip();
 
+    // the reverse regrafts strictly inside a branch or onto an older tip: refuse a zero-length branch at the
+    // parent, as a sampled ancestor at a bifurcation has
+    if ( grandparent->getAge() <= parent->getAge() || node->getAge() >= parent->getAge()
+         || ( from_sampled_ancestor == false && sibling->getAge() >= parent->getAge() ) )
+    {
+        failed = true;
+        return RbConstants::Double::neginf;
+    }
+
     // a regraft onto a fossil makes only a successor with its flag off, so a pruned node with it on could never come back
     if ( from_sampled_ancestor == true && budding == true && node->continuesParentSpecies() == true )
     {
