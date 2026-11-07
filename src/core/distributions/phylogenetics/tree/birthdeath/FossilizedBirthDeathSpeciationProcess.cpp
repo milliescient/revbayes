@@ -31,7 +31,6 @@
 #include "TimeInterval.h"
 #include "TopologyNode.h"
 #include "Tree.h"
-#include "TreeUtilities.h"
 #include "TypedDagNode.h"
 
 namespace RevBayesCore { class DagNode; }
@@ -449,7 +448,7 @@ std::string FossilizedBirthDeathSpeciationProcess::getHiddenStateString( void ) 
     // a successor's species label is its own either way, so its mode needs saying
     for (TopologyNode *node : t.getNodes())
     {
-        if ( isModeSuccessor( *node ) == true ) node->setNodeParameter( "successor", node->continuesParentSpecies() ? "anagenetic" : "symmetric" );
+        if ( isModeSuccessor( *node ) == true ) node->setNodeParameter( "mode", node->continuesParentSpecies() ? "A" : "S" );
     }
 
     for (size_t i = 0; i < taxa.size(); ++i)
@@ -464,7 +463,8 @@ std::string FossilizedBirthDeathSpeciationProcess::getHiddenStateString( void ) 
 
         tip.setNodeParameter( "FAD", first.str() );
         tip.setNodeParameter( "LAD", last.str() );
-        tip.setNodeParameter( "singleton", ranges[i].singleton ? "1" : "0" );
+        // singleton status is latent only under presence reporting; otherwise the occurrence count sets it
+        if ( ranges[i].singleton != countSingleton( i ) ) tip.setNodeParameter( "singleton", ranges[i].singleton ? "1" : "0" );
         tip.setNodeParameter( "survived", ranges[i].survived ? "1" : "0" );
         // a Newick reads a zero-length tip as a sampled ancestor only beside a positive branch
         if ( tip.isSampledAncestorTip() == true ) tip.setNodeParameter( "sa", "1" );
@@ -490,26 +490,12 @@ void FossilizedBirthDeathSpeciationProcess::setHiddenStateFromString( const std:
     Tree *t = this->value->clone();
     t->initFromString( s );
 
-    std::vector<TopologyNode*> nodes = t->getNodes();
-    std::vector<std::optional<std::string> > ages( nodes.size() );
-    bool every = true;
-    for (size_t i = 0; i < nodes.size(); ++i)
+    // exact ages, since a collapsed symmetric node must sit at its sampled ancestor's age
+    for (TopologyNode *node : t->getNodes())
     {
-        ages[i] = nodes[i]->eraseNodeParameter( "age" );
-        every = every && ages[i].has_value();
-    }
-
-    if ( every == true )
-    {
-        for (size_t i = 0; i < nodes.size(); ++i) nodes[i]->setAge( atof( ages[i]->c_str() ), false );
-    }
-    else
-    {
-        // an older checkpoint carries only the root's age
-        for (size_t i = 0; i < nodes.size(); ++i)
-        {
-            if ( nodes[i]->isRoot() && ages[i].has_value() ) TreeUtilities::offsetTree( *nodes[i], atof( ages[i]->c_str() ) - nodes[i]->getAge() );
-        }
+        std::optional<std::string> age = node->eraseNodeParameter( "age" );
+        if ( age.has_value() == false ) throw RbException("A dnFBDSP checkpoint must give every node's age.");
+        node->setAge( atof( age->c_str() ), false );
     }
 
     setValue( t );
@@ -583,12 +569,21 @@ bool FossilizedBirthDeathSpeciationProcess::adoptSpeciesLabels( void )
     for (size_t i = 0; i < n; ++i)
     {
         TopologyNode &node = t.getNode(i);
-        std::optional<std::string> m = node.eraseNodeParameter( "successor" );
+        std::optional<std::string> m = node.eraseNodeParameter( "mode" );
         if ( isModeSuccessor( node ) == false ) continue;
-        node.setContinuesParentSpecies( m.has_value() ? *m == "anagenetic" : defaultSuccessorAnagenetic() );
+        node.setContinuesParentSpecies( m.has_value() ? *m == "A" : defaultSuccessorAnagenetic() );
     }
 
     return true;
+}
+
+
+/** Whether range i is a singleton by its occurrence count, as it is unless presence reporting samples it. */
+bool FossilizedBirthDeathSpeciationProcess::countSingleton( size_t i ) const
+{
+    size_t count = 0;
+    for (const std::pair<const TimeInterval, size_t> &o : taxa[i].getOccurrences()) count += o.second;
+    return count < 2;
 }
 
 
@@ -619,7 +614,7 @@ bool FossilizedBirthDeathSpeciationProcess::adoptAppearances( void )
         std::optional<std::string> single   = tip.eraseNodeParameter( "singleton" );
         std::optional<std::string> survived = tip.eraseNodeParameter( "survived" );
 
-        if ( single.has_value() == true )   ranges[i].singleton = ( *single == "1" );
+        ranges[i].singleton = ( single.has_value() == true ? *single == "1" : countSingleton( i ) );
         if ( survived.has_value() == true ) ranges[i].survived  = ( *survived == "1" );
 
         std::optional<std::string> component = tip.eraseNodeParameter( "component" );

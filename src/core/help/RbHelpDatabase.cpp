@@ -1009,7 +1009,7 @@ Fossil sampling rates can vary among species, as in `dnFBDRP`. Each species draw
 
 With `beta > 0` a speciation may also be symmetric (bifurcating): the ancestral species ends and both daughters begin new ones.
 
-A sampled ancestor's successor arose by anagenesis or by a symmetric speciation whose other daughter left no sample. The successor's continuation flag holds which: on where its lineage did not bifurcate away, so the speciation mode is read from the flags at every node. A Newick carries it as `successor=anagenetic` or `successor=symmetric` on the successor, and a successor without it is taken as anagenetic where lambda_a > 0.
+A sampled ancestor's successor arose by anagenesis or by a symmetric speciation whose other daughter left no sample. The successor's continuation flag holds which: on where its lineage did not bifurcate away, so the speciation mode is read from the flags at every node. A Newick carries it as `mode=A` (anagenesis) or `mode=S` (symmetric) on the successor, and a successor without it is taken as anagenetic where lambda_a > 0.
 
 `getSampledTree()` returns the sampled tree the extended tree projects to: each extinct species cut back to its last appearance, with a sampled ancestor there where its lineage leads on, and each node's species label as `sp`. Its tips are last appearances, so they move with `mvStratigraphicRange` and not with the tip moves. Log it with `mnFile` for tree summaries; it is computed only when something reads it, so logging it does not slow the chain.)");
 	help_strings[string("dnFossilizedBirthDeathSpeciation")][string("example")] = string(R"(lambda ~ dnExp(10)

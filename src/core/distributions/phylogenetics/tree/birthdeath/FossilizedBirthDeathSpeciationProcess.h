@@ -161,6 +161,7 @@ namespace RevBayesCore {
         void                                            labelSpecies(TopologyNode &node, const std::string &s, size_t &unsampled_count) const;  //!< Stamp the range each node belongs to, top down.
         std::string                                     rangeLabel(const TopologyNode &node, size_t &unsampled_count) const;                  //!< A taxon's index, or a fresh id for a range no taxon samples.
         bool                                            adoptSpeciesLabels(void);                               //!< Take the continuation flags from a tree's species labels.
+        bool                                            countSingleton(size_t i) const;                         //!< Range i's singleton status by its occurrence count.
         bool                                            adoptAppearances(void);                                 //!< Take the appearances from the tips' FAD and LAD.
 
         std::vector<SpeciesEntry>                       species;                                                 //!< One per taxon, as the last pull left it.
