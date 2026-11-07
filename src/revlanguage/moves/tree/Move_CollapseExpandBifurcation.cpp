@@ -6,8 +6,8 @@
 #include "ArgumentRule.h"
 #include "ArgumentRules.h"
 #include "MetropolisHastingsMove.h"
-#include "Move_CollapseExpandSymmetric.h"
-#include "SymmetricCollapseExpandProposal.h"
+#include "Move_CollapseExpandBifurcation.h"
+#include "BifurcationCollapseExpandProposal.h"
 #include "RlBoolean.h"
 #include "RealPos.h"
 #include "RevObject.h"
@@ -24,20 +24,20 @@
 
 using namespace RevLanguage;
 
-Move_CollapseExpandSymmetric::Move_CollapseExpandSymmetric() : Move()
+Move_CollapseExpandBifurcation::Move_CollapseExpandBifurcation() : Move()
 {
 
 }
 
 
-Move_CollapseExpandSymmetric* Move_CollapseExpandSymmetric::clone(void) const
+Move_CollapseExpandBifurcation* Move_CollapseExpandBifurcation::clone(void) const
 {
 
-    return new Move_CollapseExpandSymmetric(*this);
+    return new Move_CollapseExpandBifurcation(*this);
 }
 
 
-void Move_CollapseExpandSymmetric::constructInternalObject( void )
+void Move_CollapseExpandBifurcation::constructInternalObject( void )
 {
     // we free the memory first
     delete value;
@@ -48,24 +48,24 @@ void Move_CollapseExpandSymmetric::constructInternalObject( void )
 
     double we = static_cast<const RealPos &>( weight->getRevObject() ).getValue();
 
-    RevBayesCore::SymmetricCollapseExpandProposal *p = new RevBayesCore::SymmetricCollapseExpandProposal( t );
+    RevBayesCore::BifurcationCollapseExpandProposal *p = new RevBayesCore::BifurcationCollapseExpandProposal( t );
 
     value = new RevBayesCore::MetropolisHastingsMove(p, we, false);
 }
 
 
 /** Get Rev type of object */
-const std::string& Move_CollapseExpandSymmetric::getClassType(void)
+const std::string& Move_CollapseExpandBifurcation::getClassType(void)
 {
 
-    static std::string rev_type = "Move_CollapseExpandSymmetric";
+    static std::string rev_type = "Move_CollapseExpandBifurcation";
 
     return rev_type;
 }
 
 
 /** Get class type spec describing type of object */
-const TypeSpec& Move_CollapseExpandSymmetric::getClassTypeSpec(void)
+const TypeSpec& Move_CollapseExpandBifurcation::getClassTypeSpec(void)
 {
 
     static TypeSpec rev_type_spec = TypeSpec( getClassType(), new TypeSpec( Move::getClassTypeSpec() ) );
@@ -77,16 +77,16 @@ const TypeSpec& Move_CollapseExpandSymmetric::getClassTypeSpec(void)
 /**
  * Get the Rev name for the constructor function.
  */
-std::string Move_CollapseExpandSymmetric::getMoveName( void ) const
+std::string Move_CollapseExpandBifurcation::getMoveName( void ) const
 {
-    std::string c_name = "CollapseExpandSymmetric";
+    std::string c_name = "CollapseExpandBifurcation";
 
     return c_name;
 }
 
 
 /** Return member rules (no members) */
-const MemberRules& Move_CollapseExpandSymmetric::getParameterRules(void) const
+const MemberRules& Move_CollapseExpandBifurcation::getParameterRules(void) const
 {
 
     static MemberRules move_member_rules;
@@ -107,7 +107,7 @@ const MemberRules& Move_CollapseExpandSymmetric::getParameterRules(void) const
 
 
 /** Get type spec */
-const TypeSpec& Move_CollapseExpandSymmetric::getTypeSpec( void ) const
+const TypeSpec& Move_CollapseExpandBifurcation::getTypeSpec( void ) const
 {
 
     static TypeSpec type_spec = getClassTypeSpec();
@@ -117,10 +117,10 @@ const TypeSpec& Move_CollapseExpandSymmetric::getTypeSpec( void ) const
 
 
 /** Get type spec */
-void Move_CollapseExpandSymmetric::printValue(std::ostream &o) const
+void Move_CollapseExpandBifurcation::printValue(std::ostream &o) const
 {
 
-    o << "Move_CollapseExpandSymmetric(";
+    o << "Move_CollapseExpandBifurcation(";
     if (tree != NULL)
     {
         o << tree->getName();
@@ -134,7 +134,7 @@ void Move_CollapseExpandSymmetric::printValue(std::ostream &o) const
 
 
 /** Set a member variable */
-void Move_CollapseExpandSymmetric::setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var)
+void Move_CollapseExpandBifurcation::setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var)
 {
 
     if ( name == "tree" )

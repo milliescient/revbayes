@@ -2,9 +2,8 @@
 #include <iostream>
 #include <vector>
 
-#include "SymmetricCollapseExpandProposal.h"
+#include "BifurcationCollapseExpandProposal.h"
 #include "AbstractFossilizedBirthDeathRangeProcess.h"
-#include "AbstractRootedTreeDistribution.h"
 #include "RandomNumberFactory.h"
 #include "RandomNumberGenerator.h"
 #include "RbConstants.h"
@@ -16,7 +15,7 @@
 using namespace RevBayesCore;
 
 
-SymmetricCollapseExpandProposal::SymmetricCollapseExpandProposal( StochasticNode<Tree> *n ) : Proposal(),
+BifurcationCollapseExpandProposal::BifurcationCollapseExpandProposal( StochasticNode<Tree> *n ) : Proposal(),
     tree( n ),
     present( 0.0 ),
     failed( false ),
@@ -29,7 +28,7 @@ SymmetricCollapseExpandProposal::SymmetricCollapseExpandProposal( StochasticNode
     const TreeDistributionProperties *props = dynamic_cast<const TreeDistributionProperties *>( &tree->getDistribution() );
     if ( props == NULL || props->isExtended() == false || props->tracksSpeciesContinuation() == false )
     {
-        throw RbException("mvCollapseExpandSymmetric needs an extended tree that tracks which child continues each species, as dnFBDSP does.");
+        throw RbException("mvCollapseExpandBifurcation needs an extended tree that tracks which child continues each species, as dnFBDSP does.");
     }
 
     const AbstractFossilizedBirthDeathRangeProcess *range = dynamic_cast<const AbstractFossilizedBirthDeathRangeProcess *>( &tree->getDistribution() );
@@ -37,25 +36,25 @@ SymmetricCollapseExpandProposal::SymmetricCollapseExpandProposal( StochasticNode
 }
 
 
-void SymmetricCollapseExpandProposal::cleanProposal( void )
+void BifurcationCollapseExpandProposal::cleanProposal( void )
 {
 }
 
 
-SymmetricCollapseExpandProposal* SymmetricCollapseExpandProposal::clone( void ) const
+BifurcationCollapseExpandProposal* BifurcationCollapseExpandProposal::clone( void ) const
 {
-    return new SymmetricCollapseExpandProposal( *this );
+    return new BifurcationCollapseExpandProposal( *this );
 }
 
 
-const std::string& SymmetricCollapseExpandProposal::getProposalName( void ) const
+const std::string& BifurcationCollapseExpandProposal::getProposalName( void ) const
 {
-    static std::string name = "CollapseExpandSymmetric";
+    static std::string name = "CollapseExpandBifurcation";
     return name;
 }
 
 
-double SymmetricCollapseExpandProposal::getProposalTuningParameter( void ) const
+double BifurcationCollapseExpandProposal::getProposalTuningParameter( void ) const
 {
     return RbConstants::Double::nan;
 }
@@ -87,7 +86,7 @@ static TopologyNode& otherChild( TopologyNode &n, const TopologyNode &k )
 }
 
 
-double SymmetricCollapseExpandProposal::doProposal( void )
+double BifurcationCollapseExpandProposal::doProposal( void )
 {
     RandomNumberGenerator* rng = GLOBAL_RNG;
     Tree &t = tree->getValue();
@@ -104,44 +103,12 @@ double SymmetricCollapseExpandProposal::doProposal( void )
 
     TopologyNode &i = *fossils[ size_t( rng->uniform01() * fossils.size() ) ];
 
-    slid = false;
-    if ( rng->uniform01() < 0.5 ) return slide( i );
-
     return ( i.isSampledAncestorTip() == true ? expand( i ) : collapse( i ) );
 }
 
 
-/** A collapsed state's age, which no other move changes: A, B and i together, uniform on a window that excludes it. */
-double SymmetricCollapseExpandProposal::slide( TopologyNode &i )
-{
-    if ( i.isSampledAncestorTip() == false ) return RbConstants::Double::neginf;
-
-    TopologyNode &a = i.getParent();
-    TopologyNode &b = otherChild( a, i );
-    if ( b.isTip() == true || b.hasZeroLengthBranch() == false ) return RbConstants::Double::neginf;
-
-    double lo = std::max( b.getChild(0).getAge(), b.getChild(1).getAge() );
-    double hi = a.isRoot() == false ? a.getParent().getAge() : static_cast<const AbstractRootedTreeDistribution &>( tree->getDistribution() ).getOriginAge();
-
-    // i's range ends at or below its youngest occurrence
-    for (const std::pair<const TimeInterval, size_t> &o : i.getTaxon().getOccurrences()) hi = std::min( hi, o.first.getMax() );
-    if ( lo >= hi ) return RbConstants::Double::neginf;
-
-    stored_a = &a; stored_b = &b; stored_tip = &i;
-    stored_b_age = a.getAge();
-
-    double u = lo + GLOBAL_RNG->uniform01() * ( hi - lo );
-    a.setAge( u );
-    b.setAge( u );
-
-    slid = true;
-    failed = false;
-    return 0.0;
-}
-
-
 /** Replace the children of a and of b, in the given order. */
-void SymmetricCollapseExpandProposal::rewire( TopologyNode &a, const std::vector<TopologyNode*> &a_kids, TopologyNode &b, const std::vector<TopologyNode*> &b_kids )
+void BifurcationCollapseExpandProposal::rewire( TopologyNode &a, const std::vector<TopologyNode*> &a_kids, TopologyNode &b, const std::vector<TopologyNode*> &b_kids )
 {
     std::vector<TopologyNode*> old_a = a.getChildren();
     std::vector<TopologyNode*> old_b = b.getChildren();
@@ -153,7 +120,7 @@ void SymmetricCollapseExpandProposal::rewire( TopologyNode &a, const std::vector
 
 
 /** i at the bottom of two buddings, each continuing the range down to i's tip: put both ages at the upper. */
-double SymmetricCollapseExpandProposal::collapse( TopologyNode &i )
+double BifurcationCollapseExpandProposal::collapse( TopologyNode &i )
 {
     if ( i.continuesParentSpecies() == false ) return RbConstants::Double::neginf;
 
@@ -187,7 +154,7 @@ double SymmetricCollapseExpandProposal::collapse( TopologyNode &i )
 
 
 /** i a sampled ancestor whose range carries on into a symmetric node at its age: split it into two buddings and a tip. */
-double SymmetricCollapseExpandProposal::expand( TopologyNode &i )
+double BifurcationCollapseExpandProposal::expand( TopologyNode &i )
 {
     RandomNumberGenerator* rng = GLOBAL_RNG;
 
@@ -232,26 +199,19 @@ double SymmetricCollapseExpandProposal::expand( TopologyNode &i )
 }
 
 
-void SymmetricCollapseExpandProposal::prepareProposal( void )
+void BifurcationCollapseExpandProposal::prepareProposal( void )
 {
 }
 
 
-void SymmetricCollapseExpandProposal::printParameterSummary(std::ostream &o, bool name_only) const
+void BifurcationCollapseExpandProposal::printParameterSummary(std::ostream &o, bool name_only) const
 {
 }
 
 
-void SymmetricCollapseExpandProposal::undoProposal( void )
+void BifurcationCollapseExpandProposal::undoProposal( void )
 {
     if ( failed == true ) return;
-
-    if ( slid == true )
-    {
-        stored_a->setAge( stored_b_age );
-        stored_b->setAge( stored_b_age );
-        return;
-    }
 
     TopologyNode &a = *stored_a;
     TopologyNode &b = *stored_b;
@@ -266,17 +226,17 @@ void SymmetricCollapseExpandProposal::undoProposal( void )
 }
 
 
-void SymmetricCollapseExpandProposal::setProposalTuningParameter(double tp)
+void BifurcationCollapseExpandProposal::setProposalTuningParameter(double tp)
 {
 }
 
 
-void SymmetricCollapseExpandProposal::swapNodeInternal(DagNode *oldN, DagNode *newN)
+void BifurcationCollapseExpandProposal::swapNodeInternal(DagNode *oldN, DagNode *newN)
 {
     if ( oldN == tree ) tree = static_cast<StochasticNode<Tree>* >( newN );
 }
 
 
-void SymmetricCollapseExpandProposal::tune( double rate )
+void BifurcationCollapseExpandProposal::tune( double rate )
 {
 }

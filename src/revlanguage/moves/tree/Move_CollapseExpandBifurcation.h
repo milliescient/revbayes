@@ -1,5 +1,5 @@
-#ifndef Move_CollapseExpandSymmetric_H
-#define Move_CollapseExpandSymmetric_H
+#ifndef Move_CollapseExpandBifurcation_H
+#define Move_CollapseExpandBifurcation_H
 
 #include <ostream>
 #include <string>
@@ -13,17 +13,17 @@ namespace RevLanguage {
     class TypeSpec;
 
     /**
-     * @brief Rev wrapper class for the CollapseExpandSymmetric move.
+     * @brief Rev wrapper class for the CollapseExpandBifurcation move.
      *
      * Maps a sampled ancestor that ends at a symmetric speciation to two buddings and a tip, and back.
      */
-    class Move_CollapseExpandSymmetric : public Move {
+    class Move_CollapseExpandBifurcation : public Move {
 
     public:
 
-        Move_CollapseExpandSymmetric(void);                                                                                          //!< Default constructor
+        Move_CollapseExpandBifurcation(void);                                                                                          //!< Default constructor
 
-        virtual Move_CollapseExpandSymmetric*        clone(void) const;                                                                      //!< Clone object
+        virtual Move_CollapseExpandBifurcation*        clone(void) const;                                                                      //!< Clone object
         void                                        constructInternalObject(void);                                                          //!< We construct the a new internal Move.
         static const std::string&                   getClassType(void);                                                                     //!< Get Rev type
         static const TypeSpec&                      getClassTypeSpec(void);                                                                 //!< Get class type spec

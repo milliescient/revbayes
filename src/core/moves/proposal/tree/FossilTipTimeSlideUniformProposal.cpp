@@ -191,6 +191,7 @@ double FossilTipTimeSlideUniformProposal::doProposal( void )
         max_age = interval.getMax();
     }
 
+    stored_sibling = NULL;
     if ( node.isSampledAncestorTip() == true )
     {
         TopologyNode& parent = node.getParent();
@@ -201,7 +202,14 @@ double FossilTipTimeSlideUniformProposal::doProposal( void )
             sibling = &parent.getChild( 1 );
         }
 
+        // a sibling on a zero-length branch, as a bifurcation at a sampled ancestor, moves with the node
         double sib_age = sibling->getAge();
+        if ( sibling->hasZeroLengthBranch() == true )
+        {
+            stored_sibling = sibling;
+            sib_age = 0.0;
+            for (size_t c = 0; c < sibling->getNumberOfChildren(); ++c) sib_age = std::max( sib_age, sibling->getChild(c).getAge() );
+        }
         min_age = fmax(min_age, sib_age);
 
         if ( parent.isRoot() )
@@ -244,13 +252,6 @@ double FossilTipTimeSlideUniformProposal::doProposal( void )
         }
     }
     
-    // moving a sampled ancestor moves its node, which would leave a sibling at its age behind
-    if ( node.isSampledAncestorTip() == true )
-    {
-        const TopologyNode &p = node.getParent();
-        const TopologyNode &sib = ( &p.getChild(0) == &node ? p.getChild(1) : p.getChild(0) );
-        if ( sib.hasZeroLengthBranch() == true ) throw RbException(RbException::SKIP_PROPOSAL);
-    }
 
     // Abort the move if we don't have a valid interval
     if (not (min_age < max_age))
@@ -285,6 +286,7 @@ double FossilTipTimeSlideUniformProposal::doProposal( void )
     
     // set the age
     node.setAge( new_age );
+    if ( stored_sibling != NULL ) stored_sibling->setAge( new_age );
     
     
     // this is a symmetric proposal so the hasting ratio is 0.0
@@ -334,6 +336,7 @@ void FossilTipTimeSlideUniformProposal::undoProposal( void )
     Tree& tau = tree->getValue();
     TopologyNode* node = &tau.getNode(node_index);
     node->setAge( stored_age );
+    if ( stored_sibling != NULL ) stored_sibling->setAge( stored_age );
 }
 
 

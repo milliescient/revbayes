@@ -3643,23 +3643,26 @@ moves.append( mvCharacterHistory(ctmc=X, qmap_site=Q, graph="tip",
                                  proposal="rejection", weight=10.0) ))");
 	help_strings[string("mvCharacterHistory")][string("name")] = string(R"(mvCharacterHistory)");
 	help_strings[string("mvCharacterHistory")][string("title")] = string(R"(Character history move)");
-	help_strings[string("mvCollapseExpandFossilBranch")][string("name")] = string(R"(mvCollapseExpandFossilBranch)");
-	help_strings[string("mvCollapseExpandFossilBranch")][string("title")] = string(R"(Move to collapse or expand a fossil branch)");
-	help_arrays[string("mvCollapseExpandSymmetric")][string("authors")].push_back(string(R"(June Walker)"));
-	help_strings[string("mvCollapseExpandSymmetric")][string("description")] = string(R"(On a dnFBDSP tree with symmetric speciation, moves between a sampled species that ends at a symmetric speciation and the same species budding twice before its extinction.)");
-	help_strings[string("mvCollapseExpandSymmetric")][string("details")] = string(R"(On a dnFBDSP tree a tip is a species' extinction. A sampled species that ends at a symmetric speciation is therefore a sampled ancestor tip at that node, with its range carried on into a symmetric node of the same age that holds the two daughters. Moves that change one age at a time can never bring those two ages together, so this move maps the state to the species budding the first daughter at that age, the second below it, and ending below that, and back.
+	help_arrays[string("mvCollapseExpandBifurcation")][string("authors")].push_back(string(R"(June Walker)"));
+	help_strings[string("mvCollapseExpandBifurcation")][string("description")] = string(R"(On a dnFBDSP tree with symmetric speciation, moves between a sampled species that ends at a symmetric speciation and the same species budding twice before its extinction.)");
+	help_strings[string("mvCollapseExpandBifurcation")][string("details")] = string(R"(On a dnFBDSP tree a tip is a species' extinction. A sampled species that ends at a symmetric speciation is therefore a sampled ancestor tip at that node, with its range carried on into a symmetric node of the same age that holds the two daughters. Moves that change one age at a time can never bring those two ages together, so this move maps the state to the species budding the first daughter at that age, the second below it, and ending below that, and back.
 
 The expansion picks which daughter buds second, and draws that budding's age uniformly between the daughter and the first budding and the extinction uniformly between the present and the second budding. The collapse is determined. Candidates are all extinct fossil tips, so their number cancels.
 
+A bifurcation is a symmetric speciation, as in the `bifurcation` mode of `getObservedSpeciation`. The collapsed state's age moves with mvFossilTipTimeUniform or mvFossilTipTimeSlideUniform, which carry the symmetric node along with the sampled ancestor.
+
 Use it with mvSpeciationMode and mvCollapseExpandFossilBranch.)");
-	help_strings[string("mvCollapseExpandSymmetric")][string("example")] = string(R"(beta ~ dnBeta(1, 1)
+	help_strings[string("mvCollapseExpandBifurcation")][string("example")] = string(R"(beta ~ dnBeta(1, 1)
 tr ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, beta=beta, taxa=taxa)
 moves.append( mvSpeciationMode(tr, weight=taxa.size()) )
-moves.append( mvCollapseExpandSymmetric(tr, weight=taxa.size()/5) ))");
-	help_strings[string("mvCollapseExpandSymmetric")][string("name")] = string(R"(mvCollapseExpandSymmetric)");
-	help_arrays[string("mvCollapseExpandSymmetric")][string("see_also")].push_back(string(R"(mvSpeciationMode)"));
-	help_arrays[string("mvCollapseExpandSymmetric")][string("see_also")].push_back(string(R"(mvCollapseExpandFossilBranch)"));
-	help_strings[string("mvCollapseExpandSymmetric")][string("title")] = string(R"(Collapse or expand a sampled ancestor at a symmetric speciation)");
+moves.append( mvCollapseExpandBifurcation(tr, weight=taxa.size()/5) ))");
+	help_strings[string("mvCollapseExpandBifurcation")][string("name")] = string(R"(mvCollapseExpandBifurcation)");
+	help_arrays[string("mvCollapseExpandBifurcation")][string("see_also")].push_back(string(R"(mvSpeciationMode)"));
+	help_arrays[string("mvCollapseExpandBifurcation")][string("see_also")].push_back(string(R"(mvCollapseExpandFossilBranch)"));
+	help_arrays[string("mvCollapseExpandBifurcation")][string("see_also")].push_back(string(R"(mvFossilTipTimeUniform)"));
+	help_strings[string("mvCollapseExpandBifurcation")][string("title")] = string(R"(Collapse or expand a sampled ancestor at a symmetric speciation)");
+	help_strings[string("mvCollapseExpandFossilBranch")][string("name")] = string(R"(mvCollapseExpandFossilBranch)");
+	help_strings[string("mvCollapseExpandFossilBranch")][string("title")] = string(R"(Move to collapse or expand a fossil branch)");
 	help_strings[string("mvConjugateInverseWishart")][string("name")] = string(R"(mvConjugateInverseWishart)");
 	help_strings[string("mvContinuousCharacterDataSlide")][string("name")] = string(R"(mvContinuousCharacterDataSlide)");
 	help_strings[string("mvContinuousEventScale")][string("name")] = string(R"(mvContinuousEventScale)");

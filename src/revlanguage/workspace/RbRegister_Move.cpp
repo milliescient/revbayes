@@ -221,7 +221,7 @@
 #include "Move_EmpiricalTree.h"
 #include "Move_FNPR.h"
 #include "Move_RotateNode.h"
-#include "Move_CollapseExpandSymmetric.h"
+#include "Move_CollapseExpandBifurcation.h"
 #include "Move_BuddingTopologyRedraw.h"
 #include "Move_FossilSiteTimeSlideUniform.h"
 #include "Move_FossilTipTimeUniform.h"
@@ -460,7 +460,7 @@ void RevLanguage::Workspace::initializeMoveGlobalWorkspace(void)
         addType( new Move_EmpiricalTree()                    );
         addType( new Move_FNPR()                             );
         addType( new Move_RotateNode()                       );
-        addType( new Move_CollapseExpandSymmetric() );
+        addType( new Move_CollapseExpandBifurcation() );
         addType( new Move_BuddingTopologyRedraw()             );
         addType( new Move_FossilSiteTimeSlideUniform()       );
         addType( new Move_FossilTipTimeUniform()             );

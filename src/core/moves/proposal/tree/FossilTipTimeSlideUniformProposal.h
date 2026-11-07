@@ -64,6 +64,7 @@ namespace RevBayesCore {
 
         // stored objects to undo proposal
         double                                  stored_age;
+        TopologyNode*                           stored_sibling = NULL;                                          //!< A sibling at the parent's age, moved with it
         double                                  lambda;                                                         //!< The value we propose.
 
         bool                                    failed;

@@ -259,7 +259,7 @@ double CollapseExpandFossilBranchProposal::expandBranch(TopologyNode &n)
     }
     
     // test that the max age is larger than the min age; a range carried into a symmetric node at the
-    // sampled ancestor's age is mvCollapseExpandSymmetric's, since a collapse cannot bring it back
+    // sampled ancestor's age is mvCollapseExpandBifurcation's, since a collapse cannot bring it back
     if ( max_age <= min_age || ( orients == true && fbdsp->isModeSuccessor( *sibling ) == false ) )
     {
         failed = true;
