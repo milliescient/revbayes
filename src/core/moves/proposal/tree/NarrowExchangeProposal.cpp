@@ -154,6 +154,17 @@ double NarrowExchangeProposal::doProposal( void )
         return RbConstants::Double::neginf;
     }
 
+    // refuse a zero-length branch at the parent, as a sampled ancestor at a bifurcation has: the reverse is refused
+    // by the check above, or the exchange leaves two events at one age
+    TopologyNode* sibling = &parent.getChild(0) == node ? &parent.getChild(1) : &parent.getChild(0);
+    if (grandparent.getAge() <= parent_age
+        || (!node->isSampledAncestorTip() && node->getAge() >= parent_age)
+        || (!sibling->isSampledAncestorTip() && sibling->getAge() >= parent_age))
+    {
+        failed = true;
+        return RbConstants::Double::neginf;
+    }
+
     // Work around setAge() refusing out-of-range assignments without throwing, and the tree
     // probability not enforcing fixed ages. Check before mutating so rejection leaves the tree intact.
     // These checks could be relaxed once assignment reliably completes and the tree probability
