@@ -412,7 +412,7 @@ void FossilizedBirthDeathSpeciationProcess::setValue(Tree *v, bool force)
     }
 
     // flags before ages: the flags name each origination time
-    if ( adoptSpeciesLabels() == false )
+    if ( adoptContinuationFlags() == false && adoptSpeciesLabels() == false )
     {
         normalizeContinuationFlags();
     }
@@ -437,18 +437,14 @@ void FossilizedBirthDeathSpeciationProcess::setValue(Tree *v, bool force)
 }
 
 
-/** The tree annotated with the species labels and appearances a plain Newick drops. */
+/** The tree annotated with the flags and appearances a plain Newick drops. */
 std::string FossilizedBirthDeathSpeciationProcess::getHiddenStateString( void ) const
 {
     Tree t = *this->value;
 
-    size_t unsampled_count = 0;
-    labelSpecies( t.getRoot(), rangeLabel( t.getRoot(), unsampled_count ), unsampled_count );
-
-    // a successor's species label is its own either way, so its mode needs saying
     for (TopologyNode *node : t.getNodes())
     {
-        if ( isModeSuccessor( *node ) == true ) node->setNodeParameter( "mode", node->continuesParentSpecies() ? "A" : "S" );
+        if ( node->isRoot() == false ) node->setNodeParameter( "continues", node->continuesParentSpecies() ? "1" : "0" );
     }
 
     for (size_t i = 0; i < taxa.size(); ++i)
@@ -461,8 +457,8 @@ std::string FossilizedBirthDeathSpeciationProcess::getHiddenStateString( void ) 
         first << ranges[i].first;
         last  << ranges[i].last;
 
-        tip.setNodeParameter( "FAD", first.str() );
-        tip.setNodeParameter( "LAD", last.str() );
+        tip.setNodeParameter( "fad", first.str() );
+        tip.setNodeParameter( "lad", last.str() );
         // singleton status is latent only under presence reporting; otherwise the occurrence count sets it
         if ( ranges[i].singleton != countSingleton( i ) ) tip.setNodeParameter( "singleton", ranges[i].singleton ? "1" : "0" );
         tip.setNodeParameter( "survived", ranges[i].survived ? "1" : "0" );
@@ -525,6 +521,24 @@ std::string FossilizedBirthDeathSpeciationProcess::rangeLabel( const TopologyNod
     if ( k >= 0 ) return StringUtilities::to_string( k );
 
     return "u" + StringUtilities::to_string( unsampled_count++ );
+}
+
+
+/** Each node's continuation flag, where the tree gives them. */
+bool FossilizedBirthDeathSpeciationProcess::adoptContinuationFlags( void )
+{
+    Tree &t = this->getValue();
+
+    bool annotated = false;
+    for (TopologyNode *node : t.getNodes())
+    {
+        std::optional<std::string> c = node->eraseNodeParameter( "continues" );
+        if ( c.has_value() == false ) continue;
+        node->setContinuesParentSpecies( *c == "1" );
+        annotated = true;
+    }
+
+    return annotated;
 }
 
 
@@ -597,8 +611,8 @@ bool FossilizedBirthDeathSpeciationProcess::adoptAppearances( void )
     {
         TopologyNode &tip = t.getNode(i);
 
-        std::optional<std::string> f = tip.eraseNodeParameter( "FAD" );
-        std::optional<std::string> l = tip.eraseNodeParameter( "LAD" );
+        std::optional<std::string> f = tip.eraseNodeParameter( "fad" );
+        std::optional<std::string> l = tip.eraseNodeParameter( "lad" );
 
         if ( f.has_value() == true )
         {

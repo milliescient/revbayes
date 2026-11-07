@@ -69,7 +69,7 @@ namespace RevBayesCore {
 
         void                                            setValue(Tree *v, bool force=false) override;                       //!< Adopt a tree's annotations, or draw the state it does not carry.
 
-        std::string                                     getHiddenStateString(void) const override;                          //!< The tree annotated with the species labels, appearances and statuses a Newick drops.
+        std::string                                     getHiddenStateString(void) const override;                          //!< The tree annotated with the flags, appearances and statuses a Newick drops.
         void                                            setHiddenStateFromString(const std::string &s) override;
         void                                            redrawValue(void) override;
         void                                            redrawValue(SimulationCondition c) override;                        //!< Redraw without reaching the inherited simulator
@@ -161,6 +161,7 @@ namespace RevBayesCore {
 
         void                                            labelSpecies(TopologyNode &node, const std::string &s, size_t &unsampled_count) const;  //!< Stamp the range each node belongs to, top down.
         std::string                                     rangeLabel(const TopologyNode &node, size_t &unsampled_count) const;                  //!< A taxon's index, or a fresh id for a range no taxon samples.
+        bool                                            adoptContinuationFlags(void);                           //!< Take the continuation flags a tree gives.
         bool                                            adoptSpeciesLabels(void);                               //!< Take the continuation flags from a tree's species labels.
         bool                                            countSingleton(size_t i) const;                         //!< Range i's singleton status by its occurrence count.
         bool                                            adoptAppearances(void);                                 //!< Take the appearances from the tips' FAD and LAD.
