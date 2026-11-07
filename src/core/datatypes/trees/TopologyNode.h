@@ -153,7 +153,7 @@ namespace RevBayesCore {
         bool                                        isFossil(void) const;                                                               //!< Is node a fossil?
         bool                                        isInternal(void) const;                                                             //!< Is node internal?
         bool                                        isRoot(void) const;                                                                 //!< Is node root?
-        bool                                        continuesParentSpecies() const;                                                     //!< Is this node the same species as its parent?
+        bool                                        continuesParentLineage() const;                                                     //!< Does this node continue its parent's lineage?
         bool                                        isSampledAncestorTip() const;                                                       //!< Is node a tip sampled ancestor?
         bool                                        isSampledAncestorParent() const;                                                    //!< Is child node a tip a sampled ancestor?
         bool                                        hasZeroLengthBranch(void) const;                                                          //!< Its age is its parent's, as a sampled ancestor tip's or a symmetric node's at its sampled ancestor
@@ -176,7 +176,7 @@ namespace RevBayesCore {
         void                                        setNumberOfShiftEvents(size_t n);                                                   //!< Set the number of shift events for stochastic character maps
         void                                        setParent(TopologyNode* p, bool recompute_branch_length = true);                    //!< Sets the node's parent
         void                                        setSampledAncestor(bool tf);                                                        //!< Set if the node is a sampled ancestor
-        void                                        setContinuesParentSpecies(bool tf);                                                 //!< Set whether this node continues its parent's species
+        void                                        setContinuesParentLineage(bool tf);                                                 //!< Set whether this node continues its parent's lineage
         void                                        setSpeciesName(std::string const &n);                                               //!< Set the species name of this node
         void                                        setTaxon(Taxon const &t);                                                           //!< Set the taxon of this node
         void                                        setTimeInStates(std::vector<double> t);
@@ -217,7 +217,7 @@ namespace RevBayesCore {
 
         boost::optional<size_t>                     index;                                                                              //!< Node index
         bool                                        sampled_ancestor_tip = false;
-        bool                                        continues_parent_species = false;                                                   //!< Kept on the child, so it travels with the node
+        bool                                        continues_parent_lineage = false;                                                   //!< Kept on the child, so it travels with the node
 
         // information for newick representation
         std::vector<std::string>                    node_comments;

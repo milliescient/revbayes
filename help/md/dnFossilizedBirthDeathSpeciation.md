@@ -13,7 +13,7 @@ Fossil sampling rates can vary among species, as in `dnFBDRP`. Each species draw
 
 With `beta > 0` a speciation may also be symmetric (bifurcating): the ancestral species ends and both daughters begin new ones.
 
-A sampled ancestor's successor arose by anagenesis or by a symmetric speciation whose other daughter left no sample. The successor's continuation flag holds which: on where its lineage did not bifurcate away, so the speciation mode is read from the flags at every node. A checkpoint stores every node's flag as `continues`.
+A sampled ancestor's successor arose by anagenesis or by a symmetric speciation whose other daughter left no sample. The successor's continuation flag holds which: on where its lineage did not bifurcate away, so the speciation mode is read from the flags at every node. A checkpoint stores every node's flag as `continues`. A monitor logs the tree with each node's species as `sp`, each tip's `fad`, `lad` and `survived`, and each internal node's speciation mode as `mode`: `B` budding, `S` symmetric, `A` anagenesis. A sampled ancestor's tip repeats its node's mode, which a supplied tree may give in place of `continues`.
 
 `getSampledTree()` returns the sampled tree the extended tree projects to: each extinct species cut back to its last appearance, with a sampled ancestor there where its lineage leads on, and each node's species label as `sp`. Its tips are last appearances, so they move with `mvStratigraphicRange` and not with the tip moves. Log it with `mnFile` for tree summaries; it is computed only when something reads it, so logging it does not slow the chain.
 

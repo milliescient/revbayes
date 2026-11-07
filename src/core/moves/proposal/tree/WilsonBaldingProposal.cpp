@@ -105,7 +105,7 @@ double WilsonBaldingProposal::doProposal( void )
     }
 
     // a regraft onto a fossil makes only a successor with its flag off, so a pruned node with it on could never come back
-    if ( from_sampled_ancestor == true && budding == true && node->continuesParentSpecies() == true )
+    if ( from_sampled_ancestor == true && budding == true && node->continuesParentLineage() == true )
     {
         failed = true;
         return RbConstants::Double::neginf;
@@ -169,11 +169,11 @@ double WilsonBaldingProposal::doProposal( void )
     }
 
     stored_age               = parent->getAge();
-    stored_node_continues    = node->continuesParentSpecies();
-    stored_sibling_continues = sibling->continuesParentSpecies();
-    stored_parent_continues  = parent->continuesParentSpecies();
+    stored_node_continues    = node->continuesParentLineage();
+    stored_sibling_continues = sibling->continuesParentLineage();
+    stored_parent_continues  = parent->continuesParentLineage();
     stored_sibling_sa        = sibling->isSampledAncestorTip();
-    stored_target_continues  = target->continuesParentSpecies();
+    stored_target_continues  = target->continuesParentLineage();
     stored_target_sa         = target->isSampledAncestorTip();
 
     // prune: the sibling takes the parent's place and its species flag
@@ -181,18 +181,18 @@ double WilsonBaldingProposal::doProposal( void )
     pos_sibling = parent->removeChild( sibling );
     grandparent->addChild( sibling, pos_parent );
     sibling->setParent( grandparent );
-    if ( budding == true ) sibling->setContinuesParentSpecies( stored_parent_continues );
+    if ( budding == true ) sibling->setContinuesParentLineage( stored_parent_continues );
     if ( from_sampled_ancestor == true ) sibling->setSampledAncestor( false );
 
     // regraft above the target, which hands its species flag to the new parent
     target_parent = &target->getParent();
-    bool target_continues = target->continuesParentSpecies();
+    bool target_continues = target->continuesParentLineage();
     pos_target = target_parent->removeChild( target );
     target_parent->addChild( parent, pos_target );
     parent->setParent( target_parent );
     parent->addChild( target, pos_sibling );
     target->setParent( parent );
-    if ( budding == true ) parent->setContinuesParentSpecies( target_continues );
+    if ( budding == true ) parent->setContinuesParentLineage( target_continues );
 
     double new_age;
     if ( to_tip == true )
@@ -202,8 +202,8 @@ double WilsonBaldingProposal::doProposal( void )
         target->setSampledAncestor( true );
         if ( budding == true )
         {
-            target->setContinuesParentSpecies( true );
-            node->setContinuesParentSpecies( false );
+            target->setContinuesParentLineage( true );
+            node->setContinuesParentLineage( false );
         }
     }
     else
@@ -215,15 +215,15 @@ double WilsonBaldingProposal::doProposal( void )
         if ( budding == true && symmetric == false )
         {
             bool node_continues = rng->uniform01() < 0.5;
-            node->setContinuesParentSpecies( node_continues );
-            target->setContinuesParentSpecies( node_continues == false );
+            node->setContinuesParentLineage( node_continues );
+            target->setContinuesParentLineage( node_continues == false );
             ln_hastings += std::log( flag_states );
         }
         else if ( budding == true )
         {
             size_t state = size_t( rng->uniform01() * flag_states );
-            node->setContinuesParentSpecies( state == 0 );
-            target->setContinuesParentSpecies( state == 1 );
+            node->setContinuesParentLineage( state == 0 );
+            target->setContinuesParentLineage( state == 1 );
             ln_hastings += std::log( flag_states );
         }
     }
@@ -255,7 +255,7 @@ void WilsonBaldingProposal::undoProposal( void )
     target_parent->addChild( target, pos_target );
     target->setParent( target_parent );
     target->setSampledAncestor( stored_target_sa );
-    target->setContinuesParentSpecies( stored_target_continues );
+    target->setContinuesParentLineage( stored_target_continues );
 
     grandparent->removeChild( sibling );
     parent->addChild( sibling, pos_sibling );
@@ -265,9 +265,9 @@ void WilsonBaldingProposal::undoProposal( void )
 
     parent->setAge( stored_age );
     sibling->setSampledAncestor( stored_sibling_sa );
-    sibling->setContinuesParentSpecies( stored_sibling_continues );
-    node->setContinuesParentSpecies( stored_node_continues );
-    parent->setContinuesParentSpecies( stored_parent_continues );
+    sibling->setContinuesParentLineage( stored_sibling_continues );
+    node->setContinuesParentLineage( stored_node_continues );
+    parent->setContinuesParentLineage( stored_parent_continues );
 }
 
 

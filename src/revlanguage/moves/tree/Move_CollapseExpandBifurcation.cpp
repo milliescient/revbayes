@@ -7,7 +7,7 @@
 #include "ArgumentRules.h"
 #include "MetropolisHastingsMove.h"
 #include "Move_CollapseExpandBifurcation.h"
-#include "BifurcationCollapseExpandProposal.h"
+#include "CollapseExpandBifurcationProposal.h"
 #include "RlBoolean.h"
 #include "RealPos.h"
 #include "RevObject.h"
@@ -48,7 +48,7 @@ void Move_CollapseExpandBifurcation::constructInternalObject( void )
 
     double we = static_cast<const RealPos &>( weight->getRevObject() ).getValue();
 
-    RevBayesCore::BifurcationCollapseExpandProposal *p = new RevBayesCore::BifurcationCollapseExpandProposal( t );
+    RevBayesCore::CollapseExpandBifurcationProposal *p = new RevBayesCore::CollapseExpandBifurcationProposal( t );
 
     value = new RevBayesCore::MetropolisHastingsMove(p, we, false);
 }

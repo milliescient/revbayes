@@ -79,7 +79,7 @@ double RotateNodeProposal::doProposal( void )
         size_t n_cont = 0;
         for (size_t c = 0; c < n.getNumberOfChildren(); c++)
         {
-            if ( n.getChild(c).continuesParentSpecies() == true ) ++n_cont;
+            if ( n.getChild(c).continuesParentLineage() == true ) ++n_cont;
         }
 
         if ( n_cont == 1 || ( symmetric == true && n_cont == 0 ) ) candidates.push_back( i );
@@ -98,8 +98,8 @@ double RotateNodeProposal::doProposal( void )
     {
         TopologyNode &successor = tau.getNode( mode_nodes[ k - candidates.size() ] );
         stored_children.assign( 1, &successor );
-        stored_flags.assign( 1, successor.continuesParentSpecies() );
-        successor.setContinuesParentSpecies( stored_flags[0] == false );
+        stored_flags.assign( 1, successor.continuesParentLineage() );
+        successor.setContinuesParentLineage( stored_flags[0] == false );
         return 0.0;
     }
 
@@ -111,7 +111,7 @@ double RotateNodeProposal::doProposal( void )
     size_t holder = stored_children.size();
     for (size_t c = 0; c < stored_children.size(); c++)
     {
-        stored_flags.push_back( stored_children[c]->continuesParentSpecies() );
+        stored_flags.push_back( stored_children[c]->continuesParentLineage() );
         if ( stored_flags[c] == true ) holder = c;
     }
 
@@ -123,7 +123,7 @@ double RotateNodeProposal::doProposal( void )
 
     for (size_t c = 0; c < stored_children.size(); c++)
     {
-        stored_children[c]->setContinuesParentSpecies( c == pick );
+        stored_children[c]->setContinuesParentLineage( c == pick );
     }
 
     return 0.0;
@@ -146,7 +146,7 @@ void RotateNodeProposal::undoProposal( void )
     {
         for (size_t c = 0; c < stored_children.size(); c++)
         {
-            stored_children[c]->setContinuesParentSpecies( stored_flags[c] );
+            stored_children[c]->setContinuesParentLineage( stored_flags[c] );
         }
     }
 }

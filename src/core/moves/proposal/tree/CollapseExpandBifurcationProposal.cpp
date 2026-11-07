@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 
-#include "BifurcationCollapseExpandProposal.h"
+#include "CollapseExpandBifurcationProposal.h"
 #include "AbstractFossilizedBirthDeathRangeProcess.h"
 #include "RandomNumberFactory.h"
 #include "RandomNumberGenerator.h"
@@ -15,7 +15,7 @@
 using namespace RevBayesCore;
 
 
-BifurcationCollapseExpandProposal::BifurcationCollapseExpandProposal( StochasticNode<Tree> *n ) : Proposal(),
+CollapseExpandBifurcationProposal::CollapseExpandBifurcationProposal( StochasticNode<Tree> *n ) : Proposal(),
     tree( n ),
     present( 0.0 ),
     failed( false ),
@@ -36,25 +36,25 @@ BifurcationCollapseExpandProposal::BifurcationCollapseExpandProposal( Stochastic
 }
 
 
-void BifurcationCollapseExpandProposal::cleanProposal( void )
+void CollapseExpandBifurcationProposal::cleanProposal( void )
 {
 }
 
 
-BifurcationCollapseExpandProposal* BifurcationCollapseExpandProposal::clone( void ) const
+CollapseExpandBifurcationProposal* CollapseExpandBifurcationProposal::clone( void ) const
 {
-    return new BifurcationCollapseExpandProposal( *this );
+    return new CollapseExpandBifurcationProposal( *this );
 }
 
 
-const std::string& BifurcationCollapseExpandProposal::getProposalName( void ) const
+const std::string& CollapseExpandBifurcationProposal::getProposalName( void ) const
 {
     static std::string name = "CollapseExpandBifurcation";
     return name;
 }
 
 
-double BifurcationCollapseExpandProposal::getProposalTuningParameter( void ) const
+double CollapseExpandBifurcationProposal::getProposalTuningParameter( void ) const
 {
     return RbConstants::Double::nan;
 }
@@ -70,7 +70,7 @@ static TopologyNode* onlyContinuing( TopologyNode &n )
     {
         TopologyNode &k = n.getChild(c);
         if ( k.isSampledAncestorTip() == true ) return NULL;
-        if ( k.continuesParentSpecies() == true )
+        if ( k.continuesParentLineage() == true )
         {
             if ( found != NULL ) return NULL;
             found = &k;
@@ -86,7 +86,7 @@ static TopologyNode& otherChild( TopologyNode &n, const TopologyNode &k )
 }
 
 
-double BifurcationCollapseExpandProposal::doProposal( void )
+double CollapseExpandBifurcationProposal::doProposal( void )
 {
     RandomNumberGenerator* rng = GLOBAL_RNG;
     Tree &t = tree->getValue();
@@ -108,7 +108,7 @@ double BifurcationCollapseExpandProposal::doProposal( void )
 
 
 /** Replace the children of a and of b, in the given order. */
-void BifurcationCollapseExpandProposal::rewire( TopologyNode &a, const std::vector<TopologyNode*> &a_kids, TopologyNode &b, const std::vector<TopologyNode*> &b_kids )
+void CollapseExpandBifurcationProposal::rewire( TopologyNode &a, const std::vector<TopologyNode*> &a_kids, TopologyNode &b, const std::vector<TopologyNode*> &b_kids )
 {
     std::vector<TopologyNode*> old_a = a.getChildren();
     std::vector<TopologyNode*> old_b = b.getChildren();
@@ -120,12 +120,12 @@ void BifurcationCollapseExpandProposal::rewire( TopologyNode &a, const std::vect
 
 
 /** i at the bottom of two buddings, each continuing the range down to i's tip: put both ages at the upper. */
-double BifurcationCollapseExpandProposal::collapse( TopologyNode &i )
+double CollapseExpandBifurcationProposal::collapse( TopologyNode &i )
 {
-    if ( i.continuesParentSpecies() == false ) return RbConstants::Double::neginf;
+    if ( i.continuesParentLineage() == false ) return RbConstants::Double::neginf;
 
     TopologyNode &b = i.getParent();
-    if ( b.isRoot() == true || onlyContinuing( b ) != &i || b.continuesParentSpecies() == false ) return RbConstants::Double::neginf;
+    if ( b.isRoot() == true || onlyContinuing( b ) != &i || b.continuesParentLineage() == false ) return RbConstants::Double::neginf;
 
     TopologyNode &a = b.getParent();
     if ( onlyContinuing( a ) != &b ) return RbConstants::Double::neginf;
@@ -154,17 +154,17 @@ double BifurcationCollapseExpandProposal::collapse( TopologyNode &i )
 
 
 /** i a sampled ancestor whose range carries on into a symmetric node at its age: split it into two buddings and a tip. */
-double BifurcationCollapseExpandProposal::expand( TopologyNode &i )
+double CollapseExpandBifurcationProposal::expand( TopologyNode &i )
 {
     RandomNumberGenerator* rng = GLOBAL_RNG;
 
     TopologyNode &a = i.getParent();
     TopologyNode &b = otherChild( a, i );
-    if ( b.isTip() == true || b.continuesParentSpecies() == false || b.hasZeroLengthBranch() == false ) return RbConstants::Double::neginf;
+    if ( b.isTip() == true || b.continuesParentLineage() == false || b.hasZeroLengthBranch() == false ) return RbConstants::Double::neginf;
     if ( b.getNumberOfChildren() != 2 ) return RbConstants::Double::neginf;
     for (size_t c = 0; c < 2; c++)
     {
-        if ( b.getChild(c).continuesParentSpecies() == true || b.getChild(c).isSampledAncestorTip() == true ) return RbConstants::Double::neginf;
+        if ( b.getChild(c).continuesParentLineage() == true || b.getChild(c).isSampledAncestorTip() == true ) return RbConstants::Double::neginf;
     }
 
     size_t pick = size_t( rng->uniform01() * 2 );
@@ -188,10 +188,10 @@ double BifurcationCollapseExpandProposal::expand( TopologyNode &i )
     i.setSampledAncestor( false );
     b.setAge( t_b );
     i.setAge( t_s );
-    d1.setContinuesParentSpecies( false );
-    d2.setContinuesParentSpecies( false );
-    b.setContinuesParentSpecies( true );
-    i.setContinuesParentSpecies( true );
+    d1.setContinuesParentLineage( false );
+    d2.setContinuesParentLineage( false );
+    b.setContinuesParentLineage( true );
+    i.setContinuesParentLineage( true );
 
     failed = false;
 
@@ -199,17 +199,17 @@ double BifurcationCollapseExpandProposal::expand( TopologyNode &i )
 }
 
 
-void BifurcationCollapseExpandProposal::prepareProposal( void )
+void CollapseExpandBifurcationProposal::prepareProposal( void )
 {
 }
 
 
-void BifurcationCollapseExpandProposal::printParameterSummary(std::ostream &o, bool name_only) const
+void CollapseExpandBifurcationProposal::printParameterSummary(std::ostream &o, bool name_only) const
 {
 }
 
 
-void BifurcationCollapseExpandProposal::undoProposal( void )
+void CollapseExpandBifurcationProposal::undoProposal( void )
 {
     if ( failed == true ) return;
 
@@ -226,17 +226,17 @@ void BifurcationCollapseExpandProposal::undoProposal( void )
 }
 
 
-void BifurcationCollapseExpandProposal::setProposalTuningParameter(double tp)
+void CollapseExpandBifurcationProposal::setProposalTuningParameter(double tp)
 {
 }
 
 
-void BifurcationCollapseExpandProposal::swapNodeInternal(DagNode *oldN, DagNode *newN)
+void CollapseExpandBifurcationProposal::swapNodeInternal(DagNode *oldN, DagNode *newN)
 {
     if ( oldN == tree ) tree = static_cast<StochasticNode<Tree>* >( newN );
 }
 
 
-void BifurcationCollapseExpandProposal::tune( double rate )
+void CollapseExpandBifurcationProposal::tune( double rate )
 {
 }

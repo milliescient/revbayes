@@ -70,6 +70,7 @@ namespace RevBayesCore {
         void                                            setValue(Tree *v, bool force=false) override;                       //!< Adopt a tree's annotations, or draw the state it does not carry.
 
         std::string                                     getHiddenStateString(void) const override;                          //!< The tree annotated with the flags, appearances and statuses a Newick drops.
+        bool                                            printForMonitor(std::ostream &o) const override;                   //!< The extended tree annotated with species, appearances and modes.
         void                                            setHiddenStateFromString(const std::string &s) override;
         void                                            redrawValue(void) override;
         void                                            redrawValue(SimulationCondition c) override;                        //!< Redraw without reaching the inherited simulator
@@ -87,7 +88,7 @@ namespace RevBayesCore {
         std::vector<const DagNode*>                     getRateParameters(void) const;                                      //!< Every node the rates and p(t) depend on.
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const override;  //!< The per-branch speciation events, then the base's range methods.
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, Tree &rv) const override;              //!< getSampledTree.
-        Tree                                            sampledTree(void) const;                                 //!< The tree cut back to each species' last appearance, with species labels.
+        Tree                                            sampledTree(void) const;                                 //!< The tree cut back to each species' last appearance, annotated as the extended tree is.
         //!< By node index: the Poisson means of the hidden speciations on each branch, and the observed event that began the species.
         struct BranchEvents { std::vector<double> hidden_budding, hidden_bifurcation, hidden_anagenetic, observed_budding, observed_bifurcation, observed_anagenetic; };
         void                                            branchEvents(BranchEvents &e, bool hidden = true) const;
@@ -159,6 +160,7 @@ namespace RevBayesCore {
         // helper functions
         double                                          getMaxTaxonAge( const TopologyNode& ) const;
 
+        size_t                                          annotate(Tree &t) const;                                                              //!< Annotate a copy with species, appearances and modes.
         void                                            labelSpecies(TopologyNode &node, const std::string &s, size_t &unsampled_count) const;  //!< Stamp the range each node belongs to, top down.
         std::string                                     rangeLabel(const TopologyNode &node, size_t &unsampled_count) const;                  //!< A taxon's index, or a fresh id for a range no taxon samples.
         bool                                            adoptContinuationFlags(void);                           //!< Take the continuation flags a tree gives.

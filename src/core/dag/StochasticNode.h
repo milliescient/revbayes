@@ -8,10 +8,12 @@
 #include "RbVector.h"
 #include "Serializer.h"
 #include "StochasticNodeBase.h"
+#include "StringUtilities.h"
 #include "TypedDistribution.h"
 
 #include <cassert>
 #include <memory>
+#include <sstream>
 
 namespace RevBayesCore {
 
@@ -49,6 +51,7 @@ namespace RevBayesCore {
         bool                                               isIgnoredData(void) const;
         bool                                               isStochastic(void) const;                                                    //!< Is this DAG node stochastic?
         virtual void                                       printStructureInfo(std::ostream &o, bool verbose=false) const;               //!< Print the structural information (e.g. name, value-type, distribution/function, children, parents, etc.)
+        virtual void                                       printValue(std::ostream &o, const std::string &sep, int l=-1, bool left=true, bool user=true, bool simple=true, bool flatten=true) const;  //!< The distribution's own form for a monitor, where it has one
         void                                               redraw(SimulationCondition c = SimulationCondition::MCMC);                   //!< Redraw the current value of the node (applies only to stochastic nodes)
         virtual void                                       reInitializeMe(void);                                                        //!< The DAG was re-initialized so maybe you want to reset some stuff (delegate to distribution)
         void                                               setIgnoreRedraw(bool tf=true);
@@ -204,6 +207,23 @@ template<class valueType>
 void RevBayesCore::StochasticNode<valueType>::getAffected(RbOrderedSet<DagNode*> &affected, const DagNode *affecter)
 {
     StochasticNodeBase::getAffected( *this, affected, affecter );
+}
+
+
+/** A monitor's value in the distribution's own form, built only when printed; a checkpoint is never simple. */
+template<class valueType>
+void RevBayesCore::StochasticNode<valueType>::printValue(std::ostream &o, const std::string &sep, int l, bool left, bool user, bool simple, bool flatten) const
+{
+    std::stringstream ss;
+    if ( simple == true && this->distribution->printForMonitor( ss ) == true )
+    {
+        std::string s = ss.str();
+        if ( l > 0 ) StringUtilities::fillWithSpaces( s, l, left );
+        o << s;
+        return;
+    }
+
+    DynamicNode<valueType>::printValue( o, sep, l, left, user, simple, flatten );
 }
 
 

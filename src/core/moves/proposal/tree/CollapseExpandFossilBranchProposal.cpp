@@ -131,7 +131,7 @@ double CollapseExpandFossilBranchProposal::doProposal( void )
     // on a dnFBDSP tree the budding's orientation becomes the successor's mode and back
     fbdsp   = dynamic_cast<const FossilizedBirthDeathSpeciationProcess *>( &tau->getDistribution() );
     orients = ( fbdsp != NULL );
-    storedFlag = storedNode->continuesParentSpecies();
+    storedFlag = storedNode->continuesParentLineage();
     
     double hr = 0;
     if ( storedNode->isSampledAncestorTip() == true )
@@ -195,7 +195,7 @@ double CollapseExpandFossilBranchProposal::collapseBranch(TopologyNode &n)
     }
 
     // a budding only: the sibling keeps its flag, anagenesis where it continued, a symmetric speciation where n did
-    if ( orients == true && n.continuesParentSpecies() == sibling->continuesParentSpecies() )
+    if ( orients == true && n.continuesParentLineage() == sibling->continuesParentLineage() )
     {
         failed = true;
         return RbConstants::Double::neginf;
@@ -207,7 +207,7 @@ double CollapseExpandFossilBranchProposal::collapseBranch(TopologyNode &n)
     // set the age of the parent node equal to my age
     parent.setAge( n.getAge() );
     n.setSampledAncestor( true );
-    if ( orients == true ) n.setContinuesParentSpecies( true );
+    if ( orients == true ) n.setContinuesParentLineage( true );
     
     // compute the Jacobian term
     double lnJacobian = - log(max_age - min_age);
@@ -275,7 +275,7 @@ double CollapseExpandFossilBranchProposal::expandBranch(TopologyNode &n)
     // set the age of the parent node equal to the new age
     n.setSampledAncestor( false );
     parent.setAge( new_age );
-    if ( orients == true ) n.setContinuesParentSpecies( sibling->continuesParentSpecies() == false );
+    if ( orients == true ) n.setContinuesParentLineage( sibling->continuesParentLineage() == false );
     
     // compute the Jacobian term
     double lnJacobian = log(max_age - min_age);
@@ -331,7 +331,7 @@ void CollapseExpandFossilBranchProposal::undoProposal( void )
             storedNode->getParent().setAge( storedAge );
             storedNode->setSampledAncestor( true );
         }
-        storedNode->setContinuesParentSpecies( storedFlag );
+        storedNode->setContinuesParentLineage( storedFlag );
     }
     
 }

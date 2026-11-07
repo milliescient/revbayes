@@ -1,5 +1,5 @@
-#ifndef BifurcationCollapseExpandProposal_H
-#define BifurcationCollapseExpandProposal_H
+#ifndef CollapseExpandBifurcationProposal_H
+#define CollapseExpandBifurcationProposal_H
 
 #include <cstddef>
 #include <iosfwd>
@@ -29,13 +29,13 @@ namespace RevBayesCore {
      * @author The RevBayes Development Core Team (June Walker)
      * @since 2026-11-05, version 1.0
      */
-    class BifurcationCollapseExpandProposal : public Proposal {
+    class CollapseExpandBifurcationProposal : public Proposal {
 
     public:
-        BifurcationCollapseExpandProposal( StochasticNode<Tree> *n );                                     //!< constructor
+        CollapseExpandBifurcationProposal( StochasticNode<Tree> *n );                                     //!< constructor
 
         void                                    cleanProposal(void);
-        BifurcationCollapseExpandProposal*        clone(void) const;
+        CollapseExpandBifurcationProposal*        clone(void) const;
         double                                  doProposal(void);
         const std::string&                      getProposalName(void) const;
         double                                  getProposalTuningParameter(void) const;

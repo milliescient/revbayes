@@ -165,7 +165,7 @@ bool FossilizedBirthDeathSpeciationProcess::hasTiedEvents( void ) const
     {
         if ( n->isSampledAncestorTip() == true || ( n->isTip() == true && n->getAge() == present ) ) continue;
         if ( n->isRoot() == false && n->isTip() == false && n->getAge() == n->getParent().getAge()
-             && n->getParent().isSampledAncestorParent() == true && n->continuesParentSpecies() == true ) continue;
+             && n->getParent().isSampledAncestorParent() == true && n->continuesParentLineage() == true ) continue;
         ages.push_back( n->getAge() );
     }
     std::sort( ages.begin(), ages.end() );
@@ -403,12 +403,14 @@ void FossilizedBirthDeathSpeciationProcess::setValue(Tree *v, bool force)
     }
     this->getValue().orderNodesByIndex();
 
-    // a sampled ancestor at a symmetric speciation sits beside a zero-length branch, which a Newick cannot tell
+    // on an extended tree only a sampled ancestor ends at its parent's age, which a Newick cannot tell beside a
+    // zero-length sibling
     for (size_t i = 0; i < this->getValue().getNumberOfTips(); i++)
     {
         TopologyNode &tip = this->getValue().getNode(i);
         std::optional<std::string> sa = tip.eraseNodeParameter( "sa" );
-        if ( sa.has_value() == true && *sa == "1" ) tip.setSampledAncestor( true );
+        bool at_parent = ( tip.isRoot() == false && tip.getAge() == tip.getParent().getAge() );
+        if ( ( sa.has_value() == true && *sa == "1" ) || at_parent == true ) tip.setSampledAncestor( true );
     }
 
     // flags before ages: the flags name each origination time
@@ -444,7 +446,7 @@ std::string FossilizedBirthDeathSpeciationProcess::getHiddenStateString( void ) 
 
     for (TopologyNode *node : t.getNodes())
     {
-        if ( node->isRoot() == false ) node->setNodeParameter( "continues", node->continuesParentSpecies() ? "1" : "0" );
+        if ( node->isRoot() == false ) node->setNodeParameter( "continues", node->continuesParentLineage() ? "1" : "0" );
     }
 
     for (size_t i = 0; i < taxa.size(); ++i)
@@ -477,6 +479,61 @@ std::string FossilizedBirthDeathSpeciationProcess::getHiddenStateString( void ) 
     }
 
     return t.getNewickRepresentation( false );
+}
+
+
+/** The extended tree as monitors log it, annotated only when a monitor prints it. */
+bool FossilizedBirthDeathSpeciationProcess::printForMonitor( std::ostream &o ) const
+{
+    Tree t = *this->value;
+    annotate( t );
+    o << t;
+    return true;
+}
+
+
+/**
+ * A copy of the tree annotated for reading: each node's species as sp, each tip's fad, lad and survived, and each
+ * internal node's mode, B, S or A. A sampled ancestor's tip repeats its node's mode, since a viewer that collapses
+ * the zero-length branch keeps the tip's annotations. Returns the number of unsampled ranges labelled.
+ */
+size_t FossilizedBirthDeathSpeciationProcess::annotate( Tree &t ) const
+{
+    size_t unsampled_count = 0;
+    labelSpecies( t.getRoot(), rangeLabel( t.getRoot(), unsampled_count ), unsampled_count );
+
+    for (TopologyNode *node : t.getNodes())
+    {
+        if ( node->isTip() == true ) continue;
+
+        // a sampled ancestor's successor says how it arose; collapsed onto a symmetric node, it ended there
+        bool sa = false, bud = false;
+        const TopologyNode *successor = NULL;
+        for (size_t c = 0; c < node->getNumberOfChildren(); c++)
+        {
+            const TopologyNode &child = node->getChild(c);
+            if ( child.isSampledAncestorTip() == true ) sa = true;
+            else if ( isModeSuccessor( child ) == true ) successor = &child;
+            if ( child.continuesParentLineage() == true ) bud = true;
+        }
+        std::string mode = ( sa == true ? ( successor != NULL && successor->continuesParentLineage() ? "A" : "S" ) : ( bud ? "B" : "S" ) );
+
+        node->setNodeParameter( "mode", mode );
+        for (size_t c = 0; c < node->getNumberOfChildren(); c++)
+        {
+            if ( node->getChild(c).isSampledAncestorTip() == true ) node->getChild(c).setNodeParameter( "mode", mode );
+        }
+    }
+
+    for (size_t i = 0; i < taxa.size(); ++i)
+    {
+        TopologyNode &tip = t.getNode(i);
+        tip.setNodeParameter( "fad", StringUtilities::to_string( ranges[i].first ) );
+        tip.setNodeParameter( "lad", StringUtilities::to_string( ranges[i].last ) );
+        tip.setNodeParameter( "survived", ranges[i].survived ? "1" : "0" );
+    }
+
+    return unsampled_count;
 }
 
 
@@ -518,9 +575,9 @@ void FossilizedBirthDeathSpeciationProcess::labelSpecies( TopologyNode &node, co
 std::string FossilizedBirthDeathSpeciationProcess::rangeLabel( const TopologyNode &node, size_t &unsampled_count ) const
 {
     int k = continuingSpecies( node );
-    if ( k >= 0 ) return StringUtilities::to_string( k );
+    if ( k >= 0 ) return StringUtilities::to_string( k + 1 );
 
-    return "u" + StringUtilities::to_string( unsampled_count++ );
+    return "u" + StringUtilities::to_string( ++unsampled_count );
 }
 
 
@@ -534,7 +591,7 @@ bool FossilizedBirthDeathSpeciationProcess::adoptContinuationFlags( void )
     {
         std::optional<std::string> c = node->eraseNodeParameter( "continues" );
         if ( c.has_value() == false ) continue;
-        node->setContinuesParentSpecies( *c == "1" );
+        node->setContinuesParentLineage( *c == "1" );
         annotated = true;
     }
 
@@ -576,16 +633,28 @@ bool FossilizedBirthDeathSpeciationProcess::adoptSpeciesLabels( void )
         const std::string &mine   = label[ node.getIndex() ];
         const std::string &parent = label[ node.getParent().getIndex() ];
 
-        node.setContinuesParentSpecies( mine.empty() == false && mine == parent );
+        node.setContinuesParentLineage( mine.empty() == false && mine == parent );
     }
 
-    // a successor's mode, anagenesis where none is given and the rates allow it
+    // a successor's mode, from its sampled ancestor's node or tip; anagenesis where none is given and the rates allow it
+    std::vector<std::string> mode( n );
     for (size_t i = 0; i < n; ++i)
     {
         TopologyNode &node = t.getNode(i);
         std::optional<std::string> m = node.eraseNodeParameter( "mode" );
+        if ( m.has_value() == true ) mode[ node.getIndex() ] = *m;
+    }
+    for (size_t i = 0; i < n; ++i)
+    {
+        TopologyNode &node = t.getNode(i);
         if ( isModeSuccessor( node ) == false ) continue;
-        node.setContinuesParentSpecies( m.has_value() ? *m == "A" : defaultSuccessorAnagenetic() );
+        const TopologyNode &p = node.getParent();
+        std::string m = mode[ p.getIndex() ];
+        for (size_t c = 0; c < p.getNumberOfChildren() && m.empty() == true; c++)
+        {
+            if ( p.getChild(c).isSampledAncestorTip() == true ) m = mode[ p.getChild(c).getIndex() ];
+        }
+        node.setContinuesParentLineage( m.empty() ? defaultSuccessorAnagenetic() : m == "A" );
     }
 
     return true;
@@ -742,8 +811,8 @@ void FossilizedBirthDeathSpeciationProcess::redrawValue(void)
         node->addChild( top[k] );
         top[j]->setParent( node );
         top[k]->setParent( node );
-        top[j]->setContinuesParentSpecies( true );
-        top[k]->setContinuesParentSpecies( false );
+        top[j]->setContinuesParentLineage( true );
+        top[k]->setContinuesParentLineage( false );
         top[j] = node;
     }
 
@@ -1018,15 +1087,15 @@ void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e, bool 
 
         if ( isModeSuccessor( *node ) == true )
         {
-            ( node->continuesParentSpecies() ? e.observed_anagenetic : e.observed_bifurcation )[idx] = 1.0;
+            ( node->continuesParentLineage() ? e.observed_anagenetic : e.observed_bifurcation )[idx] = 1.0;
         }
-        else if ( node->continuesParentSpecies() == false )
+        else if ( node->continuesParentLineage() == false )
         {
             bool sa_sibling = false, any_continues = false;
             for (size_t c = 0; c < parent.getNumberOfChildren(); c++)
             {
                 const TopologyNode &sib = parent.getChild(c);
-                if ( sib.continuesParentSpecies() == false ) continue;
+                if ( sib.continuesParentLineage() == false ) continue;
                 any_continues = true;
                 if ( sib.isSampledAncestorTip() ) sa_sibling = true;
             }
@@ -1082,8 +1151,7 @@ Tree FossilizedBirthDeathSpeciationProcess::sampledTree( void ) const
 {
     Tree t = *value;
 
-    size_t unsampled_count = 0;
-    labelSpecies( t.getRoot(), rangeLabel( t.getRoot(), unsampled_count ), unsampled_count );
+    size_t unsampled_count = annotate( t );
 
     std::vector<TopologyNode*> tips;
     for (size_t i = 0; i < taxa.size(); i++) tips.push_back( &t.getNode(i) );
@@ -1110,9 +1178,9 @@ Tree FossilizedBirthDeathSpeciationProcess::sampledTree( void ) const
         // where it ended at a symmetric speciation. Its path takes the successor's label.
         TopologyNode *p0 = &tip->getParent();
         TopologyNode *c  = ( &p0->getChild(0) == tip ? &p0->getChild(1) : &p0->getChild(0) );
-        std::string mine = StringUtilities::to_string( i );
+        std::string mine = StringUtilities::to_string( i + 1 );
         std::string successor = *c->getNodeParameter( "sp" );
-        if ( successor == mine ) successor = "u" + StringUtilities::to_string( unsampled_count++ );
+        if ( successor == mine ) successor = "u" + StringUtilities::to_string( ++unsampled_count );
         for (TopologyNode *k = n; k != p0 && k != NULL; )
         {
             k->setNodeParameter( "sp", successor );
@@ -1125,7 +1193,8 @@ Tree FossilizedBirthDeathSpeciationProcess::sampledTree( void ) const
         }
         c->setNodeParameter( "sp", successor );
 
-        // drop the old tip, and the node it hung from
+        // drop the old tip, and the node it hung from, whose mode passes to the sampled ancestor below
+        std::optional<std::string> mode = p0->getNodeParameter( "mode" );
         p0->removeChild( tip );
         p0->removeChild( c );
         if ( p0 == root )
@@ -1159,7 +1228,12 @@ Tree FossilizedBirthDeathSpeciationProcess::sampledTree( void ) const
             a->setParent( q );
         }
         a->setAge( tk );
-        a->setNodeParameter( "sp", StringUtilities::to_string( i ) );
+        a->setNodeParameter( "sp", StringUtilities::to_string( i + 1 ) );
+        if ( mode.has_value() == true )
+        {
+            a->setNodeParameter( "mode", *mode );
+            tip->setNodeParameter( "mode", *mode );
+        }
         a->addChild( tip );
         tip->setParent( a );
         a->addChild( n );
@@ -1268,7 +1342,7 @@ bool FossilizedBirthDeathSpeciationProcess::isModeSuccessor( const TopologyNode 
 /** Whether n carries its parent's range: its flag, except at a successor, which begins its own range. */
 bool FossilizedBirthDeathSpeciationProcess::continuesRange( const TopologyNode &n ) const
 {
-    return n.continuesParentSpecies() == true && isModeSuccessor( n ) == false;
+    return n.continuesParentLineage() == true && isModeSuccessor( n ) == false;
 }
 
 
@@ -1353,8 +1427,8 @@ bool FossilizedBirthDeathSpeciationProcess::redrawTopology( void )
         node->addChild( top[k] );
         top[j]->setParent( node );
         top[k]->setParent( node );
-        top[j]->setContinuesParentSpecies( true );
-        top[k]->setContinuesParentSpecies( false );
+        top[j]->setContinuesParentLineage( true );
+        top[k]->setContinuesParentLineage( false );
         top[j] = node;
     }
 
@@ -1525,8 +1599,8 @@ void FossilizedBirthDeathSpeciationProcess::simulateClade(std::vector<TopologyNo
                 parent->addChild( right_child );
                 left_child->setParent( parent );
                 right_child->setParent( parent );
-                left_child->setContinuesParentSpecies( true );
-                right_child->setContinuesParentSpecies( false );
+                left_child->setContinuesParentLineage( true );
+                right_child->setContinuesParentLineage( false );
                 parent->setAge( next_sim_age );
 
                 // insert the parent to our list
@@ -1586,8 +1660,8 @@ void FossilizedBirthDeathSpeciationProcess::simulateClade(std::vector<TopologyNo
         left_child->setParent( parent );
         right_child->setParent( parent );
         // name a continuing lineage; mvRotateNode explores the choice
-        left_child->setContinuesParentSpecies( true );
-        right_child->setContinuesParentSpecies( false );
+        left_child->setContinuesParentLineage( true );
+        right_child->setContinuesParentLineage( false );
         parent->setAge( age );
 
         // insert the parent to our list
@@ -1720,7 +1794,7 @@ void FossilizedBirthDeathSpeciationProcess::normalizeContinuationFlags( const To
         if ( children[c]->isSampledAncestorTip() == true )
         {
             sa_tip = true;
-            children[c]->setContinuesParentSpecies( true );
+            children[c]->setContinuesParentLineage( true );
         }
     }
 
@@ -1737,7 +1811,7 @@ void FossilizedBirthDeathSpeciationProcess::normalizeContinuationFlags( const To
         for (size_t c = 0; c < children.size(); c++)
         {
             if ( children[c]->isSampledAncestorTip() == true ) continue;
-            children[c]->setContinuesParentSpecies( isModeSuccessor( *children[c] ) && defaultSuccessorAnagenetic() );
+            children[c]->setContinuesParentLineage( isModeSuccessor( *children[c] ) && defaultSuccessorAnagenetic() );
         }
         return;
     }
@@ -1774,7 +1848,7 @@ void FossilizedBirthDeathSpeciationProcess::normalizeContinuationFlags( const To
         for (size_t c = 0; c < children.size(); c++)
         {
             if ( children[c]->isSampledAncestorTip() == true ) continue;
-            children[c]->setContinuesParentSpecies( c == keep );
+            children[c]->setContinuesParentLineage( c == keep );
         }
     }
 }
@@ -1803,7 +1877,7 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
         if ( children[c]->isSampledAncestorTip() == true )
         {
             sa_tip = true;
-            if ( children[c]->continuesParentSpecies() == false ) invalid_continuation = true;
+            if ( children[c]->continuesParentLineage() == false ) invalid_continuation = true;
         }
         else if ( continuesRange( *children[c] ) == true )
         {
@@ -1820,7 +1894,7 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
         if ( hasSymmetricSpeciation() == false || past_sa->isTip() == true || past_sa->getAge() != node.getAge() ) invalid_continuation = true;
         for (size_t c = 0; c < past_sa->getNumberOfChildren(); c++)
         {
-            if ( past_sa->getChild(c).continuesParentSpecies() == true ) invalid_continuation = true;
+            if ( past_sa->getChild(c).continuesParentLineage() == true ) invalid_continuation = true;
         }
     }
 
@@ -1866,7 +1940,7 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
             {
                 // a range no taxon samples begins here
                 RangeStart start = ( sa == false ? RangeStart::SPECIATION : RangeStart::SAMPLED_ANCESTOR );
-                unsampled.push_back( UnsampledRange{ node.getAge(), sub.end_age, start, sa && child.continuesParentSpecies() } );
+                unsampled.push_back( UnsampledRange{ node.getAge(), sub.end_age, start, sa && child.continuesParentLineage() } );
             }
             continue;
         }
@@ -1887,7 +1961,7 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
 
             next_species[i].parent_is_sa = sa;
             next_species[i].sa_parent    = sa ? sa_species : -1;
-            next_species[i].sa_anagenetic = sa && child.continuesParentSpecies();
+            next_species[i].sa_anagenetic = sa && child.continuesParentLineage();
         }
         // child is the ancestral species
         else
