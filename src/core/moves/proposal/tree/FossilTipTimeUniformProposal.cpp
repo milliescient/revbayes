@@ -245,6 +245,16 @@ double FossilTipTimeUniformProposal::doProposal( void )
         }
     }
 
+    // moving a sampled ancestor moves its node, which a slide cannot return to a symmetric node at its age
+    if ( node.isSampledAncestorTip() == true )
+    {
+        const TopologyNode &p = node.getParent();
+        for (size_t c = 0; c < p.getNumberOfChildren(); ++c)
+        {
+            if ( &p.getChild(c) != &node && p.getChild(c).getAge() == p.getAge() ) throw RbException(RbException::SKIP_PROPOSAL);
+        }
+    }
+
     // Abort the move if we don't have a valid interval
     if (not (min_age < max_age))
         throw RbException(RbException::SKIP_PROPOSAL);
