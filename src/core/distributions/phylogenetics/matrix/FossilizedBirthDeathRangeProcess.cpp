@@ -120,14 +120,14 @@ void FossilizedBirthDeathRangeProcess::setValue(MatrixReal *v, bool force)
 
         // oldest age: valid range [max(first_min,d), min(max_age,b))
         double lo = std::max( ranges[i].first_min, d );
-        double hi = std::min( taxa[i].getMaxAge(), b );
+        double hi = std::min( taxa[i].getAgeRange()->getMax(), b );
         if ( hi > lo && ( ranges[i].first < lo || ranges[i].first >= b ) )
         {
             ranges[i].first = 0.5 * ( lo + hi );
         }
 
         // youngest age: valid range [max(d,min_age), min(first,last_max)]
-        double lo_y = std::max( d, taxa[i].getMinAge() );
+        double lo_y = std::max( d, taxa[i].getAgeRange()->getMin() );
         double hi_y = std::min( ranges[i].first, ranges[i].last_max );
         if ( hi_y > lo_y && ( ranges[i].last < lo_y || ranges[i].last > hi_y ) )
         {

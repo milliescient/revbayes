@@ -41,6 +41,9 @@ namespace RevBayesCore {
         virtual bool                                        tracksSpeciesContinuation(void) const override { const TreeDistributionProperties *p = dynamic_cast<const TreeDistributionProperties *>( base_distribution ); return p != NULL && p->tracksSpeciesContinuation(); }
         virtual bool                                        isExtended(void) const override { const TreeDistributionProperties *p = dynamic_cast<const TreeDistributionProperties *>( base_distribution ); return p != NULL && p->isExtended(); }
 
+        void prepareForClamping(Tree& tree) override;
+        void repairCheckpointValue(Tree& tree) override;
+
     protected:
         
         void                                                initializeBitSets();
@@ -79,6 +82,7 @@ namespace RevBayesCore {
         size_t                                              num_backbones;
         bool                                                use_multiple_backbones;
         Tree*                                               starting_tree;
+        std::int64_t                                        age_check_precision;
         
         bool                                                rooting_known;
         bool                                                is_rooted;

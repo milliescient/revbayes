@@ -1,3 +1,4 @@
+#include "TimeInterval.h"
 #include <cmath>
 #include <iostream>
 #include <cstddef>
@@ -33,6 +34,11 @@ FossilTipTimeSlideUniformProposal::FossilTipTimeSlideUniformProposal( Stochastic
     tip_taxon( t ),
     lambda( l )
 {
+    // Explicit bounds define one proposal interval; do not combine a supplied endpoint with
+    // an implicit endpoint from the taxon. Validate before registering any DAG nodes.
+    if ((min == nullptr) != (max == nullptr))
+        throw RbException() << "mv" << getProposalName() << ": min and max must be supplied together.";
+
     // tell the base class to add the node
     addNode( tree );
     addNode( origin );
@@ -160,36 +166,29 @@ double FossilTipTimeSlideUniformProposal::doProposal( void )
         throw RbException("Attempting to move a root tip, but no origin time provided.");
     }
 
+    // An absent constraint is not a fixed age. Require an attached interval even when the move
+    // supplies bounds, so a missing constraint cannot silently disable an age-changing move.
+    if (not node.getTaxon().getAgeRange())
+        throw RbException() << "mv" << getProposalName() << ": taxon '" << node.getName()
+                            << "' has no attached age interval; this move requires one.";
+
     // a lone lineage is its own root, so the origin bounds it instead of a parent
     double parent_age   = node.isRoot() ? origin->getValue() : node.getParent().getAge();
     double my_age       = node.getAge();    
-    double min_age      = 0;
+    double min_age;
     double max_age;
     
-    // adjust min and max age, either given taxon data or given provided ages
-    if ( min == NULL )
+    // Explicit bounds are supplied as a pair; otherwise use the required attached interval.
+    if (min != nullptr)
     {
-        // adjust min age given taxon data
-        Taxon& taxon = node.getTaxon();
-        min_age = taxon.getMinAge();
-    }
-    else
-    {
-        // adjust min age given provided age
         min_age = min->getValue();
-    }
-    if ( max == NULL )
-    {
-        // adjust max age given taxon data
-        Taxon& taxon = node.getTaxon();
-        double taxon_max_age = taxon.getMaxAge();
-        max_age = taxon_max_age;
+        max_age = max->getValue();
     }
     else
     {
-        // adjust max age given provided variable
-        double provided_max_age = max->getValue();
-        max_age = provided_max_age;
+        const auto& interval = *node.getTaxon().getAgeRange();
+        min_age = interval.getMin();
+        max_age = interval.getMax();
     }
 
     if ( node.isSampledAncestorTip() == true )
@@ -236,7 +235,7 @@ double FossilTipTimeSlideUniformProposal::doProposal( void )
         const std::map<TimeInterval, size_t>& occurrences = node.getTaxon().getOccurrences();
 
         min_age = 0.0;
-        max_age = node.getTaxon().getMaxAge();
+        max_age = node.getTaxon().getAgeRange()->getMax();
 
         // the binding bound is the youngest maximum
         for (std::map<TimeInterval, size_t>::const_iterator it = occurrences.begin(); it != occurrences.end(); ++it)

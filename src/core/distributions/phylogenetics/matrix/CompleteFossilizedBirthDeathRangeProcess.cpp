@@ -96,7 +96,7 @@ double CompleteFossilizedBirthDeathRangeProcess::samplingConditionLnProb( size_t
 {
     if ( condition != "sampling" ) return 0.0;
 
-    if ( taxa[i].getMaxAge() == times.front() ) return 0.0;
+    if ( taxa[i].getAgeRange()->getMax() == times.front() ) return 0.0;
 
     double b = ranges[i].divergence;
     double d = ranges[i].death;
