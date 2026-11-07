@@ -111,8 +111,7 @@ double NodeTimeSlideUniformProposal::doProposal( void )
     for(int i=0;i<tau.getNumberOfNodes();i++)
     {
 	auto& node = tau.getNode(i);
-	// a node at its parent's age is a symmetric speciation at a sampled ancestor, which a slide cannot restore
-	if (not node.isRoot() and not node.isTip() and not node.isSampledAncestorTipOrParent() and node.getAge() < node.getParent().getAge())
+	if (not node.isRoot() and not node.isTip() and not node.isSampledAncestorTipOrParent() and not node.hasZeroLengthBranch())
 	    ok_nodes.push_back( & node );
     }
 

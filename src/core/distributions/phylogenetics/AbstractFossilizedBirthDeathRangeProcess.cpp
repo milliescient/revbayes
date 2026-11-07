@@ -1807,24 +1807,21 @@ void AbstractFossilizedBirthDeathRangeProcess::mixtureStemSource( size_t i, std:
 }
 
 
-/** Taxon i's log-density under each component: its range, and its record where one is scored. */
 void AbstractFossilizedBirthDeathRangeProcess::mixtureAt( double t, std::vector<double> &p, double &lambda_pbar ) const
 {
-    if ( mixture_numeric_on == true ) mixture_numeric.at( t, p, lambda_pbar );
-    else                              mixture_solution.at( t, p, lambda_pbar );
+    mixtureSolver().at( t, p, lambda_pbar );
 }
 
 
 void AbstractFossilizedBirthDeathRangeProcess::mixtureSensitivity( double s, double t, const std::vector<size_t> &columns, std::vector<double> &Q, std::vector<double> &Q_scale ) const
 {
-    if ( mixture_numeric_on == true ) mixture_numeric.sensitivity( s, t, columns, Q, Q_scale );
-    else                              mixture_solution.sensitivity( s, t, columns, Q, Q_scale );
+    mixtureSolver().sensitivity( s, t, columns, Q, Q_scale );
 }
 
 
 double AbstractFossilizedBirthDeathRangeProcess::mixtureLambdaPbarIntegral( double t0, double t1 ) const
 {
-    return ( mixture_numeric_on == true ) ? mixture_numeric.lambdaPbarIntegral( t0, t1 ) : mixture_solution.lambdaPbarIntegral( t0, t1 );
+    return mixtureSolver().lambdaPbarIntegral( t0, t1 );
 }
 
 

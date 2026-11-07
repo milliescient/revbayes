@@ -4,6 +4,7 @@
 
 #include "SymmetricCollapseExpandProposal.h"
 #include "AbstractFossilizedBirthDeathRangeProcess.h"
+#include "AbstractRootedTreeDistribution.h"
 #include "RandomNumberFactory.h"
 #include "RandomNumberGenerator.h"
 #include "RbConstants.h"
@@ -103,7 +104,39 @@ double SymmetricCollapseExpandProposal::doProposal( void )
 
     TopologyNode &i = *fossils[ size_t( rng->uniform01() * fossils.size() ) ];
 
+    slid = false;
+    if ( rng->uniform01() < 0.5 ) return slide( i );
+
     return ( i.isSampledAncestorTip() == true ? expand( i ) : collapse( i ) );
+}
+
+
+/** A collapsed state's age, which no other move changes: A, B and i together, uniform on a window that excludes it. */
+double SymmetricCollapseExpandProposal::slide( TopologyNode &i )
+{
+    if ( i.isSampledAncestorTip() == false ) return RbConstants::Double::neginf;
+
+    TopologyNode &a = i.getParent();
+    TopologyNode &b = otherChild( a, i );
+    if ( b.isTip() == true || b.hasZeroLengthBranch() == false ) return RbConstants::Double::neginf;
+
+    double lo = std::max( b.getChild(0).getAge(), b.getChild(1).getAge() );
+    double hi = a.isRoot() == false ? a.getParent().getAge() : static_cast<const AbstractRootedTreeDistribution &>( tree->getDistribution() ).getOriginAge();
+
+    // i's range ends at or below its youngest occurrence
+    for (const std::pair<const TimeInterval, size_t> &o : i.getTaxon().getOccurrences()) hi = std::min( hi, o.first.getMax() );
+    if ( lo >= hi ) return RbConstants::Double::neginf;
+
+    stored_a = &a; stored_b = &b; stored_tip = &i;
+    stored_b_age = a.getAge();
+
+    double u = lo + GLOBAL_RNG->uniform01() * ( hi - lo );
+    a.setAge( u );
+    b.setAge( u );
+
+    slid = true;
+    failed = false;
+    return 0.0;
 }
 
 
@@ -160,7 +193,7 @@ double SymmetricCollapseExpandProposal::expand( TopologyNode &i )
 
     TopologyNode &a = i.getParent();
     TopologyNode &b = otherChild( a, i );
-    if ( b.isTip() == true || b.continuesParentSpecies() == false || b.getAge() != a.getAge() ) return RbConstants::Double::neginf;
+    if ( b.isTip() == true || b.continuesParentSpecies() == false || b.hasZeroLengthBranch() == false ) return RbConstants::Double::neginf;
     if ( b.getNumberOfChildren() != 2 ) return RbConstants::Double::neginf;
     for (size_t c = 0; c < 2; c++)
     {
@@ -212,6 +245,13 @@ void SymmetricCollapseExpandProposal::printParameterSummary(std::ostream &o, boo
 void SymmetricCollapseExpandProposal::undoProposal( void )
 {
     if ( failed == true ) return;
+
+    if ( slid == true )
+    {
+        stored_a->setAge( stored_b_age );
+        stored_b->setAge( stored_b_age );
+        return;
+    }
 
     TopologyNode &a = *stored_a;
     TopologyNode &b = *stored_b;

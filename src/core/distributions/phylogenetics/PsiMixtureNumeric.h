@@ -5,6 +5,8 @@
 #include <map>
 #include <vector>
 
+#include "PsiMixtureSolver.h"
+
 #include <boost/numeric/odeint/stepper/runge_kutta_fehlberg78.hpp>
 
 namespace RevBayesCore {
@@ -26,7 +28,7 @@ namespace RevBayesCore {
      * A change of arguments drops the grid from the youngest interval it touches. A query integrates only the
      * pieces between its ages and the nearest grid points, and multiplies the cached step propagators between.
      */
-    class PsiMixtureNumeric {
+    class PsiMixtureNumeric : public PsiMixtureSolver {
 
     public:
         PsiMixtureNumeric(void) = default;
@@ -35,11 +37,11 @@ namespace RevBayesCore {
                                        const std::vector<double> &psi, const std::vector<double> &rates, const std::vector<double> &weights,
                                        double rho, const std::vector<double> &beta,
                                        const std::vector<double> &anagenetic);                               //!< As PsiMixtureSolution::update, with each interval's beta and anagenetic rate.
-        size_t                  getNumberOfComponents(void) const { return num_components; }
-        void                    at(double t, std::vector<double> &p, double &lambda_pbar) const;            //!< p of each component at age t, and int lambda (1-beta) pbar from the present up to t.
-        double                  lambdaPbarIntegral(double t0, double t1) const;                             //!< int lambda (1-beta) pbar between ages t0 <= t1.
+        size_t                  getNumberOfComponents(void) const override { return num_components; }
+        void                    at(double t, std::vector<double> &p, double &lambda_pbar) const override;            //!< p of each component at age t, and int lambda (1-beta) pbar from the present up to t.
+        double                  lambdaPbarIntegral(double t0, double t1) const override;                             //!< int lambda (1-beta) pbar between ages t0 <= t1.
         void                    sensitivity(double s, double t, const std::vector<size_t> &columns,
-                                            std::vector<double> &Q, std::vector<double> &Q_scale) const;    //!< Columns of Q = dp(t)/dp(s) for ages s <= t, each scaled by exp(Q_scale).
+                                            std::vector<double> &Q, std::vector<double> &Q_scale) const override;    //!< Columns of Q = dp(t)/dp(s) for ages s <= t, each scaled by exp(Q_scale).
 
     private:
         size_t                  findIndex(double t) const;

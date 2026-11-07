@@ -133,7 +133,8 @@ namespace RevBayesCore {
         virtual void                                    mixtureSymmetric(std::vector<double> &beta) const { beta.clear(); }  //!< Each interval's chance of symmetric speciation, empty where there is none.
         virtual void                                    mixtureAnagenetic(std::vector<double> &rate) const { rate.clear(); }  //!< Each interval's anagenetic rate, empty where there is none.
         virtual void                                    mixtureExtraLnProbs(size_t i, std::vector<double> &ln_probs) const {}  //!< Terms beside the ranges that depend on taxon i's component, by component.
-        void                                            mixtureAt(double t, std::vector<double> &p, double &lambda_pbar) const;  //!< The mixture solution's p and lambda integral, from whichever solver holds it.
+        const PsiMixtureSolver&                         mixtureSolver(void) const { if ( mixture_numeric_on == true ) return mixture_numeric; return mixture_solution; }  //!< The solver holding the mixture, closed form at beta = 0 and no anagenesis.
+        void                                            mixtureAt(double t, std::vector<double> &p, double &lambda_pbar) const;  //!< The mixture solution's p and lambda integral.
         void                                            mixtureSensitivity(double s, double t, const std::vector<size_t> &columns, std::vector<double> &Q, std::vector<double> &Q_scale) const;
         double                                          mixtureLambdaPbarIntegral(double t0, double t1) const;
         virtual double                                  rangeLnProb(size_t i);                                     //!< Birth-death density of range i.

@@ -244,6 +244,14 @@ double FossilTipTimeSlideUniformProposal::doProposal( void )
         }
     }
     
+    // moving a sampled ancestor moves its node, which would leave a sibling at its age behind
+    if ( node.isSampledAncestorTip() == true )
+    {
+        const TopologyNode &p = node.getParent();
+        const TopologyNode &sib = ( &p.getChild(0) == &node ? p.getChild(1) : p.getChild(0) );
+        if ( sib.hasZeroLengthBranch() == true ) throw RbException(RbException::SKIP_PROPOSAL);
+    }
+
     // Abort the move if we don't have a valid interval
     if (not (min_age < max_age))
         throw RbException(RbException::SKIP_PROPOSAL);

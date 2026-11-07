@@ -97,8 +97,8 @@ double WilsonBaldingProposal::doProposal( void )
 
     bool from_sampled_ancestor = sibling->isSampledAncestorTip();
 
-    // the reverse draws the parent's age on a branch, so it cannot restore one at its sampled ancestor's age
-    if ( grandparent->getAge() <= parent->getAge() )
+    // the reverse draws the parent's age on a branch
+    if ( parent->hasZeroLengthBranch() == true )
     {
         failed = true;
         return RbConstants::Double::neginf;

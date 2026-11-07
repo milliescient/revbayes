@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <vector>
 
+#include "PsiMixtureSolver.h"
+
 namespace RevBayesCore {
 
     /**
@@ -12,7 +14,7 @@ namespace RevBayesCore {
      * With p_h = y_h / z the system is linear, so each interval keeps its eigensystem and p,
      * int lambda pbar and Q = dp(t)/dp(s) are closed forms.
      */
-    class PsiMixtureSolution {
+    class PsiMixtureSolution : public PsiMixtureSolver {
 
     public:
         PsiMixtureSolution(void) = default;
@@ -20,11 +22,11 @@ namespace RevBayesCore {
         void                    update(const std::vector<double> &times, const std::vector<double> &lambda, const std::vector<double> &mu,
                                        const std::vector<double> &psi, const std::vector<double> &rates, const std::vector<double> &weights,
                                        double rho);                                                         //!< Solve the intervals whose rates changed and those older. times are the interval starts, the present first.
-        size_t                  getNumberOfComponents(void) const { return num_components; }
-        void                    at(double t, std::vector<double> &p, double &lambda_pbar) const;            //!< p of each component at age t, and int lambda pbar from the present up to t.
-        double                  lambdaPbarIntegral(double t0, double t1) const;                             //!< int lambda pbar between ages t0 <= t1.
+        size_t                  getNumberOfComponents(void) const override { return num_components; }
+        void                    at(double t, std::vector<double> &p, double &lambda_pbar) const override;            //!< p of each component at age t, and int lambda pbar from the present up to t.
+        double                  lambdaPbarIntegral(double t0, double t1) const override;                             //!< int lambda pbar between ages t0 <= t1.
         void                    sensitivity(double s, double t, const std::vector<size_t> &columns,
-                                            std::vector<double> &Q, std::vector<double> &Q_scale) const;    //!< Columns of Q = dp(t)/dp(s) for ages s <= t, each scaled by exp(Q_scale).
+                                            std::vector<double> &Q, std::vector<double> &Q_scale) const override;    //!< Columns of Q = dp(t)/dp(s) for ages s <= t, each scaled by exp(Q_scale).
 
     private:
 

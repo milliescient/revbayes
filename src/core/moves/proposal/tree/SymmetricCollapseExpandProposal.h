@@ -23,7 +23,8 @@ namespace RevBayesCore {
      * Geometry alone never puts two ages together, so this move maps the collapsed state to two buddings and a
      * tip and back. The expand picks D2 among B's children and draws t_B uniformly above D2 and t_s uniformly
      * above the present; the collapse is determined. The candidates are every extinct fossil tip, a number no
-     * move changes, so it cancels.
+     * move changes, so it cancels. Half the time it instead slides a collapsed state's age, A, B and i together,
+     * uniformly between B's older child and A's parent, which no other move does.
      *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (June Walker)
@@ -51,6 +52,7 @@ namespace RevBayesCore {
     private:
         double                                  collapse(TopologyNode &i);
         double                                  expand(TopologyNode &i);
+        double                                  slide(TopologyNode &i);
         void                                    rewire(TopologyNode &a, const std::vector<TopologyNode*> &a_kids, TopologyNode &b, const std::vector<TopologyNode*> &b_kids);
 
         StochasticNode<Tree>*                   tree;
@@ -65,6 +67,7 @@ namespace RevBayesCore {
         double                                  stored_b_age;
         double                                  stored_tip_age;
         bool                                    stored_sa;
+        bool                                    slid = false;
     };
 
 }

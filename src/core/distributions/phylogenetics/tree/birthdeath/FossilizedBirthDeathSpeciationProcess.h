@@ -95,7 +95,7 @@ namespace RevBayesCore {
         mutable int                                     cached_events_level = 0;                                 //!< 0 stale, 1 observed only, 2 hidden too
         struct Stem { double top; double end; long end_component; std::vector<double> source; };  //!< end_component -1: summed over
         Stem                                            stemOf(const TopologyNode &node, long s) const;          //!< The stem the branch above node lies on.
-        void                                            mixtureHiddenEvents(const std::vector<std::pair<double,double> > &spans, const std::vector<Stem> &stems, std::vector<double> &budding, std::vector<double> &bifurcation, std::vector<double> &anagenesis) const;  //!< hiddenEventIntegrals under the psi mixture, by forward-backward.
+        void                                            mixtureHiddenEvents(const std::vector<std::pair<double,double> > &spans, const std::vector<Stem> &stems, std::vector<double> &budding, std::vector<double> &bifurcation, std::vector<double> &anagenesis) const;  //!< hiddenEventIntegrals under the psi mixture, from the solver.
         void                                            hiddenEventIntegrals(const std::vector<std::pair<double,double> > &spans, std::vector<double> &budding, std::vector<double> &bifurcation, std::vector<double> &anagenesis) const;  //!< The hidden events that change a lineage's species, by mode.
 
     protected:

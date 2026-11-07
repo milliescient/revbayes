@@ -440,6 +440,7 @@ void PsiMixtureSolution::update( const std::vector<double> &times, const std::ve
                                  const std::vector<double> &psi, const std::vector<double> &rates, const std::vector<double> &weights,
                                  double rho )
 {
+    setRates( times, lambda, mu, psi, rates, weights, std::vector<double>(), std::vector<double>() );
     size_t N = times.size();
 
     // a change in what every interval shares solves them all again
