@@ -1050,12 +1050,12 @@ void FossilizedBirthDeathSpeciationProcess::simulateClade(std::vector<TopologyNo
 
             double present = times.front();
 
-            n[i]->setAge( extinct * rng->uniform01() * (n[i]->getTaxon().getMinAge() - present) + present );
+            n[i]->setAge( extinct * rng->uniform01() * (n[i]->getTaxon().getAgeRange()->getMin() - present) + present );
 
             size_t j = find(taxa.begin(), taxa.end(), n[i]->getTaxon()) - taxa.begin();
 
             double minmax = std::max(ranges[i].first_min, n[i]->getAge());
-            ranges[j].first = GLOBAL_RNG->uniform01()*(std::min(max_age, taxa[i].getMaxAge()) - minmax) + minmax;
+            ranges[j].first = GLOBAL_RNG->uniform01()*(std::min(max_age, taxa[i].getAgeRange()->getMax()) - minmax) + minmax;
         }
 
         double first_occurrence = getMaxTaxonAge( *n[i] );

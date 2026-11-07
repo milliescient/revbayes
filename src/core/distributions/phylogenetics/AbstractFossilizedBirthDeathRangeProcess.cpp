@@ -221,6 +221,11 @@ void AbstractFossilizedBirthDeathRangeProcess::updateRecord( void )
 {
     record_terms.clear();
 
+    for ( size_t i = 0; i < taxa.size(); i++ )
+    {
+        if ( taxa[i].getAgeRange().has_value() == false ) throw RbException() << "Taxon '" << taxa[i].getName() << "' needs an age range.";
+    }
+
     // sampled ages survive a re-derive
     for ( size_t i = 0; i < taxa.size(); i++ )
     {
@@ -254,8 +259,8 @@ void AbstractFossilizedBirthDeathRangeProcess::updateRecord( void )
 
         ranges[i].singleton = ( count < 2 );
 
-        ranges[i].first_max = taxa[i].getMaxAge();
-        ranges[i].last_min  = taxa[i].getMinAge();
+        ranges[i].first_max = taxa[i].getAgeRange()->getMax();
+        ranges[i].last_min  = taxa[i].getAgeRange()->getMin();
 
         ranges[i].last = ranges[i].last_max;
     }
@@ -366,8 +371,8 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnProbabilityRanges( boo
 
         double o = ranges[i].first;
 
-        double max_age = taxa[i].getMaxAge();
-        double min_age = taxa[i].getMinAge();
+        double max_age = taxa[i].getAgeRange()->getMax();
+        double min_age = taxa[i].getAgeRange()->getMin();
 
         double present = times.front();
 
@@ -434,7 +439,7 @@ double AbstractFossilizedBirthDeathRangeProcess::rangeLnProb( size_t i )
     }
 
     // skip the rest for extant taxa with no fossil samples
-    if ( taxa[i].getMaxAge() == present )
+    if ( taxa[i].getAgeRange()->getMax() == present )
     {
         return lnProb;
     }
@@ -636,7 +641,7 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilTotal()
         num_rho_unsampled += ( taxa[i].isExtinct() && ranges[i].survived && marginalizesExtinction() == false );    // n - m - l
 
         // an extant taxon with no fossil sample carries no reporting term
-        if ( taxa[i].getMaxAge() == times.front() ) continue;
+        if ( taxa[i].getAgeRange()->getMax() == times.front() ) continue;
 
         RecordTerm &c = record_terms[i];
         const RangeEntry &e = ranges[i];
@@ -1200,7 +1205,7 @@ void AbstractFossilizedBirthDeathRangeProcess::initializeFirstLast(size_t i)
     // within its reported bin, and above the death unless that is marginalized
     if ( augment_youngest )
     {
-        lo = marginalizesExtinction() ? taxa[i].getMinAge() : std::max( ranges[i].death, taxa[i].getMinAge() );
+        lo = marginalizesExtinction() ? taxa[i].getAgeRange()->getMin() : std::max( ranges[i].death, taxa[i].getAgeRange()->getMin() );
         hi = std::min( ranges[i].last_max, ranges[i].divergence );
         ranges[i].last = ( hi > lo ) ? rng->uniform01()*(hi - lo) + lo : lo;
     }
@@ -1342,7 +1347,7 @@ void AbstractFossilizedBirthDeathRangeProcess::resampleFirstLast(size_t i)
     // a single reported occurrence is its own youngest
     if ( ranges[i].singleton == false )
     {
-        ranges[i].last = GLOBAL_RNG->uniform01()*(ranges[i].last_max - taxa[i].getMinAge()) + taxa[i].getMinAge();
+        ranges[i].last = GLOBAL_RNG->uniform01()*(ranges[i].last_max - taxa[i].getAgeRange()->getMin()) + taxa[i].getAgeRange()->getMin();
     }
     else
     {
@@ -1360,7 +1365,7 @@ void AbstractFossilizedBirthDeathRangeProcess::resampleFirstLast(size_t i)
 double AbstractFossilizedBirthDeathRangeProcess::switchSingleton(size_t i)
 {
     double y     = ranges[i].last;
-    double width = std::min( taxa[i].getMaxAge(), ranges[i].divergence ) - y;
+    double width = std::min( taxa[i].getAgeRange()->getMax(), ranges[i].divergence ) - y;
 
     if ( width <= 0.0 ) return RbConstants::Double::neginf;
 
@@ -1392,7 +1397,7 @@ void AbstractFossilizedBirthDeathRangeProcess::drawRanges()
     double max = 0;
     for (size_t i = 0; i < taxa.size(); i++)
     {
-        double o = taxa[i].getMaxAge();
+        double o = taxa[i].getAgeRange()->getMax();
         if ( RbMath::isFinite(o) == false )
         {
             o = 0.0;
@@ -1775,7 +1780,7 @@ void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, st
     }
 
     // extant taxa with no fossil samples end at their oldest appearance, the present
-    if ( taxa[i].getMaxAge() == times.front() ) return;
+    if ( taxa[i].getAgeRange()->getMax() == times.front() ) return;
 
     double lambda_pbar_d = 0.0;
     mixture_solution.at( d, p, lambda_pbar_d );
@@ -1831,7 +1836,7 @@ std::vector<double> AbstractFossilizedBirthDeathRangeProcess::psiMixtureComponen
         }
     }
 
-    if ( has_reporting_node == true && taxa[i].getMaxAge() != times.front() )
+    if ( has_reporting_node == true && taxa[i].getAgeRange()->getMax() != times.front() )
     {
         for (size_t h = 0; h < num_components; h++)
         {

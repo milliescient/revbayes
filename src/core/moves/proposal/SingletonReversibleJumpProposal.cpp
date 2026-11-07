@@ -46,7 +46,7 @@ void SingletonReversibleJumpProposal::collectEligible( void )
         size_t count = 0;
         for ( const auto &F : taxa[i].getOccurrences() ) count += F.second;
 
-        if ( count == 1 && taxa[i].getMinAge() < taxa[i].getMaxAge() ) eligible.push_back( i );
+        if ( count == 1 && taxa[i].getAgeRange()->getMin() < taxa[i].getAgeRange()->getMax() ) eligible.push_back( i );
     }
 
     rangeProcess().setHasSingletonMove();
