@@ -28,6 +28,9 @@ using namespace RevBayesCore;
  */
 double RbStatistics::Poisson::pdf(double lambda, int x) {
     
+    // a point mass at zero, where x log(lambda) would be 0 * -inf
+    if (lambda == 0.0) return (x == 0 ? 1.0 : 0.0);
+
     if (x <= 20) {
         return exp(x * std::log(lambda) - lambda) / RbConstants::N_FACTORIAL[x];
     } else {
@@ -47,6 +50,9 @@ double RbStatistics::Poisson::pdf(double lambda, int x) {
  */
 double RbStatistics::Poisson::lnPdf(double lambda, int x) {
     
+    // a point mass at zero, where x log(lambda) would be 0 * -inf
+    if (lambda == 0.0) return (x == 0 ? 0.0 : RbConstants::Double::neginf);
+
     return ( x * std::log(lambda) - lambda - RbMath::lnFactorial(x) );
 }
 
