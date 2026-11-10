@@ -1588,6 +1588,9 @@ void AbstractFossilizedBirthDeathRangeProcess::touchSpecialization(const DagNode
         stored_ranges = ranges;
     }
 
+    // a full touch, as after a restore, says nothing cached can be trusted
+    if ( touchAll == true ) dirty_taxa.assign( taxa.size(), true );
+
     touched = true;
 }
 

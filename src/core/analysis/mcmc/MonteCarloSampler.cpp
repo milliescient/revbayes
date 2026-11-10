@@ -333,10 +333,10 @@ void MonteCarloSampler::baseInitializeSamplerFromCheckpoint( void )
         }
     }
 
-    // We need to touch these so that their probabilities get recomputed.
+    // We need to touch these so that their probabilities get recomputed, all of them, since a restore says nothing about which parts moved.
     for (auto& node: nodes)
     {
-        node->touch();
+        node->touch( true );
     }
     
     // Next we also parse the information stored in the *_moves checkpoint file

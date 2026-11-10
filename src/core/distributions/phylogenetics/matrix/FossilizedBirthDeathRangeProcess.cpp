@@ -183,7 +183,11 @@ void FossilizedBirthDeathRangeProcess::setHiddenStateFromString( const std::stri
     // the singleton status ties the appearances when the value is set
     for (size_t i = 0; i < taxa.size(); ++i) ranges[i].singleton = j["singleton"][i].get<bool>();
 
+    // the saved births already agree with the saved origin, which may not be restored yet
+    bool weld = weld_origin;
+    weld_origin = false;
     setValue( m );
+    weld_origin = weld;
 
     for (size_t i = 0; i < taxa.size(); ++i) ranges[i].survived = j["survived"][i].get<bool>();
 
@@ -198,6 +202,10 @@ void FossilizedBirthDeathRangeProcess::setHiddenStateFromString( const std::stri
             ranges[i].component = k;
         }
     }
+
+    // the statuses and components arrived after the value, so no term computed before them stands
+    dirty_taxa.assign( taxa.size(), true );
+    dirty_gamma.assign( taxa.size(), true );
 }
 
 
@@ -422,6 +430,13 @@ void FossilizedBirthDeathRangeProcess::touchSpecialization(const DagNode *touche
             }
 
             repairRanges( touched_indices );
+        }
+
+        // a full touch, as after a restore, says nothing cached can be trusted
+        if ( touchAll == true )
+        {
+            dirty_taxa.assign( taxa.size(), true );
+            dirty_gamma.assign( taxa.size(), true );
         }
 
         touched = true;
