@@ -1044,6 +1044,31 @@ double AbstractFossilizedBirthDeathRangeProcess::meanOrigination( size_t i ) con
 }
 
 
+/**
+ * p at dt above the start of an interval where it is pi, for rates b, d, f there and sampling r at its start.
+ * Since (c - A)/(2b) = 2d/(c + A), b appears in no denominator, so the form holds at b = 0.
+ */
+static double closedFormP( double b, double d, double f, double r, double pi, double dt )
+{
+    double diff = b - d - f;
+    double A = sqrt( diff*diff + 4.0*b*f );
+
+    // b == d leaves the closed form singular
+    if ( A < 1E-10 )
+    {
+        double s = 1.0 - (1.0 - r)*pi;
+        return 1.0 - s/(1.0 + b*s*dt);
+    }
+
+    double B = ( (1.0 - 2.0*(1.0-r)*pi )*b + d + f ) / A;
+    double e = exp( -A*dt );
+    double tmp = (1.0 + B) + e*(1.0 - B);
+    double root = 2.0*d/(b + d + f + A);
+
+    return root + e/tmp * ( 2.0*(1.0-r)*pi - 2.0*root );
+}
+
+
 /** p_i(t) */
 double AbstractFossilizedBirthDeathRangeProcess::p( size_t i, double t, bool survival ) const
 {
@@ -1055,26 +1080,7 @@ double AbstractFossilizedBirthDeathRangeProcess::p( size_t i, double t, bool sur
     double r = (i == 0 ? homogeneous_rho->getValue() : 0.0);
     double ti = times[i];
     
-    double diff = b - d - f;
-    double dt   = t - ti;
-
-    double A = sqrt( diff*diff + 4.0*b*f);
-
-    // b == d leaves the closed form singular
-    if ( A < 1E-10 )
-    {
-        double s = 1.0 - (1.0 - r)*pi;
-
-        return 1.0 - s/(1.0 + b*s*dt);
-    }
-
-    double B = ( (1.0 - 2.0*(1.0-r)*pi )*b + d + f ) / A;
-
-    double ln_e = -A*dt;
-
-    double tmp = (1.0 + B) + exp(ln_e)*(1.0 - B);
-
-    return (b + d + f - A * ((1.0+B)-exp(ln_e)*(1.0-B))/tmp)/(2.0*b);
+    return closedFormP( b, d, f, r, pi, t - ti );
 }
 
 
@@ -1684,32 +1690,12 @@ void AbstractFossilizedBirthDeathRangeProcess::prepareProbComputation( void ) co
 
             q_i[i]       = log(4.0) + ln_e - 2.0*log(tmp);
             q_tilde_i[i] = 0.5 * ( q_i[i] - (b+d+f)*dt );
-            p_i[i+1]       = (b + d + f - A * ((1.0+B)-exp(ln_e)*(1.0-B))/tmp)/(2.0*b);
+            p_i[i+1]       = closedFormP( b, d, f, r, p_i[i], dt );
 
             if ( condition == "survival" )
             {
                 // survival ignores fossil sampling
-                diff = b - d;
-
-                A = fabs( diff );
-
-                double s = 1.0 - (1.0 - r)*pS_i[i];
-
-                if ( A < 1E-10 )
-                {
-                    // b == d leaves the closed form singular
-                    pS_i[i+1] = 1.0 - s/(1.0 + b*s*dt);
-                }
-                else
-                {
-                    B = ( (1.0 - 2.0*(1.0-r)*pS_i[i] )*b + d ) / A;
-
-                    ln_e = -A*dt;
-
-                    tmp = (1.0 + B) + exp(ln_e)*(1.0 - B);
-
-                    pS_i[i+1] = (b + d - A * ((1.0+B)-exp(ln_e)*(1.0-B))/tmp)/(2.0*b);
-                }
+                pS_i[i+1] = closedFormP( b, d, 0.0, r, pS_i[i], dt );
             }
         }
     }
