@@ -57,7 +57,7 @@ namespace RevBayesCore {
         StochasticNode< RbVector<Tree> >*       vector_variable;                                                    //!< The alternative variable the proposal is working on
 
         // stored objects to undo proposal
-        bool                                    failed;
+        bool                                    failed = false;
         size_t                                  tree_index;
         TopologyNode*                           storedBrother;
         TopologyNode*                           storedNewBrother;

@@ -47,23 +47,23 @@ namespace RevBayesCore {
         bool                                    symmetric;                                  //!< Whether a regrafted node may also be symmetric, continuing neither child
 
         // stored state to undo the proposal
-        bool                                    failed;
-        TopologyNode*                           node;               // i
-        TopologyNode*                           parent;             // iP
-        TopologyNode*                           sibling;            // CiP
-        TopologyNode*                           grandparent;        // PiP
-        TopologyNode*                           target;             // k
-        TopologyNode*                           target_parent;      // k's parent in the pruned tree
-        size_t                                  pos_parent;
-        size_t                                  pos_sibling;
-        size_t                                  pos_target;
-        double                                  stored_age;
-        bool                                    stored_node_continues;
-        bool                                    stored_sibling_continues;
-        bool                                    stored_parent_continues;
-        bool                                    stored_target_continues;
-        bool                                    stored_sibling_sa;
-        bool                                    stored_target_sa;
+        bool                                    failed = false;
+        TopologyNode*                           node = NULL;               // i
+        TopologyNode*                           parent = NULL;             // iP
+        TopologyNode*                           sibling = NULL;            // CiP
+        TopologyNode*                           grandparent = NULL;        // PiP
+        TopologyNode*                           target = NULL;             // k
+        TopologyNode*                           target_parent = NULL;      // k's parent in the pruned tree
+        size_t                                  pos_parent = 0;
+        size_t                                  pos_sibling = 0;
+        size_t                                  pos_target = 0;
+        double                                  stored_age = 0.0;
+        bool                                    stored_node_continues = false;
+        bool                                    stored_sibling_continues = false;
+        bool                                    stored_parent_continues = false;
+        bool                                    stored_target_continues = false;
+        bool                                    stored_sibling_sa = false;
+        bool                                    stored_target_sa = false;
     };
 
 }

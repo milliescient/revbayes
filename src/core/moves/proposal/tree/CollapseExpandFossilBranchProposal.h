@@ -54,9 +54,9 @@ namespace RevBayesCore {
         TypedDagNode<double>*                   origin;                                                       //!< The variable the Proposal is working on
         
         // stored objects to undo proposal
-        TopologyNode*                           storedNode;
-        double                                  storedAge;
-        bool                                    failed;
+        TopologyNode*                           storedNode = NULL;
+        double                                  storedAge = 0.0;
+        bool                                    failed = false;
         bool                                    orients = false;                                                //!< On a dnFBDSP tree, the flags pair a budding's orientation with a successor's mode
         bool                                    storedFlag = false;
         const FossilizedBirthDeathSpeciationProcess* fbdsp = NULL;
