@@ -1223,10 +1223,30 @@ void AbstractFossilizedBirthDeathRangeProcess::initializeFirstLast(size_t i)
 /** Without mvStratigraphicRange the appearances never move; warn once. */
 void AbstractFossilizedBirthDeathRangeProcess::warnIfNoResampleMove( void ) const
 {
-    if ( has_resample_move == false && warned_no_resample == false )
+    if ( has_resample_move == true || warned_no_resample == true ) return;
+
+    // exact appearances leave the move nothing to sample
+    bool slack = false;
+    for (size_t i = 0; i < taxa.size() && slack == false; i++)
+    {
+        slack = ( ranges[i].first_min < ranges[i].first_max || ranges[i].last_min < ranges[i].last_max );
+    }
+
+    if ( slack == true )
     {
         warned_no_resample = true;
         RBOUT("Warning: no mvStratigraphicRange move. Appearances will not be sampled.");
+    }
+}
+
+
+/** Only mvPsiMixtureAllocation changes a species' psi component; warn once. */
+void AbstractFossilizedBirthDeathRangeProcess::warnIfNoAllocationMove( void ) const
+{
+    if ( num_components > 1 && has_allocation_move == false && warned_no_allocation == false )
+    {
+        warned_no_allocation = true;
+        RBOUT("Warning: no mvPsiMixtureAllocation move. Psi components will not be sampled.");
     }
 }
 

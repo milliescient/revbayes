@@ -36,6 +36,15 @@ CollapseExpandFossilBranchProposal::CollapseExpandFossilBranchProposal( Stochast
     addNode( origin );
     const TreeDistributionProperties *props = dynamic_cast<const TreeDistributionProperties *>( &tau->getDistribution() );
     if ( props == NULL || props->allowsSampledAncestors() == false ) throw RbException("Setup includes a move for sampled ancestors but the corresponding tree distribution doesn't allow sampled ancestors");
+    registerMove();
+}
+
+
+/** Tell a dnFBDSP its sampled ancestors have a move, on construction and on each model copy. */
+void CollapseExpandFossilBranchProposal::registerMove( void )
+{
+    const FossilizedBirthDeathSpeciationProcess *f = dynamic_cast<const FossilizedBirthDeathSpeciationProcess *>( &unconstrained( tau->getDistribution() ) );
+    if ( f != NULL ) const_cast<FossilizedBirthDeathSpeciationProcess *>( f )->setHasSampledAncestorMove();
 }
 
 
@@ -349,6 +358,7 @@ void CollapseExpandFossilBranchProposal::swapNodeInternal(DagNode *oldN, DagNode
     if ( oldN == tau )
     {
         tau = static_cast<StochasticNode<Tree>* >(newN) ;
+        registerMove();
     }
     else if ( oldN == origin )
     {

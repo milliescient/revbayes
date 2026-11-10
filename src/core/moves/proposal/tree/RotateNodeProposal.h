@@ -46,6 +46,7 @@ namespace RevBayesCore {
     protected:
 
         void                                    swapNodeInternal(DagNode *oldN, DagNode *newN);                 //!< Swap the DAG nodes on which the Proposal is working on
+        void                                    registerMove(void);                                            //!< Tell a dnFBDSP this move attaches
 
     private:
 

@@ -22,6 +22,7 @@ RotateNodeProposal::RotateNodeProposal( StochasticNode<Tree> *n ) : Proposal(),
     failed( false )
 {
     addNode( tree );
+    registerMove();
 }
 
 
@@ -158,7 +159,16 @@ void RotateNodeProposal::swapNodeInternal(DagNode *oldN, DagNode *newN)
     if ( oldN == tree )
     {
         tree = static_cast<StochasticNode<Tree>* >(newN);
+        registerMove();
     }
+}
+
+
+/** Tell a dnFBDSP its modes have a move, on construction and on each model copy. */
+void RotateNodeProposal::registerMove( void )
+{
+    FossilizedBirthDeathSpeciationProcess *fbdsp = dynamic_cast<FossilizedBirthDeathSpeciationProcess *>( &unconstrained( tree->getDistribution() ) );
+    if ( fbdsp != NULL ) fbdsp->setHasModeMove();
 }
 
 

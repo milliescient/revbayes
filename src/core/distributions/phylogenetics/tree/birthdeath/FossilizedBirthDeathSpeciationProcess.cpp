@@ -727,6 +727,20 @@ void FossilizedBirthDeathSpeciationProcess::setMcmcMode(bool tf)
     if ( tf == true ) warnIfInertNTaxaCondition();
     if ( tf == true ) warnIfNoSurvivalMove();
     if ( tf == true ) warnIfNoSingletonMove();
+    if ( tf == true ) warnIfNoAllocationMove();
+    if ( tf == false ) return;
+
+    // only mvSpeciationMode changes which child continues, and only a fossil-branch move makes or removes a sampled ancestor
+    if ( taxa.size() > 1 && has_mode_move == false && warned_no_mode == false )
+    {
+        warned_no_mode = true;
+        RBOUT("Warning: no mvSpeciationMode move. Speciation modes will not be sampled.");
+    }
+    if ( ( hasAnagenesis() == true || hasSymmetricSpeciation() == true ) && has_sampled_ancestor_move == false && warned_no_sampled_ancestor == false )
+    {
+        warned_no_sampled_ancestor = true;
+        RBOUT("Warning: no mvCollapseExpandFossilBranch move. Sampled ancestors will not be sampled.");
+    }
 }
 
 

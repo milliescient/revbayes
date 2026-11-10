@@ -42,6 +42,7 @@ namespace RevBayesCore {
     protected:
         
         void                                    swapNodeInternal(DagNode *oldN, DagNode *newN);               //!< Swap the DAG nodes the Proposal is working on
+        void                                    registerMove(void);                                            //!< Tell a dnFBDSP this move attaches
         
         double                                  collapseBranch(TopologyNode &n);
         double                                  expandBranch(TopologyNode &n);

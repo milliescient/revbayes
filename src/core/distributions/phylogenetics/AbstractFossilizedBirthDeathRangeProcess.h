@@ -97,6 +97,7 @@ namespace RevBayesCore {
         void                                            setHasResampleMove(void) { has_resample_move = true; }       //!< Registered by mvStratigraphicRange.
         void                                            setHasReportingNode(void) { has_reporting_node = true; }     //!< Registered by dnFossilRecord.
         void                                            setHasSurvivalMove(void) { has_survival_move = true; }       //!< Registered by mvExtinctionRJSwitch.
+        void                                            setHasAllocationMove(void) { has_allocation_move = true; }   //!< Registered by mvPsiMixtureAllocation.
         void                                            setHasSingletonMove(void) { has_singleton_move = true; }     //!< Registered by mvSingletonRJSwitch.
 
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const;   //!< Expose the appearances and the origination/extinction times.
@@ -118,6 +119,7 @@ namespace RevBayesCore {
         void                                            warnIfNoReportingNode(void) const;                          //!< Warn once when psi has no data.
         void                                            warnIfInertNTaxaCondition(void) const;                      //!< Warn once when rho leaves nTaxa conditioning inert.
         void                                            warnIfNoSurvivalMove(void) const;                           //!< Warn once when rho < 1 and no move samples survival.
+        void                                            warnIfNoAllocationMove(void) const;                         //!< Warn once when a psi mixture's components have no move.
         void                                            warnIfNoSingletonMove(void) const;                          //!< Warn once when a presence record has one occurrence and no move samples singleton status.
         void                                            initializeFirstLast(size_t i);                              //!< Draw taxon i's appearances, nested within the range and its reported bins.
         void                                            drawRanges();                                               //!< Draw an initial range and appearances for every taxon.
@@ -273,11 +275,13 @@ namespace RevBayesCore {
         bool                                            has_reporting_node = false;                             //!< Set by dnFossilRecord when it attaches.
         bool                                            has_survival_move = false;                              //!< Set by mvExtinctionRJSwitch when it attaches.
         bool                                            has_singleton_move = false;                             //!< Set by mvSingletonRJSwitch when it attaches.
+        bool                                            has_allocation_move = false;                            //!< Set by mvPsiMixtureAllocation when it attaches.
         mutable bool                                    warned_no_resample = false;
         mutable bool                                    warned_no_reporting = false;
         mutable bool                                    warned_inert_ntaxa = false;
         mutable bool                                    warned_no_survival = false;
         mutable bool                                    warned_no_singleton = false;
+        mutable bool                                    warned_no_allocation = false;
         bool                                            resampled;                                              //!< The appearance undo is armed.
         double                                          present_time = 0.0;                                     //!< The present, where the timeline starts.
     };
