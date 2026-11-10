@@ -106,6 +106,7 @@ namespace RevBayesCore {
         void                                            mixtureSymmetric(std::vector<double> &beta) const override;
         void                                            mixtureAnagenetic(std::vector<double> &rate) const override;
         double                                          observedRangeRate(size_t j) const override { return anagenetic[j]; }  //!< No anagenesis inside an observed range.
+        bool                                            chargesBirth(size_t i) const override;                   //!< A successor begins at its sampled ancestor, not by a speciation.
         void                                            appendIntervalRates(size_t j, std::vector<double> &v) const override;
 
         void                                            repairRanges(void) override;                             //!< Re-take from the tip what a tree move carries there.
@@ -125,7 +126,7 @@ namespace RevBayesCore {
 
         //!< A range no taxon samples, from where it began to the symmetric speciation that ended it.
         enum class RangeStart { SPECIATION, SAMPLED_ANCESTOR };
-        struct UnsampledRange { double top; double end; RangeStart start; bool anagenetic; };  //!< anagenetic: begun at a sampled ancestor by anagenesis
+        struct UnsampledRange { double top; double end; RangeStart start; bool anagenetic; bool at_origin = false; };  //!< anagenetic: begun at a sampled ancestor by anagenesis; at_origin: starts the process
         double                                          speciationModeLnProb(void) const;                        //!< The mode of each speciation, and the ranges no taxon samples.
         double                                          unsampledMixtureLnProb(const UnsampledRange &r, const std::vector<double> &source) const;  //!< An unsampled range's path under the mixture, starting in source.
 

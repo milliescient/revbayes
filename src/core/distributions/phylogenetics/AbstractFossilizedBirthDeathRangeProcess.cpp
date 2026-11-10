@@ -390,10 +390,10 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnProbabilityRanges( boo
             partial_likelihood[i] = rangeLnProb( i );
         }
 
+        // outside the cache, since which range begins at the origin can change without touching it
         lnProb += partial_likelihood[i];
+        if ( chargesBirth( i ) == true ) lnProb += log( birth[ findIndex(b) ] );
     }
-
-    lnProb += originLnProb();
 
     lnProb += conditionLnProb();
 
@@ -426,11 +426,8 @@ double AbstractFossilizedBirthDeathRangeProcess::rangeLnProb( size_t i )
     size_t oi = findIndex(o);
     size_t di = findIndex(d);
 
-    // include speciation density
-    double lnProb = log( birth[bi] );
-
-    // multiply by q at the birth time
-    lnProb += q(bi, b);
+    // the speciation rate is charged by the caller
+    double lnProb = q(bi, b);
 
     // include intermediate q terms
     for (size_t j = oi; j < bi; j++)
@@ -465,10 +462,10 @@ double AbstractFossilizedBirthDeathRangeProcess::rangeLnProb( size_t i )
 }
 
 
-/** The oldest birth starts the record, so its speciation rate divides out. */
-double AbstractFossilizedBirthDeathRangeProcess::originLnProb( void )
+/** The range that begins at the origin starts the process rather than speciating, so it pays no rate. */
+bool AbstractFossilizedBirthDeathRangeProcess::chargesBirth( size_t i ) const
 {
-    return -log( birth[ findIndex(origin) ] );
+    return i != max_birth || origin_unsampled == true;
 }
 
 
@@ -1807,7 +1804,7 @@ void AbstractFossilizedBirthDeathRangeProcess::mixtureRangeLnProbs( size_t i, st
         double s = 0.0;
         for (size_t e = 0; e < H; e++) s += (*source)[e] * Q[c*H + e];
 
-        ln_probs[ columns[c] ] = log( birth[bi] ) + log(s) + Q_scale[c];
+        ln_probs[ columns[c] ] = log(s) + Q_scale[c];
     }
 
     // extant taxa with no fossil samples end at their oldest appearance, the present

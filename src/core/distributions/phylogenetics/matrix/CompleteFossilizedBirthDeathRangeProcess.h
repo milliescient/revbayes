@@ -30,7 +30,7 @@ namespace RevBayesCore {
 
     protected:
         double                                          rangeLnProb(size_t i) override;                             //!< Exponential waiting and a Poisson record, with no p(t).
-        double                                          originLnProb(void) override;                                //!< Applies only with a given origin.
+        bool                                            chargesBirth(size_t i) const override;                      //!< The oldest birth pays too, unless the origin is given.
         double                                          conditionLnProb(void) const override;                       //!< The ranges carry the sampling conditioning themselves.
         double                                          lnOriginationSurvival(size_t i, double t) const override;   //!< Nothing collapses, so the origination is the birth time.
 

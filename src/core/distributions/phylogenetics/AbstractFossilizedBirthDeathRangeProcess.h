@@ -140,7 +140,7 @@ namespace RevBayesCore {
         void                                            mixtureAt(double t, std::vector<double> &p, double &lambda_pbar) const;  //!< The mixture solution's p and lambda integral.
         void                                            mixtureSensitivity(double s, double t, const std::vector<size_t> &columns, std::vector<double> &Q, std::vector<double> &Q_scale) const;
         virtual double                                  rangeLnProb(size_t i);                                     //!< Birth-death density of range i.
-        virtual double                                  originLnProb(void);                                        //!< Terms attaching to the origin rather than to a range.
+        virtual bool                                    chargesBirth(size_t i) const;                              //!< Whether range i began with a speciation, whose rate it pays.
         virtual double                                  conditionLnProb(void) const;                               //!< The conditioning normalization, where it applies to the process as a whole.
 
         virtual void                                    repairRanges(void) {}                                       //!< Re-establish the invariants this process's own moves can break.

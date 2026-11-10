@@ -208,7 +208,7 @@ double FossilizedBirthDeathSpeciationProcess::speciationModeLnProb( void ) const
             lnProb += lnQFromPresent( ti, r.top ) - lnQFromPresent( ei, r.end );
         }
 
-        if ( r.start == RangeStart::SPECIATION ) lnProb += log( birth[ti] );
+        if ( r.start == RangeStart::SPECIATION && r.at_origin == false ) lnProb += log( birth[ti] );
 
         // the ancestor's end was charged mu, as computeLnProbabilityTimes cancels for a taxon
         if ( r.start == RangeStart::SAMPLED_ANCESTOR )
@@ -223,6 +223,13 @@ double FossilizedBirthDeathSpeciationProcess::speciationModeLnProb( void ) const
 }
 
 
+/** A successor's range began where its sampled ancestor's ended, which its mode pays for in computeLnProbabilityTimes. */
+bool FossilizedBirthDeathSpeciationProcess::chargesBirth( size_t i ) const
+{
+    return species[i].parent_is_sa == false && AbstractFossilizedBirthDeathRangeProcess::chargesBirth( i );
+}
+
+
 /**
  * Compute the log-transformed probability of the current value under the current parameter values.
  *
@@ -232,7 +239,7 @@ double FossilizedBirthDeathSpeciationProcess::computeLnProbabilityTimes( void ) 
     double lnProb = 0.0;
 
     // a successor's range began where its sampled ancestor's ended, by anagenesis or by a symmetric speciation
-    // whose other daughter left no sample, as its flag says; this cancels the ancestor's mu and the successor's lambda
+    // whose other daughter left no sample, as its flag says; this cancels the ancestor's mu, and chargesBirth spares the successor a lambda
     for (size_t i = 0; i < taxa.size(); i++)
     {
         if ( species[i].parent_is_sa == false ) continue;
@@ -241,7 +248,7 @@ double FossilizedBirthDeathSpeciationProcess::computeLnProbabilityTimes( void ) 
         size_t yi = findIndex( y );
         double r_ana, r_sym;
         successorRates( y, r_ana, r_sym );
-        lnProb += log( species[i].sa_anagenetic ? r_ana : r_sym ) - log( birth[yi] ) - log( death[yi] );
+        lnProb += log( species[i].sa_anagenetic ? r_ana : r_sym ) - log( death[yi] );
     }
 
     return lnProb;
@@ -1898,7 +1905,7 @@ void FossilizedBirthDeathSpeciationProcess::updateRanges( void )
 
     // the range that begins at the origin may be one no taxon samples
     origin_unsampled = ( invalid_continuation == false && root.isTip() == false && top.species < 0 );
-    if ( origin_unsampled == true ) unsampled.push_back( UnsampledRange{ getOriginAge(), top.end_age, RangeStart::SPECIATION, false } );
+    if ( origin_unsampled == true ) unsampled.push_back( UnsampledRange{ getOriginAge(), top.end_age, RangeStart::SPECIATION, false, true } );
 
     // an entry that moved is dirty
     for (size_t i = 0; i < taxa.size(); ++i)

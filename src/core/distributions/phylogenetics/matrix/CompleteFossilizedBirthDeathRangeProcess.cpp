@@ -54,12 +54,10 @@ double CompleteFossilizedBirthDeathRangeProcess::conditionLnProb( void ) const
 }
 
 
-/** Only a given start divides a speciation rate back out, as PyRate's oldest interval does. */
-double CompleteFossilizedBirthDeathRangeProcess::originLnProb( void )
+/** Only a given start spares the oldest birth its speciation rate, as PyRate's oldest interval does. */
+bool CompleteFossilizedBirthDeathRangeProcess::chargesBirth( size_t i ) const
 {
-    if ( origin_age == NULL ) return 0.0;
-
-    return FossilizedBirthDeathRangeProcess::originLnProb();
+    return origin_age == NULL || FossilizedBirthDeathRangeProcess::chargesBirth( i );
 }
 
 
@@ -72,8 +70,8 @@ double CompleteFossilizedBirthDeathRangeProcess::rangeLnProb( size_t i )
     size_t bi = findIndex(b);
     size_t di = findIndex(d);
 
-    // include speciation density
-    double lnProb = log( birth[bi] );
+    // the speciation rate is charged by the caller
+    double lnProb = 0.0;
 
     // include extinction density
     if ( ranges[i].survived == false ) lnProb += log( death[di] );
