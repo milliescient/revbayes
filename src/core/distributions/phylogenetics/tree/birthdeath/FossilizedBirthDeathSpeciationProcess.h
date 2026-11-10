@@ -82,6 +82,7 @@ namespace RevBayesCore {
         bool                                            continuesRange(const TopologyNode &n) const;                        //!< n carries its parent's range on.
         bool                                            hasFreeSuccessorModes(void) const;                                  //!< A successor's flag may take either value.
         void                                            simulateClade(std::vector<TopologyNode *> &n, double age, double present, bool alwaysReturn) override;
+        double                                          simulateCladeAge(size_t n, double origin, double present, double min, bool alwaysReturn) const override;
         bool                                            allowsSampledAncestors(void) const override { return true; }        //!< The density rejects them where lambda_a = 0.
         bool                                            tracksSpeciesContinuation(void) const override { return true; }
         std::vector<double>                             anageneticIntegrals(const std::vector<std::pair<double,double> > &spans) const;        //!< int lambda_a dt over each span, the anagenetic part of the above.
@@ -143,7 +144,6 @@ namespace RevBayesCore {
         double                                          q(size_t i, double t, bool tilde = false) const override;
 
         double                                          simulateDivergenceTime(double origin, double present) const override;    //!< Simulate a speciation event.
-        std::vector<double>                             simulateDivergenceTimes(size_t n, double origin, double present, double min, bool alwaysReturn) const override;                 //!< Simulate n speciation events.
 
         void                                            keepSpecialization(const DagNode *toucher) override;
         void                                            restoreSpecialization(const DagNode *toucher) override;
@@ -158,6 +158,7 @@ namespace RevBayesCore {
         
         // helper functions
         double                                          getMaxTaxonAge( const TopologyNode& ) const;
+        TopologyNode*                                   joinSubtrees(const std::vector<TopologyNode*> &units, double ceiling) const;  //!< One root over these subtrees, by budding and symmetric speciation.
 
         size_t                                          annotate(Tree &t) const;                                                              //!< Annotate a copy with species, appearances and modes.
         void                                            labelSpecies(TopologyNode &node, const std::string &s, size_t &unsampled_count) const;  //!< Stamp the range each node belongs to, top down.

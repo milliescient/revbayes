@@ -732,7 +732,6 @@ void FossilizedBirthDeathSpeciationProcess::setMcmcMode(bool tf)
 
 void FossilizedBirthDeathSpeciationProcess::redrawValue(void)
 {
-    // draw the ranges, then a uniform budding topology on them
     drawRanges();
 
     RandomNumberGenerator* rng = GLOBAL_RNG;
@@ -745,80 +744,16 @@ void FossilizedBirthDeathSpeciationProcess::redrawValue(void)
         if ( ranges[i].death > ranges[i].first ) ranges[i].death = rng->uniform01() * (ranges[i].first - present) + present;
     }
 
-    // one tip per taxon at its drawn end age; top[i] tracks the current top of lineage i's subtree
-    std::vector<TopologyNode*> top(n);
+    std::vector<TopologyNode*> tips(n);
     for (size_t i = 0; i < n; ++i)
     {
-        TopologyNode* tip = new TopologyNode( taxa[i], i );
-        tip->setAge( ranges[i].death );
-        top[i] = tip;
-    }
-
-    // births oldest first, each inside a living lineage already placed
-    double origin = getOriginAge();
-
-    std::vector<size_t> order(n);
-    for (size_t i = 0; i < n; ++i) order[i] = i;
-    std::sort( order.begin(), order.end(), [this](size_t a, size_t b){ return ranges[a].first > ranges[b].first; } );
-
-    size_t root_lineage = order[0];
-    std::vector<size_t> parent(n, n);   // parent[k] = lineage k buds off; n marks the origin
-    ranges[root_lineage].divergence = origin;
-    for (size_t idx = 1; idx < n; ++idx)
-    {
-        size_t k = order[idx];
-
-        // already-placed lineages that are old enough to bud k
-        std::vector<size_t> cand;
-        for (size_t p = 0; p < idx; ++p)
-        {
-            if ( ranges[order[p]].divergence > ranges[k].first ) cand.push_back( order[p] );
-        }
-
-        // none old enough: bud from the origin and let the density reject it
-        size_t j = root_lineage;
-        if ( cand.empty() == false )
-        {
-            size_t pick = size_t( rng->uniform01() * cand.size() );
-            if ( pick >= cand.size() ) pick = cand.size() - 1;
-
-            j = cand[pick];
-        }
-
-        // birth in (max(first_k, d_j), b_j)
-        double lo = std::max( ranges[k].first, ranges[j].death );
-        if ( lo >= ranges[j].divergence ) lo = 0.0;
-
-        ranges[k].divergence = rng->uniform01()*(ranges[j].divergence - lo) + lo;
-        parent[k] = j;
-    }
-
-    // build the tree youngest birth first, so each lineage's subtree is complete before it attaches
-    std::vector<size_t> byBirth(n);
-    for (size_t i = 0; i < n; ++i) byBirth[i] = i;
-    std::sort( byBirth.begin(), byBirth.end(), [this](size_t a, size_t b){ return ranges[a].divergence < ranges[b].divergence; } );
-
-    for (size_t idx = 0; idx < n; ++idx)
-    {
-        size_t k = byBirth[idx];
-        if ( parent[k] == n ) continue;   // the origin lineage stays the root
-        size_t j = parent[k];
-
-        // budding node at b_k: j continues and k is new, recorded on the children
-        TopologyNode* node = new TopologyNode();
-        node->setAge( ranges[k].divergence );
-        node->addChild( top[j] );
-        node->addChild( top[k] );
-        top[j]->setParent( node );
-        top[k]->setParent( node );
-        top[j]->setContinuesParentLineage( true );
-        top[k]->setContinuesParentLineage( false );
-        top[j] = node;
+        tips[i] = new TopologyNode( taxa[i], i );
+        tips[i]->setAge( ranges[i].death );
     }
 
     Tree *psi = new Tree();
     psi->setRooted( true );
-    psi->setRoot( top[root_lineage], true );
+    psi->setRoot( joinSubtrees( tips, getOriginAge() ), true );
 
     delete this->value;
     this->value = psi;
@@ -832,8 +767,95 @@ void FossilizedBirthDeathSpeciationProcess::redrawValue(void)
     }
     this->getValue().orderNodesByIndex();
 
-    // exactly one continuation per node
-    normalizeContinuationFlags();
+    prepareProbComputation();
+    updateRanges();
+}
+
+
+/**
+ * Join subtrees under one root, each new node a budding or, with probability beta at its age, a symmetric speciation.
+ * A birth on a stem sits above the subtree's root, and a stem species born at a node sits above its first appearance.
+ */
+TopologyNode* FossilizedBirthDeathSpeciationProcess::joinSubtrees( const std::vector<TopologyNode*> &units, double ceiling ) const
+{
+    RandomNumberGenerator* rng = GLOBAL_RNG;
+    size_t n = units.size();
+
+    // floor: the youngest age at which the stem species can begin
+    std::vector<double> root(n), floor(n);
+    for (size_t u = 0; u < n; ++u)
+    {
+        root[u] = units[u]->getAge();
+        long s = speciesBelow( *units[u] );
+        floor[u] = ( s >= 0 ? std::max( root[u], ranges[s].first ) : root[u] );
+    }
+
+    // stems placed oldest floor first, each budding off one already placed; the first runs to the ceiling
+    std::vector<size_t> order(n);
+    for (size_t u = 0; u < n; ++u) order[u] = u;
+    std::sort( order.begin(), order.end(), [&](size_t a, size_t b){ return floor[a] > floor[b]; } );
+
+    size_t trunk = order[0];
+    std::vector<double> top_age(n, ceiling);
+    std::vector<size_t> parent(n, n);
+    std::vector<bool> symmetric_node(n, false);
+    for (size_t idx = 1; idx < n; ++idx)
+    {
+        size_t k = order[idx];
+
+        std::vector<size_t> cand;
+        for (size_t q = 0; q < idx; ++q)
+        {
+            size_t j = order[q];
+            if ( top_age[j] > std::max( floor[k], root[j] ) ) cand.push_back( j );
+        }
+
+        // none fits: join the trunk and let the density reject it
+        size_t j = trunk;
+        if ( cand.empty() == false ) j = cand[ std::min( size_t( rng->uniform01() * cand.size() ), cand.size() - 1 ) ];
+
+        double lo = std::max( floor[k], root[j] ), hi = top_age[j];
+        if ( lo >= hi ) lo = root[j];
+
+        // a symmetric node also ends j's stem species, so it needs that species to begin below it
+        double a = hi;
+        bool sym = false;
+        for (size_t tries = 0; tries < 100; ++tries)
+        {
+            a = rng->uniform01() * (hi - lo) + lo;
+            double b = symmetricAt( a );
+            sym = ( a > floor[j] && rng->uniform01() < b );
+            if ( sym == true || b < 1.0 ) break;
+            if ( floor[j] < hi ) lo = std::max( lo, floor[j] );
+        }
+
+        top_age[k] = a;
+        parent[k] = j;
+        symmetric_node[k] = sym;
+    }
+
+    // youngest node first, so each stem's subtree is complete before it attaches
+    std::vector<size_t> by_age;
+    for (size_t u = 0; u < n; ++u) if ( u != trunk ) by_age.push_back( u );
+    std::sort( by_age.begin(), by_age.end(), [&](size_t a, size_t b){ return top_age[a] < top_age[b]; } );
+
+    std::vector<TopologyNode*> top( units.begin(), units.end() );
+    for (size_t k : by_age)
+    {
+        size_t j = parent[k];
+
+        TopologyNode* node = new TopologyNode();
+        node->setAge( top_age[k] );
+        node->addChild( top[j] );
+        node->addChild( top[k] );
+        top[j]->setParent( node );
+        top[k]->setParent( node );
+        top[j]->setContinuesParentLineage( symmetric_node[k] == false );
+        top[k]->setContinuesParentLineage( false );
+        top[j] = node;
+    }
+
+    return top[trunk];
 }
 
 
@@ -845,6 +867,7 @@ double FossilizedBirthDeathSpeciationProcess::symmetricAt( double age ) const
     {
         return homogeneous_beta->getValue();
     }
+    if ( heterogeneous_beta == NULL ) return 0.0;
 
     const RbVector<double>& probs = heterogeneous_beta->getValue();
     size_t i = findIndex( age );
@@ -1443,297 +1466,60 @@ bool FossilizedBirthDeathSpeciationProcess::redrawTopology( void )
 }
 
 /**
- *
+ * Join the subtrees dnConstrainedTopology builds into one, below the age it asks for where that admits them. Its tips
+ * stand at their extinction times, and every flag goes out as an annotation, which setValue adopts as given.
  */
 void FossilizedBirthDeathSpeciationProcess::simulateClade(std::vector<TopologyNode *> &n, double age, double present, bool alwaysReturn)
 {
-
-    // Get the rng
     RandomNumberGenerator* rng = GLOBAL_RNG;
 
-    // get the minimum birth age
-    std::vector<double> first_occurrences;
-
-    double current_age = RbConstants::Double::inf;
-    double minimum_age = 0.0;
-    double max_age = getOriginAge();
-
-    for (size_t i = 0; i < n.size(); ++i)
+    std::vector<Taxon> clade;
+    double floor = 0.0;
+    for (TopologyNode *u : n)
     {
-        // make sure the tip age is equal to the last occurrence
-        if( n[i]->isTip() )
+        if ( u->isTip() == true )
         {
-            bool extinct = n[i]->getTaxon().isExtinct();
-
-            double present = times.front();
-
-            n[i]->setAge( extinct * rng->uniform01() * (n[i]->getTaxon().getAgeRange()->getMin() - present) + present );
-
-            size_t j = find(taxa.begin(), taxa.end(), n[i]->getTaxon()) - taxa.begin();
-
-            double minmax = std::max(ranges[i].first_min, n[i]->getAge());
-            ranges[j].first = GLOBAL_RNG->uniform01()*(std::min(max_age, taxa[i].getAgeRange()->getMax()) - minmax) + minmax;
+            size_t j = std::find( taxa.begin(), taxa.end(), u->getTaxon() ) - taxa.begin();
+            if ( j == taxa.size() ) throw RbException() << "dnFBDSP cannot place '" << u->getName() << "', which is not one of its taxa.";
+            u->setIndex( j );
+            u->setAge( ranges[j].death );
         }
+        u->getTaxa( clade );
 
-        double first_occurrence = getMaxTaxonAge( *n[i] );
-
-        if( first_occurrence > minimum_age )
-        {
-            minimum_age = first_occurrence;
-        }
-
-        first_occurrences.push_back( first_occurrence );
-
-        if ( current_age > n[i]->getAge() )
-        {
-            current_age = n[i]->getAge();
-        }
+        long s = speciesBelow( *u );
+        floor = std::max( floor, s >= 0 ? std::max( u->getAge(), ranges[s].first ) : u->getAge() );
     }
 
-    if( minimum_age > max_age )
+    // the whole tree runs to the origin
+    double origin = getOriginAge();
+    double ceiling = origin;
+    if ( clade.size() < taxa.size() ) ceiling = ( age > floor && age < origin ) ? age : rng->uniform01() * (origin - floor) + floor;
+
+    TopologyNode *root = joinSubtrees( n, ceiling );
+
+    std::vector<TopologyNode*> stack( 1, root );
+    while ( stack.empty() == false )
     {
-        throw RbException() << "Tree age is " << max_age << " but minimum fossil origin is " << minimum_age;
+        TopologyNode *node = stack.back();
+        stack.pop_back();
+        if ( node != root ) node->setNodeParameter( "continues", node->continuesParentLineage() ? "1" : "0" );
+        for (size_t c = 0; c < node->getNumberOfChildren(); c++) stack.push_back( &node->getChild(c) );
     }
 
-
-    if ( age <= minimum_age )
-    {
-        age = rng->uniform01() * ( max_age - minimum_age ) + minimum_age;
-    }
-
-
-    std::vector<double> ages;
-    while ( n.size() > 2 && current_age < age )
-    {
-
-        // get all the nodes with first occurrences younger than the current age
-        std::vector<TopologyNode*> active_nodes;
-        std::vector<TopologyNode*> active_right_nodes;
-        for (size_t i = 0; i < n.size(); ++i)
-        {
-            if ( current_age >= n[i]->getAge() )
-            {
-                active_nodes.push_back( n[i] );
-
-                if( current_age >= first_occurrences[i] )
-                {
-                    active_right_nodes.push_back( n[i] );
-                }
-            }
-
-        }
-
-        // we need to get the next node age older than the current age
-        double next_node_age = age;
-        for (size_t i = 0; i < n.size(); ++i)
-        {
-            if ( current_age < n[i]->getAge() && n[i]->getAge() < next_node_age )
-            {
-                next_node_age = n[i]->getAge();
-            }
-            if ( current_age < first_occurrences[i] && first_occurrences[i] < next_node_age )
-            {
-                next_node_age = first_occurrences[i];
-            }
-
-        }
-
-        // only simulate if there are at least two valid/active nodes and one active right node
-        if ( active_nodes.size() <= 2 || active_right_nodes.empty() )
-        {
-            current_age = next_node_age;
-        }
-        else
-        {
-            // now we simulate new ages
-            double next_sim_age = simulateNextAge(active_nodes.size()-2, age, present, current_age, alwaysReturn);
-
-            if ( next_sim_age < next_node_age )
-            {
-                // randomly pick two nodes
-                size_t index_left = static_cast<size_t>( floor(rng->uniform01()*active_nodes.size()) );
-                TopologyNode* left_child = active_nodes[index_left];
-
-                size_t index_right = static_cast<size_t>( floor(rng->uniform01()*active_right_nodes.size()) );
-                TopologyNode* right_child = active_right_nodes[index_right];
-
-                while( left_child == right_child )
-                {
-                    index_left = static_cast<size_t>( floor(rng->uniform01()*active_nodes.size()) );
-                    left_child = active_nodes[index_left];
-
-                    index_right = static_cast<size_t>( floor(rng->uniform01()*active_right_nodes.size()) );
-                    right_child = active_right_nodes[index_right];
-                }
-
-                // erase the nodes also from the origin nodes vector
-                std::vector<TopologyNode *>::iterator child_it_left = std::find( n.begin(), n.end(), left_child );
-                std::vector<double>::iterator fa_it_left = first_occurrences.begin() + std::distance( n.begin(), child_it_left );
-                double fa_left = *fa_it_left;
-
-                first_occurrences.erase(fa_it_left);
-                n.erase(child_it_left);
-
-                std::vector<TopologyNode *>::iterator child_it_right = std::find( n.begin(), n.end(), right_child );
-                std::vector<double>::iterator fa_it_right = first_occurrences.begin() + std::distance( n.begin(), child_it_right );
-                double fa_right = *fa_it_right;
-
-                first_occurrences.erase(fa_it_right);
-                n.erase(child_it_right);
-
-
-                // create a parent for the two
-                TopologyNode *parent = new TopologyNode();
-                parent->addChild( left_child );
-                parent->addChild( right_child );
-                left_child->setParent( parent );
-                right_child->setParent( parent );
-                left_child->setContinuesParentLineage( true );
-                right_child->setContinuesParentLineage( false );
-                parent->setAge( next_sim_age );
-
-                // insert the parent to our list
-                n.push_back( parent );
-                first_occurrences.push_back( std::max(fa_left, fa_right) );
-
-                current_age = next_sim_age;
-                ages.push_back( next_sim_age );
-            }
-            else
-            {
-                current_age = next_node_age;
-            }
-
-        }
-
-        if ( n.size() > 2 && current_age >= age  )
-            throw RbException() << "Unexpected number of taxa (remaining #taxa was " << n.size() << " and age was " << current_age << " with maximum age of " << age << ") in tree simulation";
-
-    }
-
-
-    if ( n.size() == 2 )
-    {
-
-        // pick two nodes
-        TopologyNode* left_child = n[0];
-        TopologyNode* right_child = n[1];
-
-        // make sure the speciation event is older than the new species first occurrence
-        if( first_occurrences[1] > age )
-        {
-            if( first_occurrences[0] > age )
-            {
-                throw RbException() << "Cannot simulate clade of age " << age << ", minimum age is " << minimum_age;
-            }
-            else
-            {
-                std::swap( left_child, right_child );
-            }
-        }
-        else if( age > first_occurrences[0] )
-        {
-            if( rng->uniform01() < 0.5 )
-            {
-                std::swap( left_child, right_child );
-            }
-        }
-
-        // erase the nodes also from the origin nodes vector
-        n.clear();
-
-        // create a parent for the two
-        TopologyNode *parent = new TopologyNode();
-        parent->addChild( left_child );
-        parent->addChild( right_child );
-        left_child->setParent( parent );
-        right_child->setParent( parent );
-        // name a continuing lineage; mvRotateNode explores the choice
-        left_child->setContinuesParentLineage( true );
-        right_child->setContinuesParentLineage( false );
-        parent->setAge( age );
-
-        // insert the parent to our list
-        n.push_back( parent );
-    }
-    else
-    {
-        throw RbException() << "Unexpected number of taxa (" << n.size() << ") in tree simulation";
-    }
-
-
+    n.assign( 1, root );
 }
 
-/**
- * @param alwaysReturn whether the simulation can return times which are not valid draws from the distribution (for initial values)
-*/
-std::vector<double> FossilizedBirthDeathSpeciationProcess::simulateDivergenceTimes(size_t n, double origin, double present, double min, bool alwaysReturn) const
+
+/** Clade ages come from the ranges, which simulateClade reads. */
+double FossilizedBirthDeathSpeciationProcess::simulateCladeAge(size_t n, double origin, double present, double min, bool alwaysReturn) const
 {
-    if(!alwaysReturn) throw RbException("Impossible to simulate under a true FossilizedBirthDeathSpeciation process");
-
-    std::vector<double> t(n, 0.0);
-
-    for (size_t i = 0; i < n; ++i)
-    {
-        t[i] = simulateDivergenceTime(origin, min);
-    }
-
-    // finally sort the times
-    std::sort(t.begin(), t.end());
-
-    return t;
+    return GLOBAL_RNG->uniform01() * (origin - min) + min;
 }
 
-/**
- * Simulate new speciation times.
- */
+
 double FossilizedBirthDeathSpeciationProcess::simulateDivergenceTime(double origin, double present) const
 {
-    // incorrect placeholder for constant SSBDP
-    // direct forward simulation under FBDRP is not feasible
-
-    // Get the rng
-    RandomNumberGenerator* rng = GLOBAL_RNG;
-
-    size_t i = findIndex(present);
-
-    // get the parameters
-    double age = origin - present;
-    double b = birth[i];
-    double d = death[i];
-    double p_e = i == 0 ? homogeneous_rho->getValue() : 0.0;
-
-
-    // get a random draw
-    double u = rng->uniform01();
-
-    // compute the time for this draw
-    // see Hartmann et al. 2010 and Stadler 2011
-    double t = 0.0;
-    if ( b > d )
-    {
-        if( p_e > 0.0 )
-        {
-            t = ( log( ( (b-d) / (1 - (u)*(1-((b-d)*exp((d-b)*age))/(p_e*b+(b*(1-p_e)-d)*exp((d-b)*age) ) ) ) - (b*(1-p_e)-d) ) / (p_e * b) ) )  /  (b-d);
-        }
-        else
-        {
-            t = log( 1 - u * (exp(age*(d-b)) - 1) / exp(age*(d-b)) ) / (b-d);
-        }
-    }
-    else
-    {
-        if( p_e > 0.0 )
-        {
-            t = ( log( ( (b-d) / (1 - (u)*(1-(b-d)/(p_e*b*exp((b-d)*age)+(b*(1-p_e)-d) ) ) ) - (b*(1-p_e)-d) ) / (p_e * b) ) )  /  (b-d);
-        }
-        else
-        {
-            t = log( 1 - u * (1 - exp(age*(b-d)))  ) / (b-d);
-        }
-    }
-
-    return present + t;
+    throw RbException("dnFBDSP does not simulate divergence times apart from the ranges that bound them.");
 }
 
 
