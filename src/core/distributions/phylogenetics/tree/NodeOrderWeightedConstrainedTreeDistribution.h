@@ -8,6 +8,9 @@
 #include "RelativeNodeAgeWeightedConstraints.h"
 
 namespace RevBayesCore {
+
+    template <class valueType> class RbOrderedSet;
+
         
     /**
      * @file
@@ -56,6 +59,10 @@ namespace RevBayesCore {
         //        // virtual methods that may be overwritten, but then the derived class should call this methods
         
         // Parameter management functions. You need to override both if you have additional parameters
+        void                                                getAffected(RbOrderedSet<DagNode *>& affected, const DagNode* affecter) override { base_distribution->getAffected( affected, affecter ); }
+        void                                                keepSpecialization(const DagNode* affecter) override { base_distribution->keep( affecter ); }
+        void                                                restoreSpecialization(const DagNode *restorer) override { base_distribution->restore( restorer ); }
+        void                                                touchSpecialization(const DagNode *toucher, bool touchAll) override { base_distribution->touch( toucher, touchAll ); }
         virtual void                                            swapParameterInternal(const DagNode *oldP, const DagNode *newP);                                    //!< Swap a parameter
         
         

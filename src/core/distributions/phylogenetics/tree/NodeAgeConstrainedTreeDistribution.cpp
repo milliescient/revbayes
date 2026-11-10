@@ -78,6 +78,8 @@ NodeAgeConstrainedTreeDistribution::~NodeAgeConstrainedTreeDistribution()
     delete base_distribution;
     
     // DO NOT DELETE THE VALUE
+    // the base distribution owned it, and our base class would delete it again
+    value = NULL;
     
 }
 
