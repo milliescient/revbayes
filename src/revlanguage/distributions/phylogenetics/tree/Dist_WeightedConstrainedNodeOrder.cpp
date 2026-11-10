@@ -6,6 +6,7 @@
 #include "ArgumentRule.h"
 #include "ArgumentRules.h"
 #include "Dist_WeightedConstrainedNodeOrder.h"
+#include "MethodTable.h"
 #include "RealPos.h"
 #include "RlRelativeNodeAgeWeightedConstraints.h"
 #include "RlTimeTree.h"
@@ -211,4 +212,20 @@ void Dist_WeightedConstrainedNodeOrder::setConstParameter(const std::string& nam
         TypedDistribution<TimeTree>::setConstParameter(name, var);
     }
     
+}
+
+
+/** The base distribution's methods, read off this variable, since its distribution passes them through. */
+MethodTable Dist_WeightedConstrainedNodeOrder::getDistributionMethods( void ) const
+{
+    MethodTable methods = TypedDistribution<TimeTree>::getDistributionMethods();
+
+    if ( baseDistribution == NULL ) return methods;
+
+    TypedDistribution<TimeTree> *base = static_cast<const TypedDistribution<TimeTree> &>( baseDistribution->getRevObject() ).clone();
+    base->setVariable( variable );
+    methods.insertInheritedMethods( base->getDistributionMethods() );
+    delete base;
+
+    return methods;
 }

@@ -5,6 +5,7 @@
 
 #include "Tree.h"
 #include "TypedDistribution.h"
+#include "TreeDistributionProperties.h"
 #include "Clade.h"
 #include "RbVector.h"
 #include "RbVectorImpl.h"
@@ -25,7 +26,7 @@ template <class variableType> class StochasticNode;
      * @since 2015-12-03, version 1.0
      *
      */
-    class NodeAgeConstrainedTreeDistribution : public TypedDistribution<Tree> {
+    class NodeAgeConstrainedTreeDistribution : public TypedDistribution<Tree>, public TreeDistributionProperties {
         
     public:
         NodeAgeConstrainedTreeDistribution(TypedDistribution<Tree> *base_dist, const std::vector< RbVector<Clade> > &c);
@@ -45,6 +46,16 @@ template <class variableType> class StochasticNode;
         
         void prepareForClamping(Tree& tree) override;
         void repairCheckpointValue(Tree& tree) override;
+
+        // what moves, monitors and checkpoints ask of the tree distribution, answered by the one this wraps
+        bool                                                allowsSampledAncestors(void) const override { const TreeDistributionProperties *p = dynamic_cast<const TreeDistributionProperties *>( base_distribution ); return p != NULL && p->allowsSampledAncestors(); }
+        bool                                                tracksSpeciesContinuation(void) const override { const TreeDistributionProperties *p = dynamic_cast<const TreeDistributionProperties *>( base_distribution ); return p != NULL && p->tracksSpeciesContinuation(); }
+        bool                                                isExtended(void) const override { const TreeDistributionProperties *p = dynamic_cast<const TreeDistributionProperties *>( base_distribution ); return p != NULL && p->isExtended(); }
+        const Distribution*                                 getWrappedDistribution(void) const override { return base_distribution; }
+        void                                                setMcmcMode(bool tf) override { base_distribution->setMcmcMode( tf ); }
+        std::string                                         getHiddenStateString(void) const override { return base_distribution->getHiddenStateString(); }
+        bool                                                printForMonitor(std::ostream &o) const override { return base_distribution->printForMonitor( o ); }
+        void                                                setHiddenStateFromString(const std::string &s) override { base_distribution->setHiddenStateFromString( s ); value = &base_distribution->getValue(); }  //!< The base reads it into a tree of its own, which this shares
 
     protected:
         

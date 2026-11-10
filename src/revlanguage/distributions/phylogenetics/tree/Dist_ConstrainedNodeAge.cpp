@@ -6,6 +6,7 @@
 #include "ArgumentRule.h"
 #include "ArgumentRules.h"
 #include "Dist_ConstrainedNodeAge.h"
+#include "MethodTable.h"
 #include "ModelVector.h"
 #include "RlClade.h"
 #include "RlTimeTree.h"
@@ -207,4 +208,20 @@ void Dist_ConstrainedNodeAge::setConstParameter(const std::string& name, const R
         TypedDistribution<TimeTree>::setConstParameter(name, var);
     }
     
+}
+
+
+/** The base distribution's methods, read off this variable, since its distribution passes them through. */
+MethodTable Dist_ConstrainedNodeAge::getDistributionMethods( void ) const
+{
+    MethodTable methods = TypedDistribution<TimeTree>::getDistributionMethods();
+
+    if ( baseDistribution == NULL ) return methods;
+
+    TypedDistribution<TimeTree> *base = static_cast<const TypedDistribution<TimeTree> &>( baseDistribution->getRevObject() ).clone();
+    base->setVariable( variable );
+    methods.insertInheritedMethods( base->getDistributionMethods() );
+    delete base;
+
+    return methods;
 }

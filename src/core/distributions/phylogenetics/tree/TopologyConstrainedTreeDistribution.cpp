@@ -1302,6 +1302,31 @@ void TopologyConstrainedTreeDistribution::setStochasticNode( StochasticNode<Tree
 }
 
 
+/** The base reads the state into a tree of its own and drops the old one, so this follows it as setValue does. */
+void TopologyConstrainedTreeDistribution::setHiddenStateFromString(const std::string &s)
+{
+    value->getTreeChangeEventHandler().removeListener( this );
+
+    base_distribution->setHiddenStateFromString( s );
+    value = &base_distribution->getValue();
+
+    value->getTreeChangeEventHandler().addListener( this );
+
+    initializeBitSets();
+
+    dirty_nodes = std::vector<bool>( value->getNumberOfNodes(), true );
+    active_clades = std::vector<RbBitSet>( value->getNumberOfInteriorNodes(), RbBitSet() );
+    for (size_t i = 0; i < num_backbones; ++i)
+    {
+        active_backbone_clades[i].assign( value->getNumberOfInteriorNodes(), RbBitSet() );
+    }
+    recursivelyUpdateClades( value->getRoot() );
+
+    stored_clades          = active_clades;
+    stored_backbone_clades = active_backbone_clades;
+}
+
+
 /**
  * Set the current value.
  */
