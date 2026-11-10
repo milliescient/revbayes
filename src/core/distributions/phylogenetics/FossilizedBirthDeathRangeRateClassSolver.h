@@ -19,7 +19,6 @@ namespace RevBayesCore {
 
         virtual size_t          getNumberOfComponents(void) const = 0;
         virtual void            at(double t, std::vector<double> &p, double &lambda_pbar) const = 0;            //!< p of each component at age t, and the lambda integral from the present up to t.
-        virtual double          lambdaPbarIntegral(double t0, double t1) const = 0;                             //!< The lambda integral between ages t0 <= t1.
         virtual void            sensitivity(double s, double t, const std::vector<size_t> &columns,
                                             std::vector<double> &Q, std::vector<double> &Q_scale) const = 0;    //!< Columns of Q = dp(t)/dp(s) for ages s <= t, each scaled by exp(Q_scale).
 

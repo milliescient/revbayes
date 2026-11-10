@@ -24,7 +24,6 @@ namespace RevBayesCore {
                                        double rho);                                                         //!< Solve the intervals whose rates changed and those older. times are the interval starts, the present first.
         size_t                  getNumberOfComponents(void) const override { return num_components; }
         void                    at(double t, std::vector<double> &p, double &lambda_pbar) const override;            //!< p of each component at age t, and int lambda pbar from the present up to t.
-        double                  lambdaPbarIntegral(double t0, double t1) const override;                             //!< int lambda pbar between ages t0 <= t1.
         void                    sensitivity(double s, double t, const std::vector<size_t> &columns,
                                             std::vector<double> &Q, std::vector<double> &Q_scale) const override;    //!< Columns of Q = dp(t)/dp(s) for ages s <= t, each scaled by exp(Q_scale).
 

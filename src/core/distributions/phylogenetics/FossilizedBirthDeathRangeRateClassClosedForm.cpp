@@ -503,16 +503,6 @@ void FossilizedBirthDeathRangeRateClassClosedForm::at( double t, std::vector<dou
 }
 
 
-double FossilizedBirthDeathRangeRateClassClosedForm::lambdaPbarIntegral( double t0, double t1 ) const
-{
-    std::vector<double> p;
-    double l0, l1;
-    at( t0, p, l0 );
-    at( t1, p, l1 );
-    return l1 - l0;
-}
-
-
 /** Q over a whole interval, row-major on the scale of its largest column, for the ranges it lies inside. */
 void FossilizedBirthDeathRangeRateClassClosedForm::wholeInterval( Interval &I, double dt ) const
 {

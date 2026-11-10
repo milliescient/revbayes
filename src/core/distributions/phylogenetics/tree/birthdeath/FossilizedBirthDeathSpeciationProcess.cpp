@@ -1019,17 +1019,6 @@ double FossilizedBirthDeathSpeciationProcess::unsampledMixtureLnProb( const Unsa
 }
 
 
-/** The range parameters, with the anagenetic and symmetric rates the base class does not hold. */
-std::vector<const DagNode*> FossilizedBirthDeathSpeciationProcess::getRateParameters( void ) const
-{
-    std::vector<const DagNode*> out;
-    for (const DagNode *n : range_parameters) if ( n != NULL ) out.push_back( n );
-    for (const DagNode *n : { (const DagNode*) homogeneous_lambda_a, (const DagNode*) heterogeneous_lambda_a,
-                              (const DagNode*) homogeneous_beta, (const DagNode*) heterogeneous_beta }) if ( n != NULL ) out.push_back( n );
-    return out;
-}
-
-
 /** The species whose lineage runs through this node: follow the continuing children to a tip. */
 long FossilizedBirthDeathSpeciationProcess::speciesBelow( const TopologyNode &node ) const
 {

@@ -136,7 +136,6 @@ namespace RevBayesCore {
         const FossilizedBirthDeathRangeRateClassSolver&                         mixtureSolver(void) const { if ( mixture_numeric_on == true ) return mixture_numeric; return mixture_solution; }  //!< The solver holding the mixture, closed form at beta = 0 and no anagenesis.
         void                                            mixtureAt(double t, std::vector<double> &p, double &lambda_pbar) const;  //!< The mixture solution's p and lambda integral.
         void                                            mixtureSensitivity(double s, double t, const std::vector<size_t> &columns, std::vector<double> &Q, std::vector<double> &Q_scale) const;
-        double                                          mixtureLambdaPbarIntegral(double t0, double t1) const;
         virtual double                                  rangeLnProb(size_t i);                                     //!< Birth-death density of range i.
         virtual double                                  originLnProb(void);                                        //!< Terms attaching to the origin rather than to a range.
         virtual double                                  conditionLnProb(void) const;                               //!< The conditioning normalization, where it applies to the process as a whole.

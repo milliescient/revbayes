@@ -281,16 +281,6 @@ void FossilizedBirthDeathRangeRateClassNumeric::at( double t, std::vector<double
 }
 
 
-double FossilizedBirthDeathRangeRateClassNumeric::lambdaPbarIntegral( double t0, double t1 ) const
-{
-    std::vector<double> p;
-    double l0, l1;
-    at( t0, p, l0 );
-    at( t1, p, l1 );
-    return l1 - l0;
-}
-
-
 void FossilizedBirthDeathRangeRateClassNumeric::gridAges( double lo, double hi, std::vector<double> &ages ) const
 {
     extendTo( hi );

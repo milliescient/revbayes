@@ -1819,12 +1819,6 @@ void AbstractFossilizedBirthDeathRangeProcess::mixtureSensitivity( double s, dou
 }
 
 
-double AbstractFossilizedBirthDeathRangeProcess::mixtureLambdaPbarIntegral( double t0, double t1 ) const
-{
-    return mixtureSolver().lambdaPbarIntegral( t0, t1 );
-}
-
-
 std::vector<double> AbstractFossilizedBirthDeathRangeProcess::psiMixtureComponentLnProbs( size_t i ) const
 {
     prepareProbComputation();

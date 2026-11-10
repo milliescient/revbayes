@@ -85,7 +85,6 @@ namespace RevBayesCore {
         bool                                            allowsSampledAncestors(void) const override { return true; }        //!< The density rejects them where lambda_a = 0.
         bool                                            tracksSpeciesContinuation(void) const override { return true; }
         std::vector<double>                             anageneticIntegrals(const std::vector<std::pair<double,double> > &spans) const;        //!< int lambda_a dt over each span, the anagenetic part of the above.
-        std::vector<const DagNode*>                     getRateParameters(void) const;                                      //!< Every node the rates and p(t) depend on.
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const override;  //!< The per-branch speciation events, then the base's range methods.
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, Tree &rv) const override;              //!< getSampledTree.
         Tree                                            sampledTree(void) const;                                 //!< The tree cut back to each species' last appearance, annotated as the extended tree is.
