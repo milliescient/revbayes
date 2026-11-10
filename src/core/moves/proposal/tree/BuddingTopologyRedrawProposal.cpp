@@ -1,3 +1,4 @@
+#include "TreeDistributionProperties.h"
 #include "BuddingTopologyRedrawProposal.h"
 
 #include <ostream>
@@ -17,7 +18,7 @@ BuddingTopologyRedrawProposal::BuddingTopologyRedrawProposal( StochasticNode<Tre
     addNode( variable );
 
     // the uniform draw is the exact conditional only under pure budding
-    FossilizedBirthDeathSpeciationProcess* dist = dynamic_cast<FossilizedBirthDeathSpeciationProcess* >( &variable->getDistribution() );
+    FossilizedBirthDeathSpeciationProcess* dist = dynamic_cast<FossilizedBirthDeathSpeciationProcess *>( &unconstrained( variable->getDistribution() ) );
 
     if ( dist != NULL && dist->hasAnagenesis() == true )
     {
@@ -59,7 +60,7 @@ double BuddingTopologyRedrawProposal::getProposalTuningParameter( void ) const
 /** Draw a whole budding topology from its uniform conditional. */
 double BuddingTopologyRedrawProposal::doProposal( void )
 {
-    FossilizedBirthDeathSpeciationProcess* dist = dynamic_cast<FossilizedBirthDeathSpeciationProcess* >( &variable->getDistribution() );
+    FossilizedBirthDeathSpeciationProcess* dist = dynamic_cast<FossilizedBirthDeathSpeciationProcess *>( &unconstrained( variable->getDistribution() ) );
 
     if ( dist == NULL )
     {

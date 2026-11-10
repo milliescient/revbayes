@@ -129,7 +129,7 @@ double CollapseExpandFossilBranchProposal::doProposal( void )
     storedNode = fossils[ size_t(u*fossils.size()) ];
 
     // on a dnFBDSP tree the budding's orientation becomes the successor's mode and back
-    fbdsp   = dynamic_cast<const FossilizedBirthDeathSpeciationProcess *>( &tau->getDistribution() );
+    fbdsp   = dynamic_cast<const FossilizedBirthDeathSpeciationProcess *>( &unconstrained( tau->getDistribution() ) );
     orients = ( fbdsp != NULL );
     storedFlag = storedNode->continuesParentLineage();
     

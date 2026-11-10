@@ -20,7 +20,7 @@ ExtinctionReversibleJumpProposal::ExtinctionReversibleJumpProposal( StochasticNo
 {
     addNode( matrix );
 
-    if ( dynamic_cast<AbstractFossilizedBirthDeathRangeProcess *>( &matrix->getDistribution() ) == NULL )
+    if ( dynamic_cast<AbstractFossilizedBirthDeathRangeProcess *>( &unconstrained( matrix->getDistribution() ) ) == NULL )
     {
         throw RbException("mvExtinctionRJSwitch requires a fossilized birth-death range process.");
     }
@@ -35,7 +35,7 @@ ExtinctionReversibleJumpProposal::ExtinctionReversibleJumpProposal( StochasticNo
 {
     addNode( tree );
 
-    if ( dynamic_cast<AbstractFossilizedBirthDeathRangeProcess *>( &tree->getDistribution() ) == NULL )
+    if ( dynamic_cast<AbstractFossilizedBirthDeathRangeProcess *>( &unconstrained( tree->getDistribution() ) ) == NULL )
     {
         throw RbException("mvExtinctionRJSwitch requires a fossilized birth-death range process.");
     }
@@ -66,8 +66,8 @@ void ExtinctionReversibleJumpProposal::collectEligible( void )
 /** Resolved on each use, so a swapped node leaves no stale pointer. */
 AbstractFossilizedBirthDeathRangeProcess& ExtinctionReversibleJumpProposal::rangeProcess( void ) const
 {
-    Distribution &d = ( matrix != NULL ? (Distribution&)matrix->getDistribution()
-                                       : (Distribution&)tree->getDistribution() );
+    Distribution &d = ( matrix != NULL ? unconstrained( (Distribution&)matrix->getDistribution() )
+                                       : unconstrained( (Distribution&)tree->getDistribution() ) );
 
     return dynamic_cast<AbstractFossilizedBirthDeathRangeProcess &>( d );
 }

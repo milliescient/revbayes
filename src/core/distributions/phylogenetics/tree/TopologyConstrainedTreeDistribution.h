@@ -44,6 +44,9 @@ namespace RevBayesCore {
         void prepareForClamping(Tree& tree) override;
         void repairCheckpointValue(Tree& tree) override;
 
+        const Distribution*                                 getWrappedDistribution(void) const override { return base_distribution; }
+        void                                                setMcmcMode(bool tf) override { base_distribution->setMcmcMode( tf ); }
+
     protected:
         
         void                                                initializeBitSets();
@@ -88,7 +91,7 @@ namespace RevBayesCore {
         bool                                                is_rooted;
 
     };
-    
+
 }
 
 #endif

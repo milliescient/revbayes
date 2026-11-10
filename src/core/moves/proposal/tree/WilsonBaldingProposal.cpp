@@ -257,11 +257,12 @@ void WilsonBaldingProposal::undoProposal( void )
     target->setSampledAncestor( stored_target_sa );
     target->setContinuesParentLineage( stored_target_continues );
 
+    // the parent's own link first: a listener walks up from each change, and a stale one can loop through the sibling
     grandparent->removeChild( sibling );
+    parent->setParent( grandparent );
+    grandparent->addChild( parent, pos_parent );
     parent->addChild( sibling, pos_sibling );
     sibling->setParent( parent );
-    grandparent->addChild( parent, pos_parent );
-    parent->setParent( grandparent );
 
     parent->setAge( stored_age );
     sibling->setSampledAncestor( stored_sibling_sa );

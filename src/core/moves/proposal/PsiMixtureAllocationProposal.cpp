@@ -1,3 +1,4 @@
+#include "TreeDistributionProperties.h"
 #include "PsiMixtureAllocationProposal.h"
 
 #include <cstddef>
@@ -34,8 +35,8 @@ PsiMixtureAllocationProposal::PsiMixtureAllocationProposal( StochasticNode<Tree>
 
 void PsiMixtureAllocationProposal::check( void ) const
 {
-    Distribution &d = ( matrix != NULL ? (Distribution&)matrix->getDistribution()
-                                       : (Distribution&)tree->getDistribution() );
+    Distribution &d = ( matrix != NULL ? unconstrained( (Distribution&)matrix->getDistribution() )
+                                       : unconstrained( (Distribution&)tree->getDistribution() ) );
 
     if ( dynamic_cast<AbstractFossilizedBirthDeathRangeProcess *>( &d ) == NULL )
     {
@@ -51,8 +52,8 @@ void PsiMixtureAllocationProposal::check( void ) const
 /** Resolved on each use, so a swapped node leaves no stale pointer. */
 AbstractFossilizedBirthDeathRangeProcess& PsiMixtureAllocationProposal::rangeProcess( void ) const
 {
-    Distribution &d = ( matrix != NULL ? (Distribution&)matrix->getDistribution()
-                                       : (Distribution&)tree->getDistribution() );
+    Distribution &d = ( matrix != NULL ? unconstrained( (Distribution&)matrix->getDistribution() )
+                                       : unconstrained( (Distribution&)tree->getDistribution() ) );
 
     return dynamic_cast<AbstractFossilizedBirthDeathRangeProcess &>( d );
 }

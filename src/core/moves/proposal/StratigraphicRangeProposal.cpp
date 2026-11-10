@@ -1,3 +1,4 @@
+#include "TreeDistributionProperties.h"
 #include "StratigraphicRangeProposal.h"
 
 #include <cstddef>
@@ -20,7 +21,7 @@ StratigraphicRangeProposal::StratigraphicRangeProposal( StochasticNode<Tree> *n 
     // tell the base class to add the node
     addNode( variable );
 
-    if ( dynamic_cast<FossilizedBirthDeathSpeciationProcess *>( &variable->getDistribution() ) == NULL )
+    if ( dynamic_cast<FossilizedBirthDeathSpeciationProcess *>( &unconstrained( variable->getDistribution() ) ) == NULL )
     {
         throw RbException("mvStratigraphicRange requires a dnFBDSP. A dnFBDRP keeps its appearances in the value, where mvMatrixElementSlide samples them.");
     }
@@ -32,7 +33,7 @@ StratigraphicRangeProposal::StratigraphicRangeProposal( StochasticNode<Tree> *n 
 /** Resolved on each use, so a swapped node leaves no stale pointer. */
 FossilizedBirthDeathSpeciationProcess& StratigraphicRangeProposal::rangeProcess( void ) const
 {
-    return static_cast<FossilizedBirthDeathSpeciationProcess &>( variable->getDistribution() );
+    return dynamic_cast<FossilizedBirthDeathSpeciationProcess &>( unconstrained( variable->getDistribution() ) );
 }
 
 

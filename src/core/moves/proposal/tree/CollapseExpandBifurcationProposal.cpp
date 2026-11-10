@@ -31,7 +31,7 @@ CollapseExpandBifurcationProposal::CollapseExpandBifurcationProposal( Stochastic
         throw RbException("mvCollapseExpandBifurcation needs an extended tree that tracks which child continues each species, as dnFBDSP does.");
     }
 
-    const AbstractFossilizedBirthDeathRangeProcess *range = dynamic_cast<const AbstractFossilizedBirthDeathRangeProcess *>( &tree->getDistribution() );
+    const AbstractFossilizedBirthDeathRangeProcess *range = dynamic_cast<const AbstractFossilizedBirthDeathRangeProcess *>( &unconstrained( tree->getDistribution() ) );
     if ( range != NULL ) present = range->getPresent();
 }
 

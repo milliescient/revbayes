@@ -1,3 +1,4 @@
+#include "TreeDistributionProperties.h"
 #include "SingletonReversibleJumpProposal.h"
 
 #include <cstddef>
@@ -32,8 +33,8 @@ SingletonReversibleJumpProposal::SingletonReversibleJumpProposal( StochasticNode
 /** An exact age leaves nothing to separate. */
 void SingletonReversibleJumpProposal::collectEligible( void )
 {
-    Distribution &d = ( matrix != NULL ? (Distribution&)matrix->getDistribution()
-                                       : (Distribution&)tree->getDistribution() );
+    Distribution &d = ( matrix != NULL ? unconstrained( (Distribution&)matrix->getDistribution() )
+                                       : unconstrained( (Distribution&)tree->getDistribution() ) );
 
     if ( dynamic_cast<AbstractFossilizedBirthDeathRangeProcess *>( &d ) == NULL )
     {
@@ -56,8 +57,8 @@ void SingletonReversibleJumpProposal::collectEligible( void )
 /** Resolved on each use, so a swapped node leaves no stale pointer. */
 AbstractFossilizedBirthDeathRangeProcess& SingletonReversibleJumpProposal::rangeProcess( void ) const
 {
-    Distribution &d = ( matrix != NULL ? (Distribution&)matrix->getDistribution()
-                                       : (Distribution&)tree->getDistribution() );
+    Distribution &d = ( matrix != NULL ? unconstrained( (Distribution&)matrix->getDistribution() )
+                                       : unconstrained( (Distribution&)tree->getDistribution() ) );
 
     return dynamic_cast<AbstractFossilizedBirthDeathRangeProcess &>( d );
 }

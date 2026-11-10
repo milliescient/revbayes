@@ -1,3 +1,4 @@
+#include "TreeDistributionProperties.h"
 #include "RotateNodeProposal.h"
 
 #include <cstddef>
@@ -62,7 +63,7 @@ double RotateNodeProposal::doProposal( void )
 
     failed = false;
 
-    FossilizedBirthDeathSpeciationProcess *fbdsp = dynamic_cast<FossilizedBirthDeathSpeciationProcess *>( &tree->getDistribution() );
+    FossilizedBirthDeathSpeciationProcess *fbdsp = dynamic_cast<FossilizedBirthDeathSpeciationProcess *>( &unconstrained( tree->getDistribution() ) );
     symmetric = ( fbdsp != NULL && fbdsp->hasSymmetricSpeciation() == true );
 
     // a sampled ancestor node's continuation is forced onto the tip, but the successor's flag holds whether it arose

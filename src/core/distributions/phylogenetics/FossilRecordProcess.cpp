@@ -1,3 +1,4 @@
+#include "TreeDistributionProperties.h"
 #include "FossilRecordProcess.h"
 
 #include "AbstractFossilizedBirthDeathRangeProcess.h"
@@ -17,13 +18,13 @@ AbstractFossilizedBirthDeathRangeProcess* FossilRecordProcess::rangesOf(const Da
     if ( mn != NULL )
     {
         return const_cast<AbstractFossilizedBirthDeathRangeProcess *>(
-                   dynamic_cast<const AbstractFossilizedBirthDeathRangeProcess *>( &mn->getDistribution() ) );
+                   dynamic_cast<const AbstractFossilizedBirthDeathRangeProcess *>( &unconstrained( mn->getDistribution() ) ) );
     }
     const StochasticNode<Tree> *tn = dynamic_cast<const StochasticNode<Tree> *>( n );
     if ( tn != NULL )
     {
         return const_cast<AbstractFossilizedBirthDeathRangeProcess *>(
-                   dynamic_cast<const AbstractFossilizedBirthDeathRangeProcess *>( &tn->getDistribution() ) );
+                   dynamic_cast<const AbstractFossilizedBirthDeathRangeProcess *>( &unconstrained( tn->getDistribution() ) ) );
     }
     return NULL;
 }
