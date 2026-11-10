@@ -728,6 +728,7 @@ void FossilizedBirthDeathSpeciationProcess::setMcmcMode(bool tf)
     if ( tf == true ) warnIfNoSurvivalMove();
     if ( tf == true ) warnIfNoSingletonMove();
     if ( tf == true ) warnIfNoAllocationMove();
+    if ( tf == true ) warnIfImpossibleInputs( process_age );
     if ( tf == false ) return;
 
     // only mvSpeciationMode changes which child continues, and only a fossil-branch move makes or removes a sampled ancestor

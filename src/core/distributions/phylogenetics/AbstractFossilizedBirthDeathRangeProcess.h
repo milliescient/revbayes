@@ -117,6 +117,7 @@ namespace RevBayesCore {
         void                                            setPsiMixtureComponent(size_t i, size_t h);                 //!< Set taxon i's component, arming the undo. Only mvPsiMixtureAllocation may.
         std::vector<double>                             psiMixtureComponentLnProbs(size_t i) const;                 //!< Taxon i's log-density under each component, up to a constant.
         void                                            warnIfNoReportingNode(void) const;                          //!< Warn once when psi has no data.
+        void                                            warnIfImpossibleInputs(const TypedDagNode<double> *start = NULL) const;  //!< Warn once when fixed inputs make the density zero; start stands in for a missing origin_age.
         void                                            warnIfInertNTaxaCondition(void) const;                      //!< Warn once when rho leaves nTaxa conditioning inert.
         void                                            warnIfNoSurvivalMove(void) const;                           //!< Warn once when rho < 1 and no move samples survival.
         void                                            warnIfNoAllocationMove(void) const;                         //!< Warn once when a psi mixture's components have no move.
@@ -282,6 +283,7 @@ namespace RevBayesCore {
         mutable bool                                    warned_no_survival = false;
         mutable bool                                    warned_no_singleton = false;
         mutable bool                                    warned_no_allocation = false;
+        mutable bool                                    warned_impossible = false;
         bool                                            resampled;                                              //!< The appearance undo is armed.
         double                                          present_time = 0.0;                                     //!< The present, where the timeline starts.
     };

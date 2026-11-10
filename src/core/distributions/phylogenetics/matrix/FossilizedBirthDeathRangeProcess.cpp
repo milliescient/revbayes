@@ -95,6 +95,7 @@ void FossilizedBirthDeathRangeProcess::setMcmcMode(bool tf)
     if ( tf == true ) warnIfNoSurvivalMove();
     if ( tf == true ) warnIfNoSingletonMove();
     if ( tf == true ) warnIfNoAllocationMove();
+    if ( tf == true ) warnIfImpossibleInputs();
 }
 
 FossilizedBirthDeathRangeProcess* FossilizedBirthDeathRangeProcess::clone( void ) const

@@ -1268,6 +1268,42 @@ void AbstractFossilizedBirthDeathRangeProcess::warnIfNoReportingNode( void ) con
 }
 
 
+/** Fixed inputs that no state can satisfy, which the MCMC would otherwise report only as a failed start; warn once. */
+void AbstractFossilizedBirthDeathRangeProcess::warnIfImpossibleInputs( const TypedDagNode<double> *start ) const
+{
+    if ( warned_impossible == true ) return;
+
+    double oldest = 0.0;
+    bool extant = false;
+    for (size_t i = 0; i < taxa.size(); i++)
+    {
+        oldest = std::max( oldest, ranges[i].first_min );
+        extant = extant || taxa[i].isExtinct() == false;
+    }
+
+    bool no_lambda = false;
+    if ( homogeneous_lambda != NULL ) no_lambda = homogeneous_lambda->isConstant() && homogeneous_lambda->getValue() == 0.0;
+    if ( heterogeneous_lambda != NULL && heterogeneous_lambda->isConstant() )
+    {
+        no_lambda = true;
+        for (double l : heterogeneous_lambda->getValue()) no_lambda = no_lambda && l == 0.0;
+    }
+
+    std::string reason;
+    const TypedDagNode<double> *o = ( origin_age != NULL ? origin_age : start );
+    if ( o != NULL && o->isConstant() && o->getValue() <= oldest ) reason = "the origin is not older than every occurrence";
+    else if ( homogeneous_rho->isConstant() && homogeneous_rho->getValue() == 0.0 && extant ) reason = "rho = 0 but some taxa are extant";
+    else if ( homogeneous_rho->isConstant() && homogeneous_rho->getValue() == 0.0 && condition == "survival" ) reason = "condition=\"survival\" needs a sampled survivor, which rho = 0 rules out";
+    else if ( no_lambda == true && taxa.size() > 1 ) reason = "lambda = 0 with more than one taxon";
+
+    if ( reason.empty() == false )
+    {
+        warned_impossible = true;
+        RBOUT("Warning: " + reason + ". The density is zero.");
+    }
+}
+
+
 // At rho = 0, condition="nTaxa" is condition="time".
 void AbstractFossilizedBirthDeathRangeProcess::warnIfInertNTaxaCondition( void ) const
 {
