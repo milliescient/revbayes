@@ -46,6 +46,7 @@ namespace RevBayesCore {
 }
 
 #include "Cloneable.h"
+#include "TreeDistributionProperties.h"
 #include "Cloner.h"
 #include "IsDerivedFrom.h"
 
@@ -112,8 +113,8 @@ template <class distributionType, class valueType>
 void RevBayesCore::DistributionMemberFunction<distributionType,valueType>::update( void )
 {
     
-    const TypedDistribution<distributionType>& the_distribution = dynamic_cast<const TypedDistribution<distributionType>& >( the_member_variable->getDistribution() );
-    const MemberObject<valueType> &member_object = dynamic_cast<const MemberObject<valueType>& >( the_distribution );
+    // a wrapper such as a topology constraint passes the call to the distribution it holds
+    const MemberObject<valueType> &member_object = dynamic_cast<const MemberObject<valueType>& >( unconstrained( the_member_variable->getDistribution() ) );
     member_object.executeMethod(method_name,args,*this->value);
     
 }

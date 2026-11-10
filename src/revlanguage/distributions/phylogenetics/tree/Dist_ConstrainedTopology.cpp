@@ -8,6 +8,7 @@
 #include "ArgumentRules.h"
 #include "Clade.h"
 #include "Dist_ConstrainedTopology.h"
+#include "MethodTable.h"
 #include "ModelVector.h"
 #include "RlBoolean.h"
 #include "RlClade.h"
@@ -64,6 +65,22 @@ Dist_ConstrainedTopology* Dist_ConstrainedTopology::clone( void ) const
 {
 
     return new Dist_ConstrainedTopology(*this);
+}
+
+
+/** The base distribution's methods, read off this variable, since its distribution passes them through. */
+MethodTable Dist_ConstrainedTopology::getDistributionMethods( void ) const
+{
+    MethodTable methods = TypedDistribution<TimeTree>::getDistributionMethods();
+
+    if ( base_distribution == NULL ) return methods;
+
+    TypedDistribution<TimeTree> *base = static_cast<const TypedDistribution<TimeTree> &>( base_distribution->getRevObject() ).clone();
+    base->setVariable( variable );
+    methods.insertInheritedMethods( base->getDistributionMethods() );
+    delete base;
+
+    return methods;
 }
 
 
