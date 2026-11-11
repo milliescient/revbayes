@@ -1,0 +1,55 @@
+# mvSingletonRJSwitch under reporting="presence", with one occurrence over [3,4] and the range fixed.
+# The chain must split as often as
+#
+#   P(pair) / P(single) = int_y^4 p(o) psi e^(psi (o - y)) do / p(y)
+#
+# where p(t) is the density of a single age at t. Every line printed must be TRUE.
+seed(4)
+
+taxa <- readTaxonData("data/fbdr_presence_single.tsv")
+
+lambda <- 0.4
+mu     <- 0.1
+psi    <- 0.5
+origin <- 20.0
+
+out = "output/presence_singleton.txt"
+
+bd ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+             condition="time", origin=origin)
+rec ~ dnFossilRecord(ranges=bd, reporting="presence")
+rec.clamp(taxa)
+
+d <- 0.5
+y <- 3.5
+
+# Simpson over tau_1 in [y,4], from the dnFBDRP's single-age densities
+n <- 200
+bd.setValue( matrix( v( v(d, y, y, origin) ) ) )
+single <- exp( bd.lnProbability() + rec.lnProbability() )
+pair <- 0.0
+for ( k in 0:n )
+{
+    o <- y + (4.0 - y) * k / n
+    w <- 2 + 2 * (k % 2)
+    if ( k == 0 || k == n ) w <- 1
+    bd.setValue( matrix( v( v(d, o, o, origin) ) ) )
+    pair <- pair + w * exp( bd.lnProbability() + rec.lnProbability() ) * psi * exp( psi * (o - y) )
+}
+pair <- pair * (4.0 - y) / (3 * n)
+expected <- pair / (single + pair)
+
+bd.setValue( matrix( v( v(d, y, y, origin) ) ) )
+
+split_bd := 1 - bd.getSingletonStatus()[1]
+
+# the chain moves only the singleton status and tau_1
+mymcmc = mcmc(model(bd), [ mnFile(split_bd, filename="output/presence_singleton_bd.log", printgen=10,
+              posterior=FALSE, likelihood=FALSE, prior=FALSE) ], [ mvSingletonRJSwitch(bd, weight=1) ])
+mymcmc.run(generations=200000)
+observed <- mean( readTrace("output/presence_singleton_bd.log", burnin=0)[2].getValues() )
+
+print(filename=out, "dnFBDRP splits a single occurrence:\n")
+print(filename=out, append=TRUE, abs(observed - expected) < 0.02, "\n")
+
+q()

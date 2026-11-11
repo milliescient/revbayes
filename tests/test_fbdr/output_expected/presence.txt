@@ -1,0 +1,8 @@
+the presence term matches its closed form:
+TRUE	
+moving the extremes outward cost nothing:
+TRUE	
+a single occurrence adds nothing:
+TRUE	
+an exactly dated occurrence is log(psi) at its age:
+TRUE	

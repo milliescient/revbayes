@@ -1,0 +1,148 @@
+# getDivergenceTimes and getOriginationTimes, drawn and with mean=TRUE. Every line printed must be TRUE.
+seed(12345)
+
+taxa <- readTaxonData("data/fbdr_condition.tsv")
+
+lambda ~ dnExponential(1); lambda.setValue(0.4)
+mu     ~ dnExponential(1); mu.setValue(0.1)
+psi    ~ dnExponential(1); psi.setValue(0.5)
+origin ~ dnUniform(8, 30);  origin.setValue(20)
+
+# columns are extinction, youngest appearance, oldest appearance and divergence
+config <- matrix( v( v(0.0, 0.0, 0.0, 10.0),
+                     v(0.0, 0.0, 0.0,  8.0),
+                     v(0.0, 0.0, 0.0,  6.0),
+                     v(1.0, 2.5, 2.5, 12.0),
+                     v(3.0, 4.5, 4.5, 14.0),
+                     v(5.0, 6.5, 6.5, 20.0) ) )
+
+# the ranges alive at each divergence number 3, 4, 5, 2, 1 and none
+
+bd ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+             condition="time", origin=origin)
+bd.setValue(config)
+rec ~ dnFossilRecord(ranges=bd, reporting="complete")
+rec.clamp(taxa)
+
+n <- taxa.size()
+
+out = "output/origination.txt"
+
+first <- bd.getFirstAppearances()
+divergence <- bd.getDivergenceTimes()
+death <- bd.getExtinctionTimes()
+
+# the origination sits at or below the divergence and above the oldest appearance
+bounded <- TRUE
+for (rep in 1:20)
+{
+    s <- bd.getOriginationTimes()
+
+    for (i in 1:n)
+    {
+        if ( s[i] > divergence[i] + 1E-10 ) { bounded <- FALSE }
+        if ( s[i] < first[i] - 1E-10 ) { bounded <- FALSE }
+    }
+}
+
+print(filename=out, "every draw sits between the oldest appearance and the divergence:\n")
+print(filename=out, append=TRUE, bounded, "\n")
+
+# the mean sits inside the same support and agrees with the average of many draws
+mean_s <- bd.getOriginationTimes(mean=TRUE)
+
+reps <- 4000
+total <- rep(0.0, n)
+for (rep in 1:reps)
+{
+    s <- bd.getOriginationTimes()
+
+    for (i in 1:n)
+    {
+        total[i] <- total[i] + s[i]
+    }
+}
+
+matches <- TRUE
+for (i in 1:n)
+{
+    if ( mean_s[i] > divergence[i] + 1E-10 ) { matches <- FALSE }
+    if ( mean_s[i] < first[i] - 1E-10 ) { matches <- FALSE }
+
+    # tolerance is a fiftieth of the window the origination can fall in
+    if ( abs(total[i]/reps - mean_s[i]) > (divergence[i] - first[i])/50 ) { matches <- FALSE }
+}
+
+print(filename=out, append=TRUE, "the integrated mean agrees with the average of 4000 draws:\n")
+print(filename=out, append=TRUE, matches, "\n")
+
+
+
+
+# a denser record leaves less room for an ancestor to go unnamed, so the diagonal cannot rise
+psi_hi ~ dnExponential(1); psi_hi.setValue(5.0)
+
+bd_hi ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi_hi, rho=1.0, present=0.0,
+                condition="time", origin=origin)
+bd_hi.setValue(config)
+rec_hi ~ dnFossilRecord(ranges=bd_hi, reporting="complete")
+rec_hi.clamp(taxa)
+
+mean_hi <- bd_hi.getOriginationTimes(mean=TRUE)
+
+rises <- TRUE
+for (i in 1:n)
+{
+    if ( mean_hi[i] < mean_s[i] - 1E-10 ) { rises <- FALSE }
+}
+
+print(filename=out, append=TRUE, "raising psi does not lower the mean origination:\n")
+print(filename=out, append=TRUE, rises, "\n")
+
+# intervals that share a rate must not move it, to Simpson's accuracy
+timeline <- v(1.0, 2.0, 3.0, 4.0)
+lv := v(lambda, lambda, lambda, lambda, lambda)
+mv := v(mu, mu, mu, mu, mu)
+pv := v(psi, psi, psi, psi, psi)
+
+bd_s ~ dnFBDRP(taxa=taxa, lambda=lv, mu=mv, psi=pv, rho=1.0, present=0.0, timeline=timeline,
+               condition="time", origin=origin)
+bd_s.setValue(config)
+rec_s ~ dnFossilRecord(ranges=bd_s, reporting="complete")
+rec_s.clamp(taxa)
+
+mean_sky <- bd_s.getOriginationTimes(mean=TRUE)
+
+composes <- TRUE
+for (i in 1:n)
+{
+    if ( abs(mean_sky[i] - mean_s[i]) > 1E-6 ) { composes <- FALSE }
+}
+
+print(filename=out, append=TRUE, "five intervals of equal rates match one interval:\n")
+print(filename=out, append=TRUE, composes, "\n")
+
+# the extant status is on exactly when extinction sits at the present
+alive <- bd.getExtantStatus()
+
+agrees <- TRUE
+for (i in 1:n)
+{
+    if ( alive[i] == 1.0 && death[i] != 0.0 ) { agrees <- FALSE }
+    if ( alive[i] == 0.0 && death[i] == 0.0 ) { agrees <- FALSE }
+}
+
+print(filename=out, append=TRUE, "status is extant exactly at an extinction time of zero:\n")
+print(filename=out, append=TRUE, agrees, "\n")
+
+# under rho = 1 the indicator marks the three taxa reported extant
+extant <- 0.0
+for (i in 1:n)
+{
+    extant <- extant + alive[i]
+}
+
+print(filename=out, append=TRUE, "rho = 1 marks the three reported extant taxa and no others:\n")
+print(filename=out, append=TRUE, extant == 3.0, "\n")
+
+q()

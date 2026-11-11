@@ -1,0 +1,56 @@
+# mvExtinctionRJSwitch with rho < 1, one taxon reported extinct, and its range fixed.
+# The chain must leave the taxon surviving as often as
+#
+#   P(survived) = p(0) / ( p(0) + int_0^y p(d) dd )
+#
+# where p(d) is the density with extinction time d and y is the last appearance.
+# Every line printed must be TRUE.
+seed(5)
+
+taxa <- readTaxonData("data/fbdr_presence_single.tsv")
+
+lambda <- 0.4
+mu     <- 0.1
+psi    <- 0.5
+origin <- 20.0
+
+out = "output/extinction_switch.txt"
+
+bd ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=0.5, present=0.0,
+             condition="time", origin=origin)
+rec ~ dnFossilRecord(ranges=bd, reporting="firstlast")
+rec.clamp(taxa)
+
+y <- 3.5
+
+# Simpson over d in (0,y], from the dnFBDRP's densities; d = 0 itself is the surviving state
+n <- 200
+bd.setValue( matrix( v( v(0.0, y, y, origin) ) ) )
+alive <- exp( bd.lnProbability() + rec.lnProbability() )
+dead <- 0.0
+for ( k in 0:n )
+{
+    d <- y * k / n
+    if ( k == 0 ) d <- 1e-9
+    w <- 2 + 2 * (k % 2)
+    if ( k == 0 || k == n ) w <- 1
+    bd.setValue( matrix( v( v(d, y, y, origin) ) ) )
+    dead <- dead + w * exp( bd.lnProbability() + rec.lnProbability() )
+}
+dead <- dead * y / (3 * n)
+expected <- alive / (alive + dead)
+
+bd.setValue( matrix( v( v(1.0, y, y, origin) ) ) )
+
+alive_bd := ifelse( bd[1][1] == 0.0, 1, 0 )
+
+# the chain moves only the extinction time
+mymcmc = mcmc(model(bd), [ mnFile(alive_bd, filename="output/extinction_switch_bd.log", printgen=10,
+              posterior=FALSE, likelihood=FALSE, prior=FALSE) ], [ mvExtinctionRJSwitch(bd, weight=1) ])
+mymcmc.run(generations=200000)
+observed <- mean( readTrace("output/extinction_switch_bd.log", burnin=0)[2].getValues() )
+
+print(filename=out, "dnFBDRP leaves an extinct taxon surviving as often as rho allows:\n")
+print(filename=out, append=TRUE, abs(observed - expected) < 0.02, "\n")
+
+q()

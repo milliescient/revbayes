@@ -1,0 +1,6 @@
+the factor matches its closed form at a count of 3:
+TRUE	
+five intervals of equal rates match one interval:
+TRUE	
+rho below one does not raise the factor:
+TRUE	
