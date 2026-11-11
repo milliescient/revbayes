@@ -705,6 +705,9 @@ bool FossilizedBirthDeathSpeciationProcess::adoptAppearances( void )
         std::optional<std::string> survived = tip.eraseNodeParameter( "survived" );
 
         ranges[i].singleton = ( single.has_value() == true ? *single == "1" : countSingleton( i ) );
+
+        // a single occurrence is its own youngest, whatever the annotation says
+        if ( ranges[i].singleton == true ) ranges[i].last = ranges[i].first;
         if ( survived.has_value() == true ) ranges[i].survived  = ( *survived == "1" );
 
         std::optional<std::string> component = tip.eraseNodeParameter( "component" );
