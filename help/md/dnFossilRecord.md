@@ -3,33 +3,31 @@ dnFossilRecord
 ## title
 The fossil record of a set of stratigraphic ranges
 ## description
-The fossil record of a set of species, conditioned on a fossilized birth-death range process: the probability of the observed fossil occurrences given the species ranges that produced them.
+This distribution gives the probability of observed fossil occurrences given species ranges from `dnFBDRP`, `dnBDS` or `dnFBDSP`.
 ## details
-This is the observation half of the fossilized birth-death range model. The range process (`dnFBDRP` or `dnFBDSP`) describes how species ranges diversify; this distribution gives the probability of the fossil record itself.
+Set `ranges` to the range process and clamp this node to the same taxa. The occurrences, `psi` and the timeline are read from the range process. Without this node, occurrences are not scored, and RevBayes warns at the start of an MCMC.
 
-The `reporting` argument selects how sampled specimens make it into the reported record: `reporting="complete"` (every sampled occurrence is reported), `reporting="firstlast"` (the oldest and youngest occurrence of each species are reported, and the count in between is unknown) or `reporting="presence"` (each reported interval holds at least its reported count, so a count is a lower bound and a species' intervals must not overlap). Under presence a single reported occurrence over an interval may stand for more, which `mvSingletonRJSwitch` samples.
-
-The occurrences, the fossil sampling rate and its timeline are read from the range process rather than given as arguments here.
-
+Set `reporting` to describe how sampled occurrences entered the data. Use `"complete"` when every sampled occurrence is reported. The default, `"firstlast"`, treats the oldest and youngest occurrence of each species as reported, with an unknown count between them. Use `"presence"` when each reported interval contains at least its reported count. With `"presence"`, intervals for the same species must not overlap.
 ## authors
 June Walker
 ## see_also
 dnFossilizedBirthDeathRange
-mvStratigraphicRange
+dnFossilizedBirthDeathSpeciation
+mvSingletonRJSwitch
 ## example
-lambda ~ dnExp(10)
-mu ~ dnExp(10)
-psi ~ dnExp(10)
+    taxa <- readTaxonData("fossil_ranges.tsv")
 
-# the birth-death range process
-bd ~ dnFBDRP(lambda=lambda, mu=mu, psi=psi, rho=1, taxa=taxa)
+    lambda ~ dnExponential(10)
+    mu     ~ dnExponential(10)
+    psi    ~ dnExponential(10)
 
-# the fossil record, clamped to the observed occurrences
-rec ~ dnFossilRecord(ranges=bd, reporting="firstlast")
-rec.clamp(taxa)
+    bd ~ dnFBDRP(lambda=lambda, mu=mu, psi=psi, rho=1, taxa=taxa)
 
-moves.append( mvMatrixElementScale(bd, weight=taxa.size()) )
-moves.append( mvMatrixElementSlide(bd, weight=taxa.size()) )
+    rec ~ dnFossilRecord(ranges=bd, reporting="firstlast")
+    rec.clamp(taxa)
+
+    moves.append( mvMatrixElementScale(bd, weight=taxa.size()) )
+    moves.append( mvMatrixElementSlide(bd, weight=taxa.size()) )
 ## references
 	- citation: The fossilized birth-death model for the analysis of stratigraphic range data under different speciation modes. Stadler, Tanja et al. Journal of theoretical biology, 447:41-55.
 	  doi: doi.org/10.1016/j.jtbi.2018.03.005

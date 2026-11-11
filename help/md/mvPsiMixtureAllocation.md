@@ -1,11 +1,11 @@
 ## name
 mvPsiMixtureAllocation
 ## title
-Gibbs sampling of each taxon's psi mixture component
+Gibbs draw of a species' psi mixture component
 ## description
-Draws one taxon's fossil sampling mixture component from its full conditional distribution.
+This move draws one species' fossil sampling mixture component from its full conditional distribution.
 ## details
-Under `dnFBDRP` or `dnFBDSP` with `psiMixtureRates`, each species carries a latent mixture component that scales its fossil sampling rate. This is the only move that changes it. Each proposal picks a taxon at random and draws its component from its full conditional, so every proposal is accepted.
+When you use `psiMixtureRates`, each species in a `dnFBDRP` or `dnFBDSP` has a mixture component that scales its fossil sampling rate. The move picks a species at random and draws its component from the full conditional distribution, so every proposal is accepted. Use this move to sample these allocations, as no other move changes a species' fossil sampling mixture component.
 ## authors
 June Walker
 ## see_also
@@ -14,9 +14,8 @@ dnFossilizedBirthDeathSpeciation
 mvGibbsMixtureAllocation
 ## example
     alpha ~ dnExponential(1)
-    bd ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=rho,
-                 psiMixtureRates=fnDiscretizeGamma(alpha, alpha, 4))
+    bd ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=rho, psiMixtureRates=fnDiscretizeGamma(alpha, alpha, 4))
 
-    moves.append( mvPsiMixtureAllocation(bd, weight=taxa.size()) )
+    moves.append( mvPsiMixtureAllocation(bd, weight=taxa.size()/5) )
     components := bd.getPsiMixtureComponents()
 ## references

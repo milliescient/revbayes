@@ -3,19 +3,12 @@ mvMatrixElementSwap
 ## title
 Matrix Element Swap Move
 ## description
-Proposes exchanging two elements of a matrix.
-## details
-The `mvMatrixElementSwap` move picks two elements of a matrix at random and
-exchanges them. The proposal only rearranges the value, so it is symmetric. It
-is useful where the elements are exchangeable and a move on one element at a
-time mixes poorly between their orderings.
+This move proposes exchanging two elements of a matrix.
 
-By default any two elements may be exchanged. The swap can instead be confined
-to one row or one column, which keeps it meaningful when the rows or columns of
-a matrix hold different quantities. The `margin` argument follows R's MARGIN:
-1 swaps within a randomly chosen row, 2 within a randomly chosen column. The
-`row` and `col` arguments name the row or column instead, counting from 1.
-Only one of `margin`, `row` and `col` may be given.
+## details
+The move picks two elements at random and exchanges them, giving a symmetric proposal. Use it when elements are exchangeable and moves on one element at a time mix poorly between their orderings.
+
+By default, any two elements can be exchanged. The `margin` argument follows R's MARGIN convention: 1 swaps within a random row, and 2 within a random column. You can instead specify a row with `row` or a column with `col`, counting from 1. Give at most one of `margin`, `row` and `col`.
 ## authors
 June Walker
 ## see_also

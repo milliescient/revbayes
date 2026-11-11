@@ -1,37 +1,27 @@
 ## name
 mvBuddingTopologyRedraw
-
 ## title
 Gibbs draw of a budding topology
-
 ## description
-Redraws the whole budding (asymmetric speciation) topology of a `dnFBDSP` tree, holding the species ranges fixed.
-
+This move redraws the whole topology of a pure-budding `dnFBDSP` tree while holding the species ranges fixed. It does not change ages.
 ## details
-Each lineage is assigned an ancestor drawn uniformly from those alive at its birth. Given the ranges, every compatible tree has the same probability, so the draw is from the exact conditional and every proposal is accepted. With character data on the tree the move is still valid, but acceptance then rests on the likelihood, so pair it with `mvFNPR` or `mvNNI`. It needs pure budding: lambda_a = 0 and beta = 0.
+The move attaches each species to an ancestor drawn uniformly from the species alive at its birth. Given the ranges, every compatible tree has the same probability, so every proposal is accepted without character data. With character data, use it alongside `mvFNPR`.
 
-The move requires pure budding and refuses to be set up when `lambda_a > 0`.
-
-It never changes which species buds at a given birth age, so pair it with `mvSpeciationMode`. Ranges and node ages are untouched: use `mvFossilTipTimeUniform` for the extinction times and `mvNodeTimeSlideUniform` with `mvRootTimeSlideUniform` for the speciation times.
-
+The move does not change which daughter continues at a node, so use it with `mvSpeciationMode`. Setting up this move with `lambda_a` > 0 or `beta` > 0 is an error.
 ## authors
 June Walker
-
 ## see_also
 dnFossilizedBirthDeathSpeciation
 mvSpeciationMode
 mvFNPR
-
 ## example
-tr ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, timeline=timeline, taxa=taxa)
-rec ~ dnFossilRecord(ranges=tr, reporting="firstlast")
-rec.clamp(taxa)
+    tr ~ dnFBDSP(origin=origin, lambda=lambda, mu=mu, psi=psi, rho=1, taxa=taxa)
+    rec ~ dnFossilRecord(ranges=tr, reporting="firstlast")
+    rec.clamp(taxa)
 
-moves.append( mvBuddingTopologyRedraw(tr, weight=taxa.size()) )
-# relabels which lineage carries each birth age; the Gibbs move cannot
-moves.append( mvSpeciationMode(tr, weight=taxa.size()) )
-moves.append( mvFossilTipTimeUniform(tr, weight=taxa.size()) )
-moves.append( mvNodeTimeSlideUniform(tr, weight=taxa.size()) )
-moves.append( mvRootTimeSlideUniform(tr, origin, weight=2) )
-
+    moves.append( mvBuddingTopologyRedraw(tr, weight=4) )
+    moves.append( mvSpeciationMode(tr, weight=taxa.size()) )
+    moves.append( mvFossilTipTimeUniform(tr, origin=origin, weight=taxa.size()) )
+    moves.append( mvNodeTimeSlideUniform(tr, weight=taxa.size()) )
+    moves.append( mvRootTimeSlideUniform(tr, origin=origin, weight=2) )
 ## references

@@ -1,21 +1,31 @@
 ## name
 mvWilsonBalding
+
 ## title
 Wilson-Balding subtree prune-and-regraft move
+
 ## description
-Prunes a subtree with its parent node and regrafts it elsewhere in a time tree, at a new age.
+This move prunes and regrafts a subtree on a time tree that allows sampled-ancestor tips. It also changes the age of the attachment point.
+
 ## details
-`mvWilsonBalding` picks a node that is neither the root, a child of the root, nor a sampled-ancestor tip, and removes it together with its parent node. It then picks uniformly among the places the subtree can go: any branch older than the subtree, where the new parent age is drawn uniformly along the branch, or any older fossil tip, which becomes a sampled ancestor. Unlike `mvFNPR`, it changes the attachment age and can create or remove sampled ancestors, so it moves a fossil between tip and ancestor in another part of the tree in one step.
+The move prunes a node with its parent, excluding the root, its children and sampled-ancestor tips. It chooses uniformly among eligible older branches and fossil tips. On a branch, it draws the attachment age uniformly. A fossil becomes a sampled ancestor. The move never regrafts above the root.
 
-On budding trees the parent's species flag passes to the sibling left behind, and the new parent takes the flag of the branch it splits. A sampled ancestor continues its species, and on a branch a coin decides which child continues. The root is never pruned or regrafted above.
+Unlike `mvFNPR`, it changes the attachment age and can create or remove a sampled ancestor. On a `dnFBDSP` tree, it also chooses the continuing daughter and, if `beta` > 0, whether speciation is symmetric. It does this on its own, with no argument. Use it with `mvFNPR` and `mvCollapseExpandFossilBranch`.
 
-With symmetric=TRUE, for a tree with symmetric speciation (beta > 0), the new parent on a branch is drawn uniformly among its three states: either child continuing, or neither. A range carried past its sampled ancestor into a symmetric node is never pruned, since a regraft onto a fossil makes only an anagenesis.
 ## authors
+June Walker
+
 ## see_also
 mvFNPR
 mvCollapseExpandFossilBranch
+mvSpeciationMode
+
 ## example
-    moves.append( mvWilsonBalding(tree, weight=taxa.size()) )
+    tr ~ dnFBDP(originAge=origin, lambda=lambda, mu=mu, psi=psi, rho=1, taxa=taxa)
+    moves.append( mvFNPR(tr, weight=taxa.size()) )
+    moves.append( mvCollapseExpandFossilBranch(tr, origin, weight=taxa.size()/5) )
+    moves.append( mvWilsonBalding(tr, weight=taxa.size()) )
+
 ## references
 - citation: Wilson IJ, Balding DJ (1998). Genealogical inference from microsatellite data. Genetics 150:499-510.
 - citation: Gavryushkina A, Welch D, Stadler T, Drummond AJ (2014). Bayesian inference of sampled ancestor trees for epidemiology and fossil calibration. PLoS Computational Biology 10:e1003919.

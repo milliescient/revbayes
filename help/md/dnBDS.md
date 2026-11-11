@@ -3,15 +3,15 @@ dnBDS
 ## title
 Birth-death process with rate shifts
 ## description
-The birth-death-with-rateshifts process describes the distribution of a matrix of species origination and extinction times under complete lineage sampling.
+This distribution describes a matrix of species origination and extinction times under PyRate's birth-death with rate shifts (BDS) process. It assumes that every lineage was sampled.
 ## details
-The range process under complete lineage sampling: no lineage goes unsampled, so the birth time of each range is the species' own origination, and `getOriginationTimes` reports it. `getDivergenceTimes` is not available.
+The matrix layout and arguments are the same as for `dnFBDRP`. Because no lineage goes unsampled, each species' birth time is its own origination time.
 
-`condition="time"` takes the ranges as the complete set. `condition="sampling"` divides each range by its probability of leaving a fossil. `survival` and `nTaxa` mean what they do in `dnFBDRP`.
+Set `condition="sampling"` to divide each range by its probability of leaving a fossil. With this condition and the default `coexistence=FALSE`, the density is the PyRate likelihood.
 
-`coexistence` defaults off, as in the published model. With `condition="sampling"`, the defaults give the PyRate likelihood.
+Use the same moves as for `dnFBDRP`. Add a `dnFossilRecord` node for the fossil occurrences.
 
-Where many lineages go unsampled, the speciation rate is underestimated. Use `dnFBDRP` there.
+This model underestimates the speciation rate when many lineages go unsampled. Use `dnFBDRP` in that case.
 ## authors
 June Walker
 ## see_also

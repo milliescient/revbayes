@@ -31,7 +31,7 @@ Dist_FossilRecord* Dist_FossilRecord::clone( void ) const
 
 RevBayesCore::FossilRecordProcess* Dist_FossilRecord::createDistribution( void ) const
 {
-    // the range process stochastic node (a dnFBDRP or dnFBDSP node)
+    // the range process node
     RevBayesCore::DagNode* rn = ranges->getRevObject().getDagNode();
 
     const std::string &rule = static_cast<const RlString &>( reporting->getRevObject() ).getValue();
@@ -74,9 +74,9 @@ const MemberRules& Dist_FossilRecord::getParameterRules(void) const
     if ( rules_set == false )
     {
         std::vector<TypeSpec> rangesTypes;
-        rangesTypes.push_back( MatrixReal::getClassTypeSpec() );  // dnFBDRP
+        rangesTypes.push_back( MatrixReal::getClassTypeSpec() );  // dnFBDRP, dnBDS
         rangesTypes.push_back( TimeTree::getClassTypeSpec() );    // dnFBDSP
-        dist_member_rules.push_back( new ArgumentRule( "ranges",  rangesTypes, "The FBD range process (a dnFBDRP or dnFBDSP node) supplying b/d, tau, psi and the timeline.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::STOCHASTIC ) );
+        dist_member_rules.push_back( new ArgumentRule( "ranges",  rangesTypes, "The range process (a dnFBDRP, dnBDS or dnFBDSP variable) whose species produced the record.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::STOCHASTIC ) );
         std::vector<std::string> optionsReporting;
         optionsReporting.push_back( "complete" );
         optionsReporting.push_back( "firstlast" );

@@ -47,16 +47,15 @@ namespace RevLanguage {
 
         const MemberRules&                                  getCoreParameterRules(void) const;                                              //!< Get member rules (const)
         static void                                         appendParameterRules(MemberRules &rules);                                           //!< Build the member rules
-        static ArgumentRule*                                originRule(void);                                                                   //!< The optional origin argument, for the processes that take one
-        static ArgumentRule*                                coexistenceRule(bool on_by_default);                                                //!< The coexistence argument, whose default differs between the processes
-        static ArgumentRule*                                requireParentRule(void);                                                            //!< The requireParent argument, which follows coexistence when left out
+        static ArgumentRule*                                originRule(void);                                                                   //!< The optional origin argument
+        static ArgumentRule*                                coexistenceRule(bool on_by_default);                                                //!< The coexistence argument
+        static ArgumentRule*                                requireParentRule(void);                                                            //!< The requireParent argument
         RevBayesCore::TypedDagNode<double>*                 createOrigin(void) const;                                                           //!< The given origin node, or NULL if none was given
 
         
         void                                                setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var);   //!< Set member variable
 
-        //!< Whether any lineage may go unsampled, which is what makes a birth time a divergence
-        //!< rather than the species' own origination.
+        //!< Whether a birth time is a divergence rather than an origination.
         virtual bool                                        hasUnsampledLineages(void) const { return true; }
 
         // members        
@@ -68,7 +67,7 @@ namespace RevLanguage {
         RevPtr<const RevVariable>                           present;                                                                            //!< Where the process stops
         RevPtr<const RevVariable>                           taxa;                                                                               //!< The taxa
         RevPtr<const RevVariable>                           condition;                                                                          //!< The condition of the process
-        RevPtr<const RevVariable>                           origin;                                                                             //!< Optional process start, which the oldest birth follows
+        RevPtr<const RevVariable>                           origin;                                                                             //!< The optional start of the process
 
     };
     
@@ -160,22 +159,20 @@ void RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::appendParameterRules
 }
 
 
-/** The optional origin, which the oldest birth follows. */
 template <typename rlType>
 ArgumentRule* RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::coexistenceRule(bool on_by_default)
 {
     return new ArgumentRule( "coexistence", RlBoolean::getClassTypeSpec(),
-                             "Weight each birth by how many lineages were alive to produce it? Dropping it is exact only where the standing diversity does not vary.",
+                             "Weight each birth by the number of sampled species alive to have produced it?",
                              ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean( on_by_default ) );
 }
 
 
-/** The support constraint, which is the other half of what the coexistence terms do. */
 template <typename rlType>
 ArgumentRule* RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::requireParentRule(void)
 {
     return new ArgumentRule( "requireParent", RlBoolean::getClassTypeSpec(),
-                             "Reject a birth with no lineage alive to have produced it? Left out, it follows coexistence. Turn it off where ranges were left out of the analysis, since the lineage a birth came from may be one of them.",
+                             "Give zero probability to a birth with no sampled species alive to have produced it? Left out, it follows coexistence. Turn it off when some species were left out of the analysis.",
                              ArgumentRule::BY_VALUE, ArgumentRule::ANY, NULL );
 }
 
@@ -183,7 +180,7 @@ ArgumentRule* RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::requirePare
 template <typename rlType>
 ArgumentRule* RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::originRule(void)
 {
-    return new ArgumentRule( "origin", RealPos::getClassTypeSpec(), "The start of the process. Left out, it is the oldest birth and carries no prior.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL );
+    return new ArgumentRule( "origin", RealPos::getClassTypeSpec(), "The start of the process. Left out, the process starts at the oldest birth.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL );
 }
 
 
@@ -201,16 +198,6 @@ RevBayesCore::TypedDagNode<double>* RevLanguage::FossilizedBirthDeathRangeProces
 
 /**
  * Get the member rules used to create the constructor of this object.
- *
- * The member rules of the fossilized birth-death range process are:
- * (1) time of the process since the origin.
- * (2) time of the process since the rootAge.
- * (3) the sampling probability.
- * (4) the sampling strategy.
- * (5) the condition.
- * (6) the number of taxa.
- * (7) the taxon names.
- * (8) the clade constraints.
  *
  * \return The member rules.
  */
@@ -328,7 +315,6 @@ RevLanguage::MethodTable RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::
     ArgumentRules* origin_arg_rules = new ArgumentRules();
     methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, RealPos >( "getOrigin", this->variable, origin_arg_rules, true ) );
 
-    // under complete sampling the column is an origination, not a divergence
     if ( hasUnsampledLineages() )
     {
         ArgumentRules* divergence_arg_rules = new ArgumentRules();
@@ -339,7 +325,7 @@ RevLanguage::MethodTable RevLanguage::FossilizedBirthDeathRangeProcess<rlType>::
     methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, ModelVector<RealPos> >( "getExtinctionTimes", this->variable, extinction_arg_rules, true ) );
 
     ArgumentRules* origination_arg_rules = new ArgumentRules();
-    origination_arg_rules->push_back( new ArgumentRule( "mean", RlBoolean::getClassTypeSpec(), "Integrate the conditional rather than drawing from it?", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean(false) ) );
+    origination_arg_rules->push_back( new ArgumentRule( "mean", RlBoolean::getClassTypeSpec(), "Return each origination time's conditional mean instead of a draw?", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean(false) ) );
     methods.addFunction( new DistributionMemberFunction<FossilizedBirthDeathRangeProcess<rlType>, ModelVector<RealPos> >( "getOriginationTimes", this->variable, origination_arg_rules, true ) );
 
     ArgumentRules* extant_arg_rules = new ArgumentRules();
