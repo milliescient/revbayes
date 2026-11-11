@@ -17,6 +17,7 @@ Nicolas Lartillot
 June Walker
 ## see_also
 mvMatrixElementScale
+mvMatrixElementSwap
 mvSlide
 ## example
     moves = VectorMoves()
