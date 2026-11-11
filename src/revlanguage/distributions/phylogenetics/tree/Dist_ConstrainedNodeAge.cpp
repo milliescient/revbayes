@@ -224,7 +224,7 @@ void Dist_ConstrainedNodeAge::setConstParameter(const std::string& name, const R
 }
 
 
-/** The base distribution's methods, read off this variable, since its distribution passes them through. */
+/** The base distribution's methods, called on this variable. */
 MethodTable Dist_ConstrainedNodeAge::getDistributionMethods( void ) const
 {
     MethodTable methods = TypedDistribution<TimeTree>::getDistributionMethods();

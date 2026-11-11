@@ -47,7 +47,7 @@ namespace RevLanguage {
     private:
         
         RevPtr<const RevVariable>                           baseDistribution;
-        RevPtr<const RevVariable>                           constraints;         //!< The base tree distribution
+        RevPtr<const RevVariable>                           constraints;         //!< The node order constraints
         RevPtr<const RevVariable>                           beta;                //!< The beta weight parameter
         
     };

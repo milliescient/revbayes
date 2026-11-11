@@ -29,14 +29,18 @@ using namespace RevBayesCore;
 /**
  * Constructor.
  *
- * \param[in]    s              Speciation rates.
- * \param[in]    e              Extinction rates.
- * \param[in]    p              Fossil sampling rates.
- * \param[in]    r              Instantaneous sampling probabilities.
- * \param[in]    t              Rate change times.
- * \param[in]    cdt            Condition of the process (time/sampling/survival).
- * \param[in]    tn             Taxa.
- * \param[in]    c              Complete sampling?
+ * \param[in]    inspeciation   Speciation rates.
+ * \param[in]    inextinction   Extinction rates.
+ * \param[in]    inpsi          Fossil sampling rates.
+ * \param[in]    inrho          Sampling probability at the present.
+ * \param[in]    intimes        Interval boundaries.
+ * \param[in]    incondition    Condition of the process.
+ * \param[in]    intaxa         Taxa.
+ * \param[in]    comp           Complete sampling?
+ * \param[in]    inorigin       Optional origin age.
+ * \param[in]    inpresent      The present.
+ * \param[in]    inrates        Optional relative psi of each mixture component.
+ * \param[in]    inweights      Optional mixture weights.
  */
 AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProcess(const DagNode *inspeciation,
                                                                          const DagNode *inextinction,
@@ -390,7 +394,7 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnProbabilityRanges( boo
             partial_likelihood[i] = rangeLnProb( i );
         }
 
-        // outside the cache, since which range begins at the origin can change without touching it
+        // not cached, as the range that begins at the origin can change without a touch
         lnProb += partial_likelihood[i];
         if ( chargesBirth( i ) == true ) lnProb += log( birth[ findIndex(b) ] );
     }
@@ -932,10 +936,7 @@ double AbstractFossilizedBirthDeathRangeProcess::lnPresenceRecord( size_t i, dou
 
 
 /**
- * return the index i so that t_{i-1} > t >= t_i
- * where t_i is the instantaneous sampling time (i = 0,...,l)
- * t_0 is origin
- * t_l = 0.0
+ * The index i so that times[i] <= t < times[i+1], with times[0] the present.
  */
 size_t AbstractFossilizedBirthDeathRangeProcess::findIndex(double t) const
 {
@@ -1043,7 +1044,7 @@ double AbstractFossilizedBirthDeathRangeProcess::meanOrigination( size_t i ) con
 
 /**
  * p at dt above the start of an interval where it is pi, for rates b, d, f there and sampling r at its start.
- * Since (c - A)/(2b) = 2d/(c + A), b appears in no denominator, so the form holds at b = 0.
+ * Valid at b = 0.
  */
 static double closedFormP( double b, double d, double f, double r, double pi, double dt )
 {
@@ -1223,7 +1224,7 @@ void AbstractFossilizedBirthDeathRangeProcess::initializeFirstLast(size_t i)
     dirty_taxa[i] = true;
 }
 
-/** Without mvStratigraphicRange the appearances never move; warn once. */
+/** Warn once when no mvStratigraphicRange moves the appearances. */
 void AbstractFossilizedBirthDeathRangeProcess::warnIfNoResampleMove( void ) const
 {
     if ( has_resample_move == true || warned_no_resample == true ) return;
@@ -1243,7 +1244,7 @@ void AbstractFossilizedBirthDeathRangeProcess::warnIfNoResampleMove( void ) cons
 }
 
 
-/** Only mvPsiMixtureAllocation changes a species' psi component; warn once. */
+/** Warn once when no mvPsiMixtureAllocation moves the psi components. */
 void AbstractFossilizedBirthDeathRangeProcess::warnIfNoAllocationMove( void ) const
 {
     if ( num_components > 1 && has_allocation_move == false && warned_no_allocation == false )
@@ -1254,7 +1255,7 @@ void AbstractFossilizedBirthDeathRangeProcess::warnIfNoAllocationMove( void ) co
 }
 
 
-/** Without a dnFossilRecord the sampling is unscored and psi has no data; warn once. */
+/** Warn once when no dnFossilRecord scores the sampling. */
 void AbstractFossilizedBirthDeathRangeProcess::warnIfNoReportingNode( void ) const
 {
     if ( has_reporting_node == false && warned_no_reporting == false )
@@ -1265,7 +1266,7 @@ void AbstractFossilizedBirthDeathRangeProcess::warnIfNoReportingNode( void ) con
 }
 
 
-/** Fixed inputs that no state can satisfy, which the MCMC would otherwise report only as a failed start; warn once. */
+/** Warn once when fixed inputs leave no state with nonzero density. */
 void AbstractFossilizedBirthDeathRangeProcess::warnIfImpossibleInputs( const TypedDagNode<double> *start ) const
 {
     if ( warned_impossible == true ) return;
@@ -1312,7 +1313,7 @@ void AbstractFossilizedBirthDeathRangeProcess::warnIfInertNTaxaCondition( void )
 }
 
 
-/** Below rho = 1 only mvExtinctionRJSwitch moves a taxon on or off the present; warn once. */
+/** Warn once when rho < 1 and no mvExtinctionRJSwitch moves taxa on or off the present. */
 void AbstractFossilizedBirthDeathRangeProcess::warnIfNoSurvivalMove( void ) const
 {
     if ( has_survival_move == true || warned_no_survival == true ) return;
@@ -1330,7 +1331,7 @@ void AbstractFossilizedBirthDeathRangeProcess::warnIfNoSurvivalMove( void ) cons
 }
 
 
-/** Under presence one reported occurrence may stand for more, which only a move over singleton status samples; warn once. */
+/** Warn once when a presence record has a single occurrence and no move samples singleton status. */
 void AbstractFossilizedBirthDeathRangeProcess::warnIfNoSingletonMove( void ) const
 {
     if ( has_singleton_move == true || warned_no_singleton == true ) return;
@@ -1658,8 +1659,7 @@ void AbstractFossilizedBirthDeathRangeProcess::dirtyChangedIntervals( void )
 
 
 /**
- *
- *
+ * Fill the per-interval rates and times, and p_i, q_i and q_tilde_i at each interval.
  */
 void AbstractFossilizedBirthDeathRangeProcess::prepareProbComputation( void ) const
 {

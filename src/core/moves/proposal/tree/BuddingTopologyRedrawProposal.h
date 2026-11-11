@@ -10,10 +10,10 @@
 namespace RevBayesCore {
 
     /**
-     * Redraw the whole budding topology of a dnFBDSP tree with the ranges fixed.
+     * @brief Redraw the whole budding topology of a dnFBDSP tree with the ranges fixed.
      *
-     * Each lineage buds off one drawn uniformly from those alive at its birth. Every compatible
-     * tree has the same density, so the draw is from the exact conditional.
+     * Each lineage buds off one drawn uniformly from those alive at its birth. Under pure budding every compatible tree has the same density, so this is a Gibbs draw.
+
      *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (June Walker)

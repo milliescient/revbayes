@@ -333,7 +333,8 @@ void MonteCarloSampler::baseInitializeSamplerFromCheckpoint( void )
         }
     }
 
-    // We need to touch these so that their probabilities get recomputed, all of them, since a restore says nothing about which parts moved.
+    // Touch all of each node so its probability is recomputed, since a restore does not say what moved.
+
     for (auto& node: nodes)
     {
         node->touch( true );

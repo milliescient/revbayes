@@ -81,8 +81,8 @@ double StratigraphicRangeProposal::getProposalTuningParameter( void ) const
 
 
 /**
- * Redraw one taxon's two appearances from the bins that reported them. The support is fixed by
- * the data, so the Hastings ratio is 1.
+ * Redraw one taxon's two appearances from the bins that reported them. The support is fixed by the data, so the Hastings ratio is 1.
+
  *
  * \return The hastings ratio.
  */

@@ -27,8 +27,7 @@ namespace RevBayesCore {
         double  death = 0.0;                                //!< The extinction time.
         double  last  = 0.0;                                //!< The youngest appearance, tau_K.
         double  first = 0.0;                                //!< The oldest appearance, tau_1.
-        //!< Where the range attaches to the nearest sampled range.
-        double  divergence = 0.0;
+        double  divergence = 0.0;                           //!< Where the range attaches to the nearest sampled range.
 
         double  first_min = 0.0;                            //!< The oldest reported minimum.
         double  first_max = RbConstants::Double::inf;       //!< The oldest reported maximum.
@@ -37,13 +36,11 @@ namespace RevBayesCore {
 
         bool    singleton = true;                           //!< Fewer than two occurrences, so the appearances are one age.
 
-        //!< Alive at the present. Only mvExtinctionRJSwitch changes it.
-        bool    survived = false;
+        bool    survived = false;                           //!< Alive at the present. Only mvExtinctionRJSwitch changes it.
 
-        //!< Its psi mixture component. Only mvPsiMixtureAllocation changes it.
-        size_t  component = 0;
+        size_t  component = 0;                              //!< Its psi mixture component. Only mvPsiMixtureAllocation changes it.
 
-        //!< Ages never decrease into the past, and each appearance sits within the bins reporting it.
+        //! Ages never decrease into the past, and each appearance sits within the bins reporting it.
         bool    isOrdered(double present) const
                 {
                     if ( !( divergence > first && first >= last && last >= death && death >= present ) ) return false;
@@ -58,18 +55,12 @@ namespace RevBayesCore {
     /**
      * @brief Abstract piecewise-constant fossilized birth-death range process.
      *
-     * The piecewise-constant fossilized birth-death range process has constant rates for each time interval.
-     * At the end of each time interval there may be an abrupt rate-shift (jump) for each
-     * of the rates. Additionally, there may be sampling at the end of each interval.
-     * Finally, fossils are sampled with rate psi, the others (fossils and extant taxa) are
-     * sampled at sampling times (including the present).
+     * Rates are constant within each time interval and may jump at its boundaries.
+     * Fossils are sampled at rate psi, and extant taxa with probability rho at the present only.
+     * Each rate vector has one element per interval, and the timeline starts at the present.
      *
-     * We assume that the rate vectors have one more element than the rate-change vectors.
-     * Thus, one rate-change means always two interval, two rate-changes three interval, and so on.
-     * 
-     * This is the base class for the fossilized birth-death range processes. Each provides
-     * updateRanges(), which recomputes the origination and extinction times of each taxon from its
-     * matrix or tree value. Likelihood computations are otherwise shared.
+     * Each derived process provides updateRanges(), which reads each taxon's origination and
+     * extinction times from its matrix or tree value. The likelihood is otherwise shared.
      *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (Sebastian Hoehna)
@@ -117,7 +108,7 @@ namespace RevBayesCore {
         void                                            setPsiMixtureComponent(size_t i, size_t h);                 //!< Set taxon i's component, arming the undo. Only mvPsiMixtureAllocation may.
         std::vector<double>                             psiMixtureComponentLnProbs(size_t i) const;                 //!< Taxon i's log-density under each component, up to a constant.
         void                                            warnIfNoReportingNode(void) const;                          //!< Warn once when psi has no data.
-        void                                            warnIfImpossibleInputs(const TypedDagNode<double> *start = NULL) const;  //!< Warn once when fixed inputs make the density zero; start stands in for a missing origin_age.
+        void                                            warnIfImpossibleInputs(const TypedDagNode<double> *start = NULL) const;  //!< Warn once when fixed inputs make the density zero. start stands in for a missing origin_age.
         void                                            warnIfInertNTaxaCondition(void) const;                      //!< Warn once when rho leaves nTaxa conditioning inert.
         void                                            warnIfNoSurvivalMove(void) const;                           //!< Warn once when rho < 1 and no move samples survival.
         void                                            warnIfNoAllocationMove(void) const;                         //!< Warn once when a psi mixture's components have no move.
@@ -132,7 +123,7 @@ namespace RevBayesCore {
         const std::vector<const DagNode*>&              getRangeParameters(void) const { return range_parameters; } //!< The rate and timeline nodes a dnFossilRecord adopts as parents.
 
     protected:
-        virtual double                                  rangeEndTerm(size_t i, size_t di, double d, double p_d = -1.0, double pbar_d = -1.0) const { return log( death[di] ); } //!< Log term closing range i at d; under a mixture p_d is the range's component's chance to leave no sample from d, pbar_d a fresh draw's.
+        virtual double                                  rangeEndTerm(size_t i, size_t di, double d, double p_d = -1.0, double pbar_d = -1.0) const { return log( death[di] ); } //!< Log term closing range i at d. Under a mixture p_d and pbar_d are its component's and a fresh draw's p at d.
         virtual void                                    mixtureSymmetric(std::vector<double> &beta) const { beta.clear(); }  //!< Each interval's chance of symmetric speciation, empty where there is none.
         virtual void                                    mixtureAnagenetic(std::vector<double> &rate) const { rate.clear(); }  //!< Each interval's anagenetic rate, empty where there is none.
         virtual void                                    mixtureExtraLnProbs(size_t i, std::vector<double> &ln_probs) const {}  //!< Terms beside the ranges that depend on taxon i's component, by component.
@@ -161,7 +152,7 @@ namespace RevBayesCore {
         void                                            swapParameterInternal(const DagNode *oldP, const DagNode *newP);                //!< Swap a parameter
 
         // helper functions
-        size_t                                          findIndex(double t) const;                             //!< Find the index so that times[index-1] < t < times[index]
+        size_t                                          findIndex(double t) const;                             //!< The index so that times[index] <= t < times[index+1]
         double                                          p(size_t i, double t, bool survival = false) const;
         void                                            numTaxaGeometric(double &alpha, double &beta) const;       //!< The count at the present: geometric with an atom at alpha.
         size_t                                          getNumberOfTaxaAtPresent(void) const;                      //!< The taxa the record reports as extant.
@@ -186,21 +177,21 @@ namespace RevBayesCore {
         double                                          lnPresenceRecord(size_t i, double mixture_rate) const;  //!< Each reported interval holds at least its count.
         double                                          samplingExposure(double lo, double hi) const;           //!< The sampling rate integrated over [lo, hi).
         void                                            checkPresenceIntervals(void) const;                     //!< Under PRESENCE, refuse a taxon whose intervals overlap.
-        double                                          max_present_age;                                        //!< Youngest occurrence maximum; the timeline may not start above it.
+        double                                          max_present_age;                                        //!< Youngest occurrence maximum. The timeline may not start above it.
 
         void                                            updateRecord(void);                                     //!< Refresh the reported bins and the bounds they put on the appearances.
 
         size_t                                          num_intervals;
 
         // members
-        const TypedDagNode<double >*                    homogeneous_lambda;                                    //!< The homogeneous speciation rates.
+        const TypedDagNode<double >*                    homogeneous_lambda;                                    //!< The homogeneous speciation rate.
         const TypedDagNode<RbVector<double> >*          heterogeneous_lambda;                                  //!< The heterogeneous speciation rates.
-        const TypedDagNode<double >*                    homogeneous_mu;                                        //!< The homogeneous speciation rates.
-        const TypedDagNode<RbVector<double> >*          heterogeneous_mu;                                      //!< The heterogeneous speciation rates.
-        const TypedDagNode<double >*                    homogeneous_psi;                                       //!< The homogeneous speciation rates.
-        const TypedDagNode<RbVector<double> >*          heterogeneous_psi;                                     //!< The heterogeneous speciation rates.
-        const TypedDagNode<double >*                    homogeneous_rho;                                       //!< The homogeneous speciation rates.
-        const TypedDagNode<RbVector<double> >*          timeline;                                              //!< The times of the instantaneous sampling events.
+        const TypedDagNode<double >*                    homogeneous_mu;                                        //!< The homogeneous extinction rate.
+        const TypedDagNode<RbVector<double> >*          heterogeneous_mu;                                      //!< The heterogeneous extinction rates.
+        const TypedDagNode<double >*                    homogeneous_psi;                                       //!< The homogeneous fossil sampling rate.
+        const TypedDagNode<RbVector<double> >*          heterogeneous_psi;                                     //!< The heterogeneous fossil sampling rates.
+        const TypedDagNode<double >*                    homogeneous_rho;                                       //!< The sampling probability at the present.
+        const TypedDagNode<RbVector<double> >*          timeline;                                              //!< The interval boundaries.
         const TypedDagNode<double >*                    origin_age;                                            //!< The optional process start (NULL = the oldest birth, under no prior).
         const TypedDagNode<RbVector<double> >*          psi_mixture_rates;                                     //!< The relative psi of each mixture component (NULL = one component).
         const TypedDagNode<Simplex>*                    psi_mixture_weights;                                   //!< The mixture weights (NULL = equal).
@@ -228,7 +219,7 @@ namespace RevBayesCore {
         // used only with more than one psi mixture component
         mutable std::vector<double>                     mixture_rates;                                          //!< The relative fossil sampling rate of each component
         mutable std::vector<double>                     mixture_weights;                                        //!< The probability of each component
-        mutable FossilizedBirthDeathRangeRateClassNumeric                       mixture_numeric;                                        //!< the same, for a beta or anagenetic rate > 0 that the closed form cannot take
+        mutable FossilizedBirthDeathRangeRateClassNumeric                       mixture_numeric;                                        //!< Used when beta or the anagenetic rate is above 0
         mutable bool                                    mixture_numeric_on = false;                             //!< Whether the mixture is solved numerically.
         mutable std::vector<double>                     mix_beta;                                               //!< scratch: each interval's beta, for the solver
         mutable std::vector<double>                     mix_ana;                                                //!< scratch: each interval's anagenetic rate, for the solver
@@ -241,7 +232,7 @@ namespace RevBayesCore {
         double                                          stored_first = 0.0;                                     //!< The ages it replaced.
         double                                          stored_last  = 0.0;
 
-        size_t                                          switched_range = 0;                                     //!< The range a switch flipped, and the statuses it replaced.
+        size_t                                          switched_range = 0;                                     //!< The range a switch flipped.
         bool                                            stored_survived = false;                                //!< The statuses before the switch.
         bool                                            stored_singleton = true;
         bool                                            switched = false;                                       //!< That undo is armed.
@@ -262,7 +253,7 @@ namespace RevBayesCore {
                                 
         std::vector<bool>                               dirty_taxa;                                             //!< Indicates whether partial likelihood needs updating
 
-        //!< A taxon's record term with the arguments it was computed from
+        //! A taxon's record term with the arguments it was computed from
         struct RecordTerm {
             double  death = 0.0, first = 0.0, last = 0.0, rate = 0.0, value = 0.0;
             bool    singleton = false, valid = false;

@@ -100,8 +100,7 @@ double ExtinctionReversibleJumpProposal::getProposalTuningParameter( void ) cons
 
 
 /**
- * Jump one taxon's extinction time between the present and a uniform draw below its youngest
- * appearance.
+ * Jump one taxon's extinction time between the present and a uniform draw between the present and its last appearance.
  *
  * \return The hastings ratio.
  */
@@ -114,7 +113,8 @@ double ExtinctionReversibleJumpProposal::doProposal( void )
     stored_index = eligible[ (size_t)( rng->uniform01() * eligible.size() ) ];
 
     double present = rangeProcess().getPresent();
-    // tau_K, which a tree does not carry
+    // the last appearance, which a tree does not carry
+
     double last    = ( matrix != NULL ? matrix->getValue()[stored_index][1]
                                       : rangeProcess().getLastAppearance( stored_index ) );
     // stored first, so a rejection before the jump restores what is there

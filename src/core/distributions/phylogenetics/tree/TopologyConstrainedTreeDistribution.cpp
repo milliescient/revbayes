@@ -1302,7 +1302,7 @@ void TopologyConstrainedTreeDistribution::setStochasticNode( StochasticNode<Tree
 }
 
 
-/** The base reads the state into a tree of its own and drops the old one, so this follows it as setValue does. */
+/** The base replaces its tree, so rebind to the new one as setValue does. */
 void TopologyConstrainedTreeDistribution::setHiddenStateFromString(const std::string &s)
 {
     value->getTreeChangeEventHandler().removeListener( this );

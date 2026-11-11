@@ -29,8 +29,8 @@ namespace RevBayesCore {
 
     private:
 
-        //!< One interval's eigensystem: mode k decays at rate[k], with right vector (vy, vz), left vector (uy, uz)
-        //!< already divided by u.v, and coefficient c[k] from p at the interval's start.
+        //! One interval's eigensystem: mode k decays at rate[k], with right vector (vy, vz), left vector (uy, uz)
+        //! already divided by u.v, and coefficient c[k] from p at the interval's start.
         struct Interval {
             double              start = 0.0;
             double              lambda_pbar_start = 0.0;

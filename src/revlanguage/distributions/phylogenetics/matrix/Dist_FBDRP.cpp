@@ -94,7 +94,7 @@ RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_FBDRP::createDistribution( 
     // sampling condition
     const std::string& cond  = static_cast<const RlString &>( condition->getRevObject() ).getValue();
     
-    // get the taxa to simulate either from a vector of rev taxon objects or a vector of names
+    // taxa
     std::vector<RevBayesCore::Taxon> t = static_cast<const ModelVector<Taxon> &>( taxa->getRevObject() ).getValue();
 
     // speciation rate
@@ -114,12 +114,10 @@ RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_FBDRP::createDistribution( 
         rt = static_cast<const ModelVector<RealPos> &>( timeline->getRevObject() ).getDagNode();
     }
 
-    // optional process start, which the oldest birth follows
     RevBayesCore::TypedDagNode<double>* oa = createOrigin();
 
     double pres = static_cast<const RealPos &>( present->getRevObject() ).getValue();
 
-    // relative fossil sampling rates, one component drawn by each species at birth
     RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> >* mr = NULL;
     if ( psi_mixture_rates != NULL && psi_mixture_rates->getRevObject() != RevNullObject::getInstance() )
     {
@@ -145,7 +143,6 @@ RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_FBDRP::createDistribution( 
 }
 
 
-/** The reconstructed process, whose ranges share an ancestry. */
 RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_FBDRP::makeProcess(RevBayesCore::DagNode *l,
                                                                        RevBayesCore::DagNode *m,
                                                                        RevBayesCore::DagNode *p,
@@ -240,7 +237,7 @@ const MemberRules& Dist_FBDRP::getParameterRules(void) const
         dist_member_rules.push_back( coexistenceRule( true ) );
         dist_member_rules.push_back( requireParentRule() );
 
-        // add the rules from the base class, without the reporting args
+        // add the rules from the base class
         const MemberRules &parentRules = FossilizedBirthDeathRangeProcess<MatrixReal>::getCoreParameterRules();
         dist_member_rules.insert(dist_member_rules.end(), parentRules.begin(), parentRules.end());
 

@@ -12,13 +12,11 @@ namespace RevBayesCore {
     class FossilizedBirthDeathSpeciationProcess;
     
     /**
-     * The node-age slide proposal operator using a Uniform distribution.
+     * @brief Collapse a fossil tip's branch to make it a sampled ancestor, or expand a sampled ancestor onto a branch of its own.
      *
-     * This node-age proposal is a Uniform-sliding proposal on rooted subtrees without changing the topology.
-     * That is, we pick a random node which is not the root.
-     * Then, we pick an age between the parent and the oldest sampled descendant drawn from a Uniform distribution centered around the current age.
+     * The expanded parent age is drawn uniformly between the tip and the grandparent, or the origin at the root.
      *
-     *
+
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (Sebastian Hoehna)
      * @since 2012-07-12, version 1.0

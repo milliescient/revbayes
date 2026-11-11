@@ -85,7 +85,7 @@ std::string Move_CollapseExpandBifurcation::getMoveName( void ) const
 }
 
 
-/** Return member rules (no members) */
+/** Return member rules */
 const MemberRules& Move_CollapseExpandBifurcation::getParameterRules(void) const
 {
 

@@ -162,7 +162,7 @@ void FossilizedBirthDeathRangeRateClassClosedForm::solve( Interval &I, double la
     }
     else
     {
-        // the distinct poles, ascending; components with equal a share one, and order[pole_start[q]...] are its members
+        // the distinct poles, ascending. Components with equal a share one, and order[pole_start[q]...] are its members
         order.resize(H);
         for (size_t h = 0; h < H; h++) order[h] = h;
         std::sort( order.begin(), order.end(), [&](size_t x, size_t y){ return a[x] < a[y] || ( a[x] == a[y] && x < y ); } );

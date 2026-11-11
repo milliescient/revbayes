@@ -210,7 +210,8 @@ void RevBayesCore::StochasticNode<valueType>::getAffected(RbOrderedSet<DagNode*>
 }
 
 
-/** A monitor's value in the distribution's own form, built only when printed; a checkpoint is never simple. */
+/** Print in the distribution's own monitor form where it has one. A checkpoint is never simple. */
+
 template<class valueType>
 void RevBayesCore::StochasticNode<valueType>::printValue(std::ostream &o, const std::string &sep, int l, bool left, bool user, bool simple, bool flatten) const
 {

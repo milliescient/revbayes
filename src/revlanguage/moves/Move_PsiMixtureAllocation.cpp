@@ -57,8 +57,6 @@ Move_PsiMixtureAllocation* Move_PsiMixtureAllocation::clone(void) const
  * associated with the variable (DAG-node). The internal move object is created by calling its
  * constructor and passing the move-parameters (the variable and other parameters) as arguments of the
  * constructor. The move constructor takes care of the proper hook-ups.
- *
- * \return A new internal distribution object.
  */
 void Move_PsiMixtureAllocation::constructInternalObject( void )
 {
@@ -136,7 +134,8 @@ std::string Move_PsiMixtureAllocation::getMoveName( void ) const
  * Get the member rules used to create the constructor of this object.
  *
  * The member rules are:
- * (1) the variable, which must be a range matrix.
+ * (1) the variable, a range matrix or a time tree.
+ * (2) the move weight.
  *
  * \return The member rules.
  */

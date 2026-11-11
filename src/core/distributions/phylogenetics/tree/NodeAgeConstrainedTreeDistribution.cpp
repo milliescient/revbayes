@@ -17,14 +17,9 @@ using namespace RevBayesCore;
 /**
  * Constructor.
  *
- * The constructor connects the parameters of the birth-death process (DAG structure)
- * and initializes the probability density by computing the combinatorial constant of the tree structure.
- *
- * \param[in]    o         Origin or time of the process.
- * \param[in]    cdt       The condition of the process (time/survival/nTaxa)
- * \param[in]    nTaxa     Number of taxa (used for initialization during simulation).
- * \param[in]    tn        Taxon names used during initialization.
- * \param[in]    c         Clade constraints.
+ * \param[in]    base_dist The unconstrained tree distribution.
+ * \param[in]    c         Node age constraints.
+ * \param[in]    t         Optional starting tree, used in place of a draw.
  */
 NodeAgeConstrainedTreeDistribution::NodeAgeConstrainedTreeDistribution(TypedDistribution<Tree> *base_dist, const std::vector< RbVector<Clade> > &c, Tree *t) : TypedDistribution<Tree>( new Tree() ),
     base_distribution( base_dist ),
@@ -82,7 +77,7 @@ NodeAgeConstrainedTreeDistribution::~NodeAgeConstrainedTreeDistribution()
     delete starting_tree;
     
     // DO NOT DELETE THE VALUE
-    // the base distribution owned it, and our base class would delete it again
+    // the base distribution owns it
     value = NULL;
     
 }
@@ -271,7 +266,7 @@ void NodeAgeConstrainedTreeDistribution::prepareForClamping(Tree& tree)
     base_distribution->prepareForClamping(tree);
 }
 
-/** Hand the base a copy of the given starting tree, which it owns, and share it. */
+/** Give the base a copy of the starting tree and share it. */
 void NodeAgeConstrainedTreeDistribution::adoptStartingTree( void )
 {
     base_distribution->setValue( starting_tree->clone() );

@@ -215,7 +215,7 @@ void Dist_WeightedConstrainedNodeOrder::setConstParameter(const std::string& nam
 }
 
 
-/** The base distribution's methods, read off this variable, since its distribution passes them through. */
+/** The base distribution's methods, called on this variable. */
 MethodTable Dist_WeightedConstrainedNodeOrder::getDistributionMethods( void ) const
 {
     MethodTable methods = TypedDistribution<TimeTree>::getDistributionMethods();

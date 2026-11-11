@@ -14,7 +14,7 @@ void FossilizedBirthDeathRangeRateClassSolver::setRates(const std::vector<double
     std::vector<double> b = beta.empty() ? std::vector<double>( times.size(), 0.0 ) : beta;
     std::vector<double> a = anagenetic.empty() ? std::vector<double>( times.size(), 0.0 ) : anagenetic;
 
-    // a tree move leaves the rates alone, so the cached stem switches stay valid
+    // the cached stem switches hold until the rates change
     if ( times == r_times && lambda == r_lambda && mu == r_mu && psi == r_psi && rates == r_nu && weights == r_w
          && rho == r_rho && b == r_beta && a == r_ana ) return;
 
@@ -33,10 +33,7 @@ size_t FossilizedBirthDeathRangeRateClassSolver::rateIndex(double t) const
 
 
 /**
- * A stem from age top down to end can pass through unsampled ancestors, each in a fresh component. By forward-backward
- * over the components, with a(t) from source at top and g(t) to end_component at end (summed over all where it is -1),
- * E[N] = int a(t) r(t) (w . g(t)) dt / (a . g). A budding hands the lineage on from a parent left in its own component k,
- * at lambda (1-beta) p_k; a symmetric speciation's other daughter is fresh, at 2 lambda beta pbar; anagenesis at its rate.
+ * By forward-backward over the components, from source at top down to end_component at end (all components if it is -1).
  */
 void FossilizedBirthDeathRangeRateClassSolver::stemSwitches(double end, double top, const std::vector<double> &source, long end_component,
                                     double lo, double hi, double out[3]) const
@@ -80,9 +77,7 @@ void FossilizedBirthDeathRangeRateClassSolver::stemSwitches(double end, double t
         double t_end = ( i + 1 < r_times.size() ) ? std::min( hi, r_times[i+1] ) : hi;
         double len = t_end - t0;
 
-        // Quadrature nodes y and weights wq. On the solver's own grid, Simpson over its equal cells needs no new
-        // integration; next to the stem's ends a stiff transient sits, so there the cells are graded from 0.02 of
-        // the fastest decay time. Without a grid, the whole piece is graded at both ends.
+        // quadrature nodes y and weights wq: Simpson on the solver's grid, with cells graded next to the stem's ends
         double rate = r_lambda[i] + r_mu[i] + r_psi[i] * nu_max + r_ana[i];
         std::vector<double> y, wq;
         auto add = [&]( double t, double w )
@@ -173,7 +168,7 @@ void FossilizedBirthDeathRangeRateClassSolver::stemSwitches(double end, double t
             normalize( bwd[j] );
         }
 
-        // the integrand by mode; a . g normalizes each point, so the vectors' scales cancel
+        // the integrand by mode, normalized by a . g at each point
         double lp;
         std::vector<std::array<double,3> > f( N );
         for (size_t j = 0; j < N; j++)
@@ -197,7 +192,6 @@ void FossilizedBirthDeathRangeRateClassSolver::stemSwitches(double end, double t
         t0 = t_end;
     }
 
-    // a rejected tree move returns to cached states, so keep them; a long run of new ones is bounded
     if ( switch_cache.size() > 100000 ) switch_cache.clear();
     switch_cache[key] = { out[0], out[1], out[2] };
 }

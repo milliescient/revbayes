@@ -10,7 +10,7 @@ namespace RevBayesCore {
     class FossilizedBirthDeathSpeciationProcess;
 
     /**
-     * Resample one taxon's first and last appearances within the bins its occurrences reported.
+     * @brief Resample one taxon's first and last appearances within the bins its occurrences reported.
      *
      * For dnFBDSP, whose tree does not carry the appearances.
      *
@@ -41,7 +41,8 @@ namespace RevBayesCore {
 
     private:
 
-        FossilizedBirthDeathSpeciationProcess&  rangeProcess(void) const;                                              //!< The distribution, which owns the appearances.
+        FossilizedBirthDeathSpeciationProcess&  rangeProcess(void) const;                                              //!< Owns the appearances
+
 
         StochasticNode<Tree>*                   variable;                                                              //!< The variable the Proposal is working on
     };

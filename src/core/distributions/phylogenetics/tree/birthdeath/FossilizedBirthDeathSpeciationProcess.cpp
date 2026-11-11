@@ -42,17 +42,20 @@ using namespace RevBayesCore;
  * Constructor. 
  * We delegate most parameters to the base class and initialize the members.
  *
- * \param[in]    s              Speciation rates.
- * \param[in]    e              Extinction rates.
- * \param[in]    p              Fossil sampling rates.
- * \param[in]    c              Fossil observation counts.
- * \param[in]    r              Instantaneous sampling probabilities.
- * \param[in]    a              Anagenetic speciation rates.
- * \param[in]    b              Symmetric speciation probability.
- * \param[in]    t              Rate change times.
- * \param[in]    cdt            Condition of the process (time/sampling/survival).
- * \param[in]    tn             Taxa.
- * \param[in]    c              Complete sampling?
+ * \param[in]    ra             Age of the process (the origin).
+ * \param[in]    inspeciation   Speciation rates.
+ * \param[in]    inextinction   Extinction rates.
+ * \param[in]    inpsi          Fossil sampling rates.
+ * \param[in]    inrho          Sampling probability at the present.
+ * \param[in]    inlambda_a     Anagenetic speciation rates.
+ * \param[in]    inbeta         Symmetric speciation probabilities.
+ * \param[in]    intimes        Interval boundaries.
+ * \param[in]    incondition    Condition of the process.
+ * \param[in]    intaxa         Taxa.
+ * \param[in]    comp           Complete sampling?
+ * \param[in]    inpresent      The present.
+ * \param[in]    inmixture_rates   Optional relative psi of each mixture component.
+ * \param[in]    inmixture_weights Optional mixture weights.
  */
 FossilizedBirthDeathSpeciationProcess::FossilizedBirthDeathSpeciationProcess(const TypedDagNode<double> *ra,
                                                            const DagNode *inspeciation,
@@ -154,8 +157,8 @@ double FossilizedBirthDeathSpeciationProcess::computeLnProbabilityDivergenceTime
 
 
 /**
- * Two events at one age have probability zero, except a symmetric speciation at its sampled ancestor's age, which the
- * range carries into, and the tips at the present.
+ * Two events at one age have probability zero, except a symmetric speciation at its sampled ancestor's age
+ * and the tips at the present.
  */
 bool FossilizedBirthDeathSpeciationProcess::hasTiedEvents( void ) const
 {
@@ -175,9 +178,8 @@ bool FossilizedBirthDeathSpeciationProcess::hasTiedEvents( void ) const
 
 
 /**
- * A budding pays 1-beta; a symmetric speciation pays 2 beta lambda for both daughters, who each already carry
- * a lambda at their birth, since its daughters have no order while a budding's two orientations are separate
- * states. A range no taxon samples pays its birth and q down to the symmetric node that ends it.
+ * A budding pays 1-beta. A symmetric speciation pays 2 beta lambda, less the lambda each daughter pays at its birth.
+ * A range no taxon samples pays its birth and q down to the symmetric node that ends it.
  */
 double FossilizedBirthDeathSpeciationProcess::speciationModeLnProb( void ) const
 {
@@ -210,7 +212,7 @@ double FossilizedBirthDeathSpeciationProcess::speciationModeLnProb( void ) const
 
         if ( r.start == RangeStart::SPECIATION && r.at_origin == false ) lnProb += log( birth[ti] );
 
-        // the ancestor's end was charged mu, as computeLnProbabilityTimes cancels for a taxon
+        // replace the mu charged at the ancestor's end
         if ( r.start == RangeStart::SAMPLED_ANCESTOR )
         {
             double r_ana, r_sym;
@@ -223,7 +225,7 @@ double FossilizedBirthDeathSpeciationProcess::speciationModeLnProb( void ) const
 }
 
 
-/** A successor's range began where its sampled ancestor's ended, which its mode pays for in computeLnProbabilityTimes. */
+/** A successor's start is paid for in computeLnProbabilityTimes. */
 bool FossilizedBirthDeathSpeciationProcess::chargesBirth( size_t i ) const
 {
     return species[i].parent_is_sa == false && AbstractFossilizedBirthDeathRangeProcess::chargesBirth( i );
@@ -238,8 +240,7 @@ double FossilizedBirthDeathSpeciationProcess::computeLnProbabilityTimes( void ) 
 {
     double lnProb = 0.0;
 
-    // a successor's range began where its sampled ancestor's ended, by anagenesis or by a symmetric speciation
-    // whose other daughter left no sample, as its flag says; this cancels the ancestor's mu, and chargesBirth spares the successor a lambda
+    // a successor's start, by its flag's mode, replaces the mu at its sampled ancestor's end
     for (size_t i = 0; i < taxa.size(); i++)
     {
         if ( species[i].parent_is_sa == false ) continue;
@@ -256,9 +257,8 @@ double FossilizedBirthDeathSpeciationProcess::computeLnProbabilityTimes( void ) 
 
 
 /**
- * Close range i at d. The symmetric node pays for its own; a successor's term cancels the mu at a sampled ancestor;
- * otherwise extinction, or an anagenetic or symmetric speciation that leaves no sampled descendant, each successor
- * drawing its own psi component.
+ * Close range i at d. A symmetric end is paid at its node, and an end at a sampled ancestor pays mu, which the
+ * successor's start replaces. Otherwise the range ends by extinction, or by a speciation that leaves no sampled descendant.
  */
 double FossilizedBirthDeathSpeciationProcess::rangeEndTerm( size_t i, size_t di, double d, double p_d, double pbar_d ) const
 {
@@ -386,7 +386,7 @@ double FossilizedBirthDeathSpeciationProcess::q( size_t i, double t, bool tilde 
 
 
 /**
- *
+ * Redraw without reaching the inherited simulator.
  */
 void FossilizedBirthDeathSpeciationProcess::redrawValue(SimulationCondition c)
 {
@@ -400,7 +400,7 @@ void FossilizedBirthDeathSpeciationProcess::setValue(Tree *v, bool force)
     AbstractBirthDeathProcess::setValue(v, force);
     cached_events_level = 0;
 
-    // the per-taxon terms are read by tip index, and the tip moves read each tip's status, which a Newick drops
+    // the per-taxon terms are read by tip index
     const std::vector<TopologyNode*> nodes = this->getValue().getNodes();
     for (size_t i = 0; i < this->getValue().getNumberOfTips(); i++)
     {
@@ -410,8 +410,7 @@ void FossilizedBirthDeathSpeciationProcess::setValue(Tree *v, bool force)
     }
     this->getValue().orderNodesByIndex();
 
-    // on an extended tree only a sampled ancestor ends at its parent's age, which a Newick cannot tell beside a
-    // zero-length sibling
+    // on an extended tree only a sampled ancestor ends at its parent's age
     for (size_t i = 0; i < this->getValue().getNumberOfTips(); i++)
     {
         TopologyNode &tip = this->getValue().getNode(i);
@@ -468,7 +467,7 @@ std::string FossilizedBirthDeathSpeciationProcess::getHiddenStateString( void ) 
 
         tip.setNodeParameter( "fad", first.str() );
         tip.setNodeParameter( "lad", last.str() );
-        // singleton status is latent only under presence reporting; otherwise the occurrence count sets it
+        // only where it differs from the occurrence count
         if ( ranges[i].singleton != countSingleton( i ) ) tip.setNodeParameter( "singleton", ranges[i].singleton ? "1" : "0" );
         tip.setNodeParameter( "survived", ranges[i].survived ? "1" : "0" );
         // a Newick reads a zero-length tip as a sampled ancestor only beside a positive branch
@@ -500,9 +499,8 @@ bool FossilizedBirthDeathSpeciationProcess::printForMonitor( std::ostream &o ) c
 
 
 /**
- * A copy of the tree annotated for reading: each node's species as sp, each tip's fad, lad and survived, and each
- * internal node's mode, B, S or A. A sampled ancestor's tip repeats its node's mode, since a viewer that collapses
- * the zero-length branch keeps the tip's annotations. Returns the number of unsampled ranges labelled.
+ * Annotate each node's species as sp, each tip's fad, lad and survived, and each internal node's mode, B, S or A.
+ * A sampled ancestor's tip repeats its node's mode. Returns the number of unsampled ranges labelled.
  */
 size_t FossilizedBirthDeathSpeciationProcess::annotate( Tree &t ) const
 {
@@ -513,7 +511,7 @@ size_t FossilizedBirthDeathSpeciationProcess::annotate( Tree &t ) const
     {
         if ( node->isTip() == true ) continue;
 
-        // a sampled ancestor's successor says how it arose; collapsed onto a symmetric node, it ended there
+        // a sampled ancestor's successor says how it arose
         bool sa = false, bud = false;
         const TopologyNode *successor = NULL;
         for (size_t c = 0; c < node->getNumberOfChildren(); c++)
@@ -643,7 +641,7 @@ bool FossilizedBirthDeathSpeciationProcess::adoptSpeciesLabels( void )
         node.setContinuesParentLineage( mine.empty() == false && mine == parent );
     }
 
-    // a successor's mode, from its sampled ancestor's node or tip; anagenesis where none is given and the rates allow it
+    // a successor's mode, from its sampled ancestor's node or tip, or anagenesis where none is given and the rates allow it
     std::vector<std::string> mode( n );
     for (size_t i = 0; i < n; ++i)
     {
@@ -741,7 +739,6 @@ void FossilizedBirthDeathSpeciationProcess::setMcmcMode(bool tf)
     if ( tf == true ) warnIfImpossibleInputs( process_age );
     if ( tf == false ) return;
 
-    // only mvSpeciationMode changes which child continues, and only a fossil-branch move makes or removes a sampled ancestor
     if ( taxa.size() > 1 && has_mode_move == false && warned_no_mode == false )
     {
         warned_no_mode = true;
@@ -815,7 +812,7 @@ TopologyNode* FossilizedBirthDeathSpeciationProcess::joinSubtrees( const std::ve
         floor[u] = ( s >= 0 ? std::max( root[u], ranges[s].first ) : root[u] );
     }
 
-    // stems placed oldest floor first, each budding off one already placed; the first runs to the ceiling
+    // stems placed oldest floor first, each budding off one already placed, and the first runs to the ceiling
     std::vector<size_t> order(n);
     for (size_t u = 0; u < n; ++u) order[u] = u;
     std::sort( order.begin(), order.end(), [&](size_t a, size_t b){ return floor[a] > floor[b]; } );
@@ -946,8 +943,8 @@ std::vector<double> FossilizedBirthDeathSpeciationProcess::anageneticIntegrals(c
 
 /**
  * Over each span of ages t0 <= t1, the Poisson means of the hidden events that change an observed lineage's
- * species: buddings whose parent side leaves no sample, lambda (1-beta) p; symmetric speciations whose other
- * daughter leaves none, 2 lambda beta p; and anageneses, lambda_a.
+ * species: buddings whose parent side leaves no sample, lambda (1-beta) p, symmetric speciations whose other
+ * daughter leaves none, 2 lambda beta p, and anageneses, lambda_a.
  */
 void FossilizedBirthDeathSpeciationProcess::hiddenEventIntegrals(const std::vector<std::pair<double,double> > &spans, std::vector<double> &budding, std::vector<double> &bifurcation, std::vector<double> &anagenesis) const
 {
@@ -1042,8 +1039,8 @@ void FossilizedBirthDeathSpeciationProcess::mixtureAnagenetic( std::vector<doubl
 
 
 /**
- * An unsampled range's lineage from its top to the symmetric node that ends it, starting in source: the stem matrix
- * summed over the component it ends in, since nothing is observed of it.
+ * An unsampled range's lineage from its top to the symmetric node that ends it, starting in source, summed over the
+ * component it ends in.
  */
 double FossilizedBirthDeathSpeciationProcess::unsampledMixtureLnProb( const UnsampledRange &r, const std::vector<double> &source ) const
 {
@@ -1087,16 +1084,11 @@ long FossilizedBirthDeathSpeciationProcess::speciesBelow( const TopologyNode &no
 
 
 /**
- * By node index, the Poisson means of the hidden speciations on each branch and the observed event that began
- * its species. A hidden event is one that changes the observed lineage's species and leaves the rest unsampled;
- * on a sampled range they are counted only above its tau_1, since a sampled species does not change, and on a
- * range no taxon samples along the whole branch. A branch whose node does not continue its parent's species
- * begins with the observed event that made it: an anagenesis where the continuing sibling is a sampled
- * ancestor, a symmetric speciation where no sibling continues, and otherwise a budding.
+ * By node index, the Poisson means of the hidden speciations on each branch and the observed event that began its
+ * species. On a sampled range hidden events are counted only above its tau_1.
  */
 void FossilizedBirthDeathSpeciationProcess::branchEvents( BranchEvents &e, bool hidden ) const
 {
-    // six accessors read one tree state, so compute it once
     if ( cached_events_level >= ( hidden ? 2 : 1 ) )
     {
         e = cached_events;
@@ -1180,9 +1172,8 @@ bool FossilizedBirthDeathSpeciationProcess::isExtended( void ) const { return tr
 
 
 /**
- * The sampled tree an extended tree projects to. Each extinct species is cut back to its last appearance: its tip
- * moves there, or, where its lineage leads on to something below it, a sampled ancestor sits there and the lineage
- * carries on to the youngest node it leads to, the node at the old tip suppressed.
+ * The sampled tree an extended tree projects to: each extinct species cut back to its last appearance, as a tip
+ * or, where its lineage leads on, a sampled ancestor.
  */
 Tree FossilizedBirthDeathSpeciationProcess::sampledTree( void ) const
 {
@@ -1201,7 +1192,7 @@ Tree FossilizedBirthDeathSpeciationProcess::sampledTree( void ) const
 
         double tk = ranges[i].last;
 
-        // the edge holding the last appearance, on the species' own lineage; above the root, on its stem
+        // the edge holding the last appearance, on the species' own lineage, or above the root on its stem
         TopologyNode *n = tip;
         while ( n != root && n->getParent().getAge() < tk ) n = &n->getParent();
 
@@ -1211,8 +1202,7 @@ Tree FossilizedBirthDeathSpeciationProcess::sampledTree( void ) const
             continue;
         }
 
-        // below its sample the lineage leads to a successor: the child it changed into, or a range no taxon samples
-        // where it ended at a symmetric speciation. Its path takes the successor's label.
+        // below its sample the lineage leads to a successor, whose label its path takes
         TopologyNode *p0 = &tip->getParent();
         TopologyNode *c  = ( &p0->getChild(0) == tip ? &p0->getChild(1) : &p0->getChild(0) );
         std::string mine = StringUtilities::to_string( i + 1 );
@@ -1247,7 +1237,7 @@ Tree FossilizedBirthDeathSpeciationProcess::sampledTree( void ) const
             c->setParent( gp );
         }
         if ( n == p0 ) n = c;
-        // which takes it off its parent; setRoot deletes an old root itself
+        // which takes it off its parent. setRoot deletes an old root itself
         if ( p0 != &t.getRoot() ) delete p0;
 
         // and a sampled ancestor at the last appearance, above what the lineage leads to
@@ -1279,7 +1269,7 @@ Tree FossilizedBirthDeathSpeciationProcess::sampledTree( void ) const
         tip->setSampledAncestor( true );
     }
 
-    // tips by taxon, as the process reads them, then the internal nodes; the tree's own node list is stale
+    // tips by taxon, as the process reads them, then the internal nodes. The tree's own node list is stale
     size_t next = taxa.size();
     std::function<void(TopologyNode&)> index = [&]( TopologyNode &node ) {
         if ( node.isTip() == true ) node.setIndex( std::find( taxa.begin(), taxa.end(), node.getTaxon() ) - taxa.begin() );
@@ -1357,9 +1347,8 @@ bool FossilizedBirthDeathSpeciationProcess::hasAnagenesis( void ) const
 
 
 /**
- * The non-tip child of a sampled ancestor's node other than the symmetric node at its age that
- * the range carries on into. Its range begins there either way, and its flag says whether its lineage bifurcated away
- * from the ancestor's: false for a symmetric speciation, true for an anagenesis.
+ * The non-tip child of a sampled ancestor's node, other than a symmetric node at its age. Its flag is false for a
+ * symmetric speciation and true for an anagenesis.
  */
 bool FossilizedBirthDeathSpeciationProcess::isModeSuccessor( const TopologyNode &n ) const
 {
@@ -1491,8 +1480,8 @@ bool FossilizedBirthDeathSpeciationProcess::redrawTopology( void )
 }
 
 /**
- * Join the subtrees dnConstrainedTopology builds into one, below the age it asks for where that admits them. Its tips
- * stand at their extinction times, and every flag goes out as an annotation, which setValue adopts as given.
+ * Join the subtrees dnConstrainedTopology builds into one. Tips stand at their extinction times, and every flag
+ * goes out as an annotation, which setValue adopts.
  */
 void FossilizedBirthDeathSpeciationProcess::simulateClade(std::vector<TopologyNode *> &n, double age, double present, bool alwaysReturn)
 {
@@ -1604,8 +1593,7 @@ void FossilizedBirthDeathSpeciationProcess::normalizeContinuationFlags( const To
         if ( children[c]->isSampledAncestorTip() == false && continuesRange( *children[c] ) == true ) ++n_cont;
     }
 
-    // flags from outside default to budding, and to anagenesis at a sampled ancestor; only a label or a
-    // move makes a symmetric speciation
+    // flags from outside default to budding, and to anagenesis at a sampled ancestor
     if ( sa_tip == true )
     {
         for (size_t c = 0; c < children.size(); c++)
@@ -1823,8 +1811,7 @@ FossilizedBirthDeathSpeciationProcess::RangeFlow FossilizedBirthDeathSpeciationP
 }
 
 /**
- *
- *
+ * Fill the anagenetic rates and symmetric probabilities, then the base's terms.
  */
 void FossilizedBirthDeathSpeciationProcess::prepareProbComputation( void ) const 
 {
@@ -1860,10 +1847,6 @@ void FossilizedBirthDeathSpeciationProcess::prepareProbComputation( void ) const
 }
 
 
-/**
- * Compute the log-transformed probability of the current value under the current parameter values.
- *
- */
 /** Re-take from each tip the ages it holds. */
 void FossilizedBirthDeathSpeciationProcess::repairRanges( void )
 {
@@ -1891,7 +1874,7 @@ void FossilizedBirthDeathSpeciationProcess::repairRanges( void )
 
 void FossilizedBirthDeathSpeciationProcess::updateRanges( void )
 {
-    // a stale flag would freeze the chain
+    // the pass below sets it again
     invalid_continuation = false;
 
     repairRanges();
@@ -1941,7 +1924,7 @@ void FossilizedBirthDeathSpeciationProcess::updateRanges( void )
 }
 
 
-/** The tree's keep would otherwise reach the tree base only, and the range base must clear its stored proposal. */
+/** The range base must clear its stored proposal too. */
 void FossilizedBirthDeathSpeciationProcess::keepSpecialization(const DagNode *toucher)
 {
     AbstractFossilizedBirthDeathRangeProcess::keepSpecialization(toucher);

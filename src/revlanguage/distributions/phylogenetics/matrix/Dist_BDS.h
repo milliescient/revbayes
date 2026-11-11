@@ -27,10 +27,10 @@ namespace RevLanguage {
         std::vector<std::string>                                getDistributionFunctionAliases(void) const;                                             //!< Get the alternative names used for the constructor function in Rev.
         std::string                                             getDistributionFunctionName(void) const;                                                //!< Get the Rev-name for this distribution.
         const TypeSpec&                                         getTypeSpec(void) const;                                                                //!< Get the type spec of the instance
-        const MemberRules&                                      getParameterRules(void) const;                                                          //!< Get member rules (const), with the coexistence terms off by default
+        const MemberRules&                                      getParameterRules(void) const;                                                          //!< Get member rules (const)
 
     protected:
-        //!< Nothing is dropped, so nothing collapses and there is no divergence to report.
+        //!< Every lineage is sampled, so a birth time is an origination.
         bool                                                    hasUnsampledLineages(void) const override { return false; }
 
         RevBayesCore::FossilizedBirthDeathRangeProcess*         makeProcess(RevBayesCore::DagNode *l,

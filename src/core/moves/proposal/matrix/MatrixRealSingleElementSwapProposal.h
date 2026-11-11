@@ -12,7 +12,7 @@ namespace RevBayesCore {
 class MatrixReal;
 
     /**
-     * Swap two elements of a matrix, anywhere or within one row or column.
+     * @brief Swap two elements of a matrix, anywhere or within one row or column.
      *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (June Walker)

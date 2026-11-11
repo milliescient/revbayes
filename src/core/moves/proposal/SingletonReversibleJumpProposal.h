@@ -11,11 +11,9 @@ namespace RevBayesCore {
     class AbstractFossilizedBirthDeathRangeProcess;
 
     /**
-     * Jump one taxon between a single appearance age and two, by expanding tau_1 above tau_K or
-     * collapsing it onto tau_K.
+     * @brief Jump a singleton taxon between one appearance age and two, by expanding tau_1 above tau_K or collapsing it onto tau_K.
      *
-     * Under reporting="presence" one reported occurrence may stand for more, so tau_1 and tau_K
-     * may differ within its interval. The continuous moves keep their dimension.
+     * Under reporting="presence" one reported occurrence may stand for more within its interval.
      *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (June Walker)
@@ -46,15 +44,16 @@ namespace RevBayesCore {
 
     private:
 
-        AbstractFossilizedBirthDeathRangeProcess& rangeProcess(void) const;                         //!< The distribution, which owns the taxa and the status.
+        AbstractFossilizedBirthDeathRangeProcess& rangeProcess(void) const;
 
         void                                    collectEligible(void);                              //!< Taxa with one occurrence reported over an interval.
 
         StochasticNode<MatrixReal>*             matrix = NULL;                                      //!< One of these is the variable, the other stays null.
         StochasticNode<Tree>*                   tree   = NULL;
 
-        std::vector<size_t>                     eligible;                                           //!< Taxa with one occurrence reported over an interval.
-        size_t                                  stored_index = 0;                                   //!< The row touched, for the restore.
+        std::vector<size_t>                     eligible;
+        size_t                                  stored_index = 0;
+
         double                                  stored_first = 0.0;
         bool                                    failed = true;                                      //!< The last proposal returned before jumping.
     };

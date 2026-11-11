@@ -91,7 +91,7 @@ std::vector<std::string> Move_RotateNode::getMoveAliases( void ) const
 }
 
 
-/** Return member rules (no members) */
+/** Return member rules */
 const MemberRules& Move_RotateNode::getParameterRules(void) const
 {
 

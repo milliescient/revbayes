@@ -45,7 +45,7 @@ double CompleteFossilizedBirthDeathRangeProcess::lnOriginationSurvival( size_t i
 }
 
 
-/** The ranges carry the sampling conditioning; survival and the count at the present apply as usual. */
+/** The ranges carry the sampling conditioning. Survival and the count at the present apply as usual. */
 double CompleteFossilizedBirthDeathRangeProcess::conditionLnProb( void ) const
 {
     if ( condition == "sampling" ) return 0.0;
@@ -54,7 +54,7 @@ double CompleteFossilizedBirthDeathRangeProcess::conditionLnProb( void ) const
 }
 
 
-/** Only a given start spares the oldest birth its speciation rate, as PyRate's oldest interval does. */
+/** Only a given origin spares the oldest birth its speciation rate. */
 bool CompleteFossilizedBirthDeathRangeProcess::chargesBirth( size_t i ) const
 {
     return origin_age == NULL || FossilizedBirthDeathRangeProcess::chargesBirth( i );

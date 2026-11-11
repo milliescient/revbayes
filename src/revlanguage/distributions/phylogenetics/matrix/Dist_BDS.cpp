@@ -43,7 +43,7 @@ const TypeSpec& Dist_BDS::getClassTypeSpec( void )
 }
 
 
-/** The name the model is cited under, and the name that says what it assumes. */
+/** Get the alternative Rev names for the distribution. */
 std::vector<std::string> Dist_BDS::getDistributionFunctionAliases( void ) const
 {
     std::vector<std::string> a_names;
@@ -69,7 +69,7 @@ const TypeSpec& Dist_BDS::getTypeSpec( void ) const
 }
 
 
-/** The same arguments, handed to the process under complete lineage sampling. */
+/** The process under complete lineage sampling, without a psi mixture. */
 RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_BDS::makeProcess(RevBayesCore::DagNode *l,
                                                                       RevBayesCore::DagNode *m,
                                                                       RevBayesCore::DagNode *p,
@@ -88,7 +88,7 @@ RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_BDS::makeProcess(RevBayesCo
 }
 
 
-/** The same rules, except that the coexistence terms default off here and there is no psi mixture. */
+/** The rules of dnFBDRP, with coexistence off by default and no psi mixture. */
 const MemberRules& Dist_BDS::getParameterRules(void) const
 {
     static MemberRules dist_member_rules;

@@ -11,9 +11,7 @@ namespace RevBayesCore {
     class AbstractFossilizedBirthDeathRangeProcess;
 
     /**
-     * Gibbs draw of one taxon's psi mixture component.
-     *
-     * The component is in no value, so this is the only move that reaches it.
+     * @brief Gibbs draw of one taxon's psi mixture component, which is in no value and so reached by no other move.
      *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (June Walker)
@@ -44,7 +42,8 @@ namespace RevBayesCore {
 
     private:
 
-        AbstractFossilizedBirthDeathRangeProcess& rangeProcess(void) const;                         //!< The distribution, which owns the present and the taxa.
+        AbstractFossilizedBirthDeathRangeProcess& rangeProcess(void) const;
+
 
         void                                    check(void) const;                                  //!< Refuse a distribution without a mixture.
 

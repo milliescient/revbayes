@@ -26,17 +26,10 @@ namespace RevBayesCore {
     };
 
     /**
-     * @brief Piecewise-constant fossilized birth-death species distribution of extended trees.
+     * @brief Piecewise-constant fossilized birth-death species process on extended trees (Rev: dnFBDSP).
      *
-     * The piecewise-constant fossilized birth-death species process has constant rates for each time interval.
-     * At the end of each time interval there may be an abrupt rate-shift (jump) for each
-     * of the rates. Additionally, there may be sampling at the end of each interval.
-     * Finally, fossils are sampled with rate psi, the others (fossils and extant taxa) are
-     * sampled at sampling times (including the present).
-     *
-     * We assume that the rate vectors have one more element than the rate-change vectors.
-     * Thus, one rate-change means always two interval, two rate-changes three interval, and so on.
-     *
+     * Each tip ends a species, at its extinction or at the present. Speciation is by budding, by symmetric speciation with probability beta,
+     * or by anagenesis at rate lambda_a.
      *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (June Walker)
@@ -73,7 +66,7 @@ namespace RevBayesCore {
         bool                                            printForMonitor(std::ostream &o) const override;                   //!< The extended tree annotated with species, appearances and modes.
         void                                            setHiddenStateFromString(const std::string &s) override;
         void                                            redrawValue(void) override;
-        void                                            redrawValue(SimulationCondition c) override;                        //!< Redraw without reaching the inherited simulator
+        void                                            redrawValue(SimulationCondition c) override;                        //!< Redraw without reaching the inherited simulator.
         bool                                            redrawTopology(void);                                               //!< Gibbs-redraw the budding topology with the ranges fixed. Pure budding only.
         void                                            setHasModeMove(void) { has_mode_move = true; }                       //!< Registered by mvSpeciationMode.
         void                                            setHasSampledAncestorMove(void) { has_sampled_ancestor_move = true; } //!< Registered by mvCollapseExpandFossilBranch.
@@ -87,11 +80,11 @@ namespace RevBayesCore {
         double                                          simulateCladeAge(size_t n, double origin, double present, double min, bool alwaysReturn) const override;
         bool                                            allowsSampledAncestors(void) const override { return true; }        //!< The density rejects them where lambda_a = 0.
         bool                                            tracksSpeciesContinuation(void) const override { return true; }
-        std::vector<double>                             anageneticIntegrals(const std::vector<std::pair<double,double> > &spans) const;        //!< int lambda_a dt over each span, the anagenetic part of the above.
+        std::vector<double>                             anageneticIntegrals(const std::vector<std::pair<double,double> > &spans) const;        //!< int lambda_a dt over each span.
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const override;  //!< The per-branch speciation events, then the base's range methods.
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, Tree &rv) const override;              //!< getSampledTree.
         Tree                                            sampledTree(void) const;                                 //!< The tree cut back to each species' last appearance, annotated as the extended tree is.
-        //!< By node index: the Poisson means of the hidden speciations on each branch, and the observed event that began the species.
+        //! By node index: the Poisson means of the hidden speciations on each branch, and the observed event that began the species.
         struct BranchEvents { std::vector<double> hidden_budding, hidden_bifurcation, hidden_anagenetic, observed_budding, observed_bifurcation, observed_anagenetic; };
         void                                            branchEvents(BranchEvents &e, bool hidden = true) const;
         mutable BranchEvents                            cached_events;                                           //!< The last branchEvents, which every accessor of one tree state shares.
@@ -120,13 +113,13 @@ namespace RevBayesCore {
         long                                            speciesBelow(const TopologyNode &node) const;            //!< The taxon whose lineage runs through this node, or -1.
         bool                                            defaultSuccessorAnagenetic(void) const;                  //!< The mode a successor takes when nothing says.
 
-        //!< The range running through a subtree, or -1 while it is unnamed.
+        //! The range running through a subtree, or -1 while it is unnamed.
         struct RangeFlow { int species; double end_age; };
         RangeFlow                                       updateRanges(const TopologyNode & );
 
-        //!< A range no taxon samples, from where it began to the symmetric speciation that ended it.
         enum class RangeStart { SPECIATION, SAMPLED_ANCESTOR };
-        struct UnsampledRange { double top; double end; RangeStart start; bool anagenetic; bool at_origin = false; };  //!< anagenetic: begun at a sampled ancestor by anagenesis; at_origin: starts the process
+        //! A range no taxon samples, from where it began to the symmetric speciation that ended it.
+        struct UnsampledRange { double top; double end; RangeStart start; bool anagenetic; bool at_origin = false; };  //!< anagenetic: begun by anagenesis at a sampled ancestor. at_origin: starts the process
         double                                          speciationModeLnProb(void) const;                        //!< The mode of each speciation, and the ranges no taxon samples.
         double                                          unsampledMixtureLnProb(const UnsampledRange &r, const std::vector<double> &source) const;  //!< An unsampled range's path under the mixture, starting in source.
 
@@ -188,7 +181,7 @@ namespace RevBayesCore {
         mutable std::vector<double>                     anagenetic;                                              //!< The sorted anagenetic speciation rates.
         mutable std::vector<double>                     symmetric;                                               //!< The sorted symmetric speciation probabilities.
 
-        const TypedDagNode<double >*                    homogeneous_lambda_a;                                    //!< The homogeneous anagenetic speciation rates.
+        const TypedDagNode<double >*                    homogeneous_lambda_a;                                    //!< The homogeneous anagenetic speciation rate.
         const TypedDagNode<RbVector<double> >*          heterogeneous_lambda_a;                                  //!< The heterogeneous anagenetic speciation rates.
         const TypedDagNode<double >*                    homogeneous_beta;                                        //!< The homogeneous symmetric speciation probability.
         const TypedDagNode<RbVector<double> >*          heterogeneous_beta;                                      //!< The heterogeneous symmetric speciation probabilities.

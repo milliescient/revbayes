@@ -13,8 +13,7 @@ namespace RevBayesCore {
     /**
      * @brief The fossil record conditioned on a range process (Rev: dnFossilRecord).
      *
-     * The ranges, appearances, psi and the occurrences are all read from the range process,
-     * which also holds the reporting model.
+     * The ranges, psi, the occurrences and the reporting model are all held by the range process.
      */
     class FossilRecordProcess : public TypedDistribution< RbVector<Taxon> > {
 

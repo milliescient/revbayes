@@ -221,7 +221,7 @@ void Dist_ConstrainedNodeOrder::setConstParameter(const std::string& name, const
 }
 
 
-/** The base distribution's methods, read off this variable, since its distribution passes them through. */
+/** The base distribution's methods, called on this variable. */
 MethodTable Dist_ConstrainedNodeOrder::getDistributionMethods( void ) const
 {
     MethodTable methods = TypedDistribution<TimeTree>::getDistributionMethods();

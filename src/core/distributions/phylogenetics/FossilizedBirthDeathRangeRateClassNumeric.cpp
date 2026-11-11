@@ -18,7 +18,7 @@ void FossilizedBirthDeathRangeRateClassNumeric::update( const std::vector<double
     std::vector<double> b = beta.empty() ? std::vector<double>( times.size(), 0.0 ) : beta;
     std::vector<double> a = anagenetic.empty() ? std::vector<double>( times.size(), 0.0 ) : anagenetic;
 
-    // a change in what every interval shares drops the whole grid; otherwise only from the youngest changed interval
+    // a change in what every interval shares drops the whole grid, any other change drops it from the youngest changed interval
     bool all = ( num_components != rates.size() || starts != times || nu != rates || w != weights || rho != r || grid.empty() );
     size_t first = all ? 0 : times.size();
     for (size_t i = 0; first == times.size() && i < times.size(); i++)
@@ -78,7 +78,7 @@ double FossilizedBirthDeathRangeRateClassNumeric::stepLength( size_t i ) const
     if ( stiff ) fastest = std::max( fastest, lam[i] + mu_[i] + ana_[i] );
     double h_max = std::min( step, ( stiff ? etd_step_rate : step_rate ) / std::max( fastest, 1E-12 ) );
 
-    // equal steps between the interval's ends; the oldest runs on without end, in steps of h_max
+    // equal steps between the interval's ends, and steps of h_max in the oldest
     if ( i + 1 < starts.size() )
     {
         double len = starts[i+1] - starts[i];
@@ -128,14 +128,12 @@ void FossilizedBirthDeathRangeRateClassNumeric::rk4( size_t i, std::vector<doubl
 
 
 /**
- * Cox and Matthews' ETDRK4 with the diagonal linear part L = -(lambda + mu + psi nu_h + a) of each p_h and each Q row,
- * so a fast-sampled component's decay is solved exactly and the step need only resolve the slow rates. The
- * coefficients are Kassam and Trefethen's contour means, accurate as hL goes to zero.
+ * ETDRK4 (Cox and Matthews) with linear part L = -(lambda + mu + psi nu_h + a) for each p_h and each Q row,
+ * and Kassam and Trefethen's contour coefficients.
  */
 void FossilizedBirthDeathRangeRateClassNumeric::etd4( size_t i, std::vector<double> &x, double h, size_t C ) const
 {
-    // a fast transient (each Q column starts from the identity) has local error ~ exp(-k t) (k s)^5, so the substeps
-    // start at eps^(1/5)/k and grow as it decays, at most doubling
+    // substeps start at eps^(1/5)/k and at most double as the fast transient decays
     double k_max = 0.0, k_slow = std::numeric_limits<double>::infinity();
     for (size_t c = 0; c < num_components; c++)
     {
@@ -217,8 +215,7 @@ void FossilizedBirthDeathRangeRateClassNumeric::etdStep( size_t i, std::vector<d
 
 
 /**
- * Advance the state from one age to an older one within one interval, in steps no longer than the interval's,
- * all equal, so the result is a smooth function of the ages.
+ * Advance the state to an older age within one interval, in equal steps, so the result is smooth in the ages.
  */
 void FossilizedBirthDeathRangeRateClassNumeric::advance( std::vector<double> &state, double from, double to, size_t C ) const
 {

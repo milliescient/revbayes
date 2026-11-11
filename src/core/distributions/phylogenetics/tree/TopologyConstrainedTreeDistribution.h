@@ -48,7 +48,7 @@ namespace RevBayesCore {
         void                                                setMcmcMode(bool tf) override { base_distribution->setMcmcMode( tf ); }
         std::string                                         getHiddenStateString(void) const override { return base_distribution->getHiddenStateString(); }
         bool                                                printForMonitor(std::ostream &o) const override { return base_distribution->printForMonitor( o ); }
-        void                                                setHiddenStateFromString(const std::string &s) override;                                    //!< The base reads it, and this follows the base's new tree
+        void                                                setHiddenStateFromString(const std::string &s) override;                                    //!< Follows the base's new tree
 
     protected:
         

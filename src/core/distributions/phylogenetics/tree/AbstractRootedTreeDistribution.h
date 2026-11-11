@@ -44,8 +44,6 @@ namespace RevBayesCore {
         virtual double                                      simulateCladeAge(size_t n, double origin, double present, double min, bool alwaysReturn) const;
 
     public:
-        //!< Must this taxon's tip age lie inside its occurrence range?
-        //!< Whether setValue validates every tip age.
 
     protected:
         // pure virtual helper functions

@@ -84,7 +84,7 @@ std::string Move_BuddingTopologyRedraw::getMoveName( void ) const
 }
 
 
-/** Return member rules (no members) */
+/** Return member rules */
 const MemberRules& Move_BuddingTopologyRedraw::getParameterRules(void) const
 {
 

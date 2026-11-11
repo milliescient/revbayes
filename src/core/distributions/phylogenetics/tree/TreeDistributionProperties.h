@@ -7,9 +7,7 @@
 namespace RevBayesCore {
 
     /**
-     * @brief Properties of a tree distribution that a tree move can ask about.
-     *
-     * The tip-age policy defaults to isExtended, for processes that answer per taxon.
+     * @brief Properties of a tree distribution that moves, monitors and checkpoints ask about.
      */
     class TreeDistributionProperties {
 
@@ -19,11 +17,11 @@ namespace RevBayesCore {
         virtual bool    isExtended(void) const { return false; }                                     //!< Tips are extinction times
         virtual bool    allowsSampledAncestors(void) const { return false; }                         //!< Checks if distribution is compatible with sampled ancestors
         virtual bool    tracksSpeciesContinuation(void) const { return false; }                      //!< Node flags say which child continues its parent's species
-        virtual bool    tipAgeConstrainedToRange(const Taxon &t) const { return isExtended() == false; }
-        virtual const Distribution* getWrappedDistribution(void) const { return NULL; }              //!< The distribution a wrapper such as a topology constraint holds
+        virtual bool    tipAgeConstrainedToRange(const Taxon &t) const { return isExtended() == false; }   //!< The tip age must lie in the taxon's age range
+        virtual const Distribution* getWrappedDistribution(void) const { return NULL; }              //!< The distribution a constraint wrapper holds
     };
 
-    //!< The distribution behind any wrappers around d.
+    //! The distribution behind any wrappers around d.
     inline Distribution& unconstrained( Distribution &d )
     {
         Distribution *out = &d;

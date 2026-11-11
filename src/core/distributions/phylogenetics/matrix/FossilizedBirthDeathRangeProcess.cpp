@@ -35,15 +35,20 @@ using namespace RevBayesCore;
  * Constructor. 
  * We delegate most parameters to the base class and initialize the members.
  *
- * \param[in]    s              Speciation rates.
- * \param[in]    e              Extinction rates.
- * \param[in]    p              Fossil sampling rates.
- * \param[in]    c              Fossil observation counts.
- * \param[in]    r              Instantaneous sampling probabilities.
- * \param[in]    t              Rate change times.
- * \param[in]    cdt            Condition of the process (time/sampling/survival).
- * \param[in]    tn             Taxa.
- * \param[in]    c              Complete sampling?
+ * \param[in]    inspeciation   Speciation rates.
+ * \param[in]    inextinction   Extinction rates.
+ * \param[in]    inpsi          Fossil sampling rates.
+ * \param[in]    inrho          Sampling probability at the present.
+ * \param[in]    intimes        Interval boundaries.
+ * \param[in]    incondition    Condition of the process.
+ * \param[in]    intaxa         Taxa.
+ * \param[in]    complete_record Complete sampling?
+ * \param[in]    coexistence    Weight each birth by the lineages alive at it.
+ * \param[in]    require_parent Reject a birth with no lineage alive at it.
+ * \param[in]    inorigin       Optional origin age.
+ * \param[in]    inpresent      The present.
+ * \param[in]    inrates        Optional relative psi of each mixture component.
+ * \param[in]    inweights      Optional mixture weights.
  */
 FossilizedBirthDeathRangeProcess::FossilizedBirthDeathRangeProcess(const DagNode *inspeciation,
                                                                      const DagNode *inextinction,
@@ -292,8 +297,7 @@ void FossilizedBirthDeathRangeProcess::updateGamma(bool force)
 
 
 /**
- * Compute the log-transformed probability of the current value under the current parameter values.
- *
+ * Read the ranges from the matrix value.
  */
 void FossilizedBirthDeathRangeProcess::updateRanges( void )
 {

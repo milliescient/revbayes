@@ -156,7 +156,8 @@ namespace RevBayesCore {
         bool                                        continuesParentLineage() const;                                                     //!< Does this node continue its parent's lineage?
         bool                                        isSampledAncestorTip() const;                                                       //!< Is node a tip sampled ancestor?
         bool                                        isSampledAncestorParent() const;                                                    //!< Is child node a tip a sampled ancestor?
-        bool                                        hasZeroLengthBranch(void) const;                                                          //!< Its age is its parent's, as a sampled ancestor tip's or a symmetric node's at its sampled ancestor
+        bool                                        hasZeroLengthBranch(void) const;                                                    //!< Is its age its parent's?
+
         bool                                        isSampledAncestorTipOrParent() const;                                               //!< Is node or child node a tip a sampled ancestor?
         bool                                        isSampledAncestorKnuckle() const;                                                   //!< Does this one have only one child?
         bool                                        isTip(void) const;                                                                  //!< Is node tip?

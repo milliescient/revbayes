@@ -203,7 +203,7 @@ double CollapseExpandFossilBranchProposal::collapseBranch(TopologyNode &n)
         return RbConstants::Double::neginf;
     }
 
-    // a budding only: the sibling keeps its flag, anagenesis where it continued, a symmetric speciation where n did
+    // only a budding collapses, with exactly one child continuing
     if ( orients == true && n.continuesParentLineage() == sibling->continuesParentLineage() )
     {
         failed = true;
@@ -267,8 +267,8 @@ double CollapseExpandFossilBranchProposal::expandBranch(TopologyNode &n)
         max_age = parent.getParent().getAge();
     }
     
-    // test that the max age is larger than the min age; a range carried into a symmetric node at the
-    // sampled ancestor's age is mvCollapseExpandBifurcation's, since a collapse cannot bring it back
+    // a sampled ancestor whose successor is a symmetric node is left to mvCollapseExpandBifurcation
+
     if ( max_age <= min_age || ( orients == true && fbdsp->isModeSuccessor( *sibling ) == false ) )
     {
         failed = true;

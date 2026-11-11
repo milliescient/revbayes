@@ -13,17 +13,9 @@
 namespace RevBayesCore {
     
     /**
-     * @brief Piecewise-constant fossilized birth-death range distribution of origination extinction times matrix.
+     * @brief Piecewise-constant fossilized birth-death range process on a matrix of ranges (Rev: dnFBDRP).
      *
-     * The piecewise-constant fossilized birth-death range process has constant rates for each time interval.
-     * At the end of each time interval there may be an abrupt rate-shift (jump) for each
-     * of the rates. Additionally, there may be sampling at the end of each interval.
-     * Finally, fossils are sampled with rate psi, the others (fossils and extant taxa) are
-     * sampled at sampling times (including the present).
-     *
-     * We assume that the rate vectors have one more element than the rate-change vectors.
-     * Thus, one rate-change means always two interval, two rate-changes three interval, and so on.
-     *
+     * Each row holds a taxon's death, youngest appearance, oldest appearance and birth.
      *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (Sebastian Hoehna)
@@ -73,8 +65,7 @@ namespace RevBayesCore {
         void                                            restoreSpecialization(const DagNode *toucher) override;
         void                                            touchSpecialization(const DagNode *toucher, bool touchAll) override;
 
-        //!< Weight each birth by how many lineages were alive to produce it.
-        bool                                            coexistence;
+        bool                                            coexistence;                                        //!< Weight each birth by how many lineages were alive to produce it.
         bool                                            require_parent;                                     //!< Reject a birth with none alive. Off only where ranges were left out.
 
     private:
@@ -84,7 +75,7 @@ namespace RevBayesCore {
         void                                            redrawValue(void) override;
 
         std::vector<size_t>                             gamma_i;            //!< The number of coexisting lineages at each taxon birth time
-        std::vector<std::vector<bool> >                 gamma_links;        //!< A boolean matrix indicating which taxa are coexiting at each birth time
+        std::vector<std::vector<bool> >                 gamma_links;        //!< Which taxa coexist at each birth time
         std::vector<bool>                               dirty_gamma;        //!< Indicates whether gamma needs updating
     };
 }

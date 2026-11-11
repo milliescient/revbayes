@@ -9,8 +9,7 @@
 namespace RevBayesCore {
 
     /**
-     * @brief A rate class each new species draws, as the solvers give it: p, the lambda integral and the stem matrix Q,
-     * plus the hidden species changes on a stem, which follow from them.
+     * @brief Base for the psi-mixture solvers: p, the lambda integral, the stem matrix Q, and the hidden species changes on a stem.
      */
     class FossilizedBirthDeathRangeRateClassSolver {
 
@@ -30,7 +29,7 @@ namespace RevBayesCore {
     protected:
         void                    setRates(const std::vector<double> &times, const std::vector<double> &lambda, const std::vector<double> &mu,
                                          const std::vector<double> &psi, const std::vector<double> &rates, const std::vector<double> &weights,
-                                         double rho, const std::vector<double> &beta, const std::vector<double> &anagenetic);  //!< The arguments stemSwitches reads; empty beta or anagenetic is zero.
+                                         double rho, const std::vector<double> &beta, const std::vector<double> &anagenetic);  //!< The arguments stemSwitches reads. An empty beta or anagenetic is zero.
 
     private:
         size_t                  rateIndex(double t) const;

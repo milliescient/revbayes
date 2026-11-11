@@ -306,7 +306,8 @@ void FossilTipTimeUniformProposal::printParameterSummary(std::ostream &o, bool n
 void FossilTipTimeUniformProposal::undoProposal( void )
 {
     
-    // a proposal that found no movable tip never picked a node, so there is nothing to restore
+    // no tip was picked
+
     if ( failed == true ) return;
 
     // undo the proposal

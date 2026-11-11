@@ -12,21 +12,11 @@
 namespace RevBayesCore {
 
     /**
-     * @brief Extinction probabilities under rate classes that scale psi, integrated with fixed eighth-order steps.
-     *
-     * The same quantities as FossilizedBirthDeathRangeRateClassClosedForm, for any beta and anagenetic rate a: every new species draws a
-     * component, so symmetric speciation adds lambda beta pbar^2 to dp_h/dt, which breaks the linearisation the
-     * closed form rests on, and anagenesis moves the lineage to a fresh draw.
+     * @brief Extinction probabilities under rate classes that scale psi, for any beta and anagenetic rate a, solved numerically.
      *
      *     dp_h/dt = mu - (lambda + mu + psi nu_h + a) p_h + lambda (1-beta) p_h pbar + lambda beta pbar^2 + a pbar
      *
-     * The lambda integral is int lambda (1-beta) pbar, a budding whose daughter leaves no sample, which is
-     * int lambda pbar at beta = 0. The stem matrix Q = dp(t)/dp(s) solves the variational equation.
-     *
-     * As the closed form caches each interval, this caches a grid: every interval start is a grid point, steps
-     * are at most `step` long, and each point keeps p and the integral, each step its propagator dp/dp over it.
-     * A change of arguments drops the grid from the youngest interval it touches. A query integrates only the
-     * pieces between its ages and the nearest grid points, and multiplies the cached step propagators between.
+     * Every interval start is a grid point. Each grid point caches p and the integral, and each step its propagator.
      */
     class FossilizedBirthDeathRangeRateClassNumeric : public FossilizedBirthDeathRangeRateClassSolver {
 
@@ -60,7 +50,7 @@ namespace RevBayesCore {
         double                  rho = 1.0;
         double                  step = 0.5;                    //!< the longest step
         double                  step_rate = 0.5;                //!< the longest step times the interval's fastest rate
-        double                  stiff_limit = 2500.0;           //!< above it (a rate near 5000), RKF78 costs more than etd4, which steps against the slow rates only
+        double                  stiff_limit = 2500.0;           //!< above it, etd4 is used
         double                  etd_step_rate = 0.1;            //!< the ETD step times the interval's fastest slow rate
 
         struct EtdCoefficients { std::vector<double> E, E2, Q, f1, f2, f3; };
@@ -68,7 +58,7 @@ namespace RevBayesCore {
         mutable size_t          etd_interval = size_t(-1);      //!< the interval etd_cache holds
         mutable std::vector<double> etd_L, etd_N, etd_a, etd_b, etd_c, etd_Na, etd_Nb, etd_Nc;  //!< scratch
 
-        mutable std::vector< boost::numeric::odeint::runge_kutta_fehlberg78< std::vector<double> > > steppers;  //!< one per number of Q columns, so none resizes
+        mutable std::vector< boost::numeric::odeint::runge_kutta_fehlberg78< std::vector<double> > > steppers;  //!< one per number of Q columns
         mutable std::vector<double>               grid;         //!< grid ages, the present first
         mutable std::vector<double>               grid_state;   //!< p and the integral at each grid point, H + 1 apiece
         mutable std::vector<double>               grid_step;    //!< dp(g_{k+1})/dp(g_k), row-major H x H, for each step

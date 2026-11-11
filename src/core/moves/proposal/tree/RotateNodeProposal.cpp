@@ -51,11 +51,7 @@ double RotateNodeProposal::getProposalTuningParameter( void ) const
 }
 
 
-/**
- * Pick uniformly among the internal nodes that can flip and the successors of sampled ancestors. A node moves its
- * continuation to another child, or with symmetric speciation to none; a successor flips between anagenesis and
- * symmetric speciation. A flip leaves both sets unchanged, so their sizes cancel.
- */
+/** Pick uniformly among the internal nodes that can flip and the successors of sampled ancestors. A flip leaves both sets unchanged, so their sizes cancel. */
 double RotateNodeProposal::doProposal( void )
 {
     RandomNumberGenerator* rng = GLOBAL_RNG;
@@ -67,8 +63,7 @@ double RotateNodeProposal::doProposal( void )
     FossilizedBirthDeathSpeciationProcess *fbdsp = dynamic_cast<FossilizedBirthDeathSpeciationProcess *>( &unconstrained( tree->getDistribution() ) );
     symmetric = ( fbdsp != NULL && fbdsp->hasSymmetricSpeciation() == true );
 
-    // a sampled ancestor node's continuation is forced onto the tip, but the successor's flag holds whether it arose
-    // by anagenesis or a symmetric speciation
+    // a successor's flag holds whether it arose by anagenesis or a symmetric speciation
     bool modes = ( fbdsp != NULL && fbdsp->hasFreeSuccessorModes() == true );
     std::vector<size_t> candidates, mode_nodes;
     for (size_t i = 0; i < tau.getNumberOfNodes(); i++)
@@ -117,8 +112,8 @@ double RotateNodeProposal::doProposal( void )
         if ( stored_flags[c] == true ) holder = c;
     }
 
-    // the states are one per child plus, with symmetric speciation, none; draw one of the others uniformly,
-    // so the reverse draw has the same chance
+    // one state per child, plus none with symmetric speciation, and the others are drawn uniformly
+
     size_t states = stored_children.size() + ( symmetric ? 1 : 0 );
     size_t pick = size_t( rng->uniform01() * ( states - 1 ) );
     if ( pick >= holder ) ++pick;

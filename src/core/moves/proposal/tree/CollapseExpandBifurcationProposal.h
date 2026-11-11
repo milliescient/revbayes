@@ -14,16 +14,14 @@ namespace RevBayesCore {
     class TopologyNode;
 
     /**
-     * On an extended tree, a sampled species that ends at a symmetric speciation sits as a sampled ancestor tip
-     * at that node, the range carried on into a symmetric node of the same age:
+     * @brief On an extended tree, swap a sampled species ending at a symmetric speciation for two buddings and a tip.
      *
      *     collapsed:  A(t_A)[ i(t_A, sampled ancestor) , B(t_A)[ D1 , D2 ] ]
      *     expanded:   A(t_A)[ D1 , B(t_B)[ D2 , i(t_s) ] ]       t_A > t_B > t_s
      *
-     * Geometry alone never puts two ages together, so this move maps the collapsed state to two buddings and a
-     * tip and back. The expand picks D2 among B's children and draws t_B uniformly above D2 and t_s uniformly
-     * above the present; the collapse is determined. The candidates are every extinct fossil tip, a number no
-     * move changes, so it cancels.
+     * The expand picks D2 of B's two children and draws t_B uniformly above D2 and t_s uniformly above the present.
+     * The collapse is determined. Every fossil tip is a candidate, so the choice of i cancels.
+
      *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (June Walker)

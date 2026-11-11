@@ -47,7 +47,7 @@ template <class variableType> class StochasticNode;
         void prepareForClamping(Tree& tree) override;
         void repairCheckpointValue(Tree& tree) override;
 
-        // what moves, monitors and checkpoints ask of the tree distribution, answered by the one this wraps
+        // answered by the wrapped distribution
         bool                                                allowsSampledAncestors(void) const override { const TreeDistributionProperties *p = dynamic_cast<const TreeDistributionProperties *>( base_distribution ); return p != NULL && p->allowsSampledAncestors(); }
         bool                                                tracksSpeciesContinuation(void) const override { const TreeDistributionProperties *p = dynamic_cast<const TreeDistributionProperties *>( base_distribution ); return p != NULL && p->tracksSpeciesContinuation(); }
         bool                                                isExtended(void) const override { const TreeDistributionProperties *p = dynamic_cast<const TreeDistributionProperties *>( base_distribution ); return p != NULL && p->isExtended(); }
@@ -55,7 +55,7 @@ template <class variableType> class StochasticNode;
         void                                                setMcmcMode(bool tf) override { base_distribution->setMcmcMode( tf ); }
         std::string                                         getHiddenStateString(void) const override { return base_distribution->getHiddenStateString(); }
         bool                                                printForMonitor(std::ostream &o) const override { return base_distribution->printForMonitor( o ); }
-        void                                                setHiddenStateFromString(const std::string &s) override { base_distribution->setHiddenStateFromString( s ); value = &base_distribution->getValue(); }  //!< The base reads it into a tree of its own, which this shares
+        void                                                setHiddenStateFromString(const std::string &s) override { base_distribution->setHiddenStateFromString( s ); value = &base_distribution->getValue(); }  //!< The base replaces its tree, which this shares
 
     protected:
         
@@ -77,7 +77,7 @@ template <class variableType> class StochasticNode;
         // members
         TypedDistribution<Tree>*                                base_distribution;                                                           //!< Tree distribution.
         std::vector< RbVector<Clade> >                          constraints;                                        //!< Node age constraints.
-        Tree*                                                   starting_tree = NULL;                               //!< Given in place of a draw, since a draw rarely meets many constraints
+        Tree*                                                   starting_tree = NULL;                               //!< Used in place of a draw
         void                                                    adoptStartingTree(void);
         
     };

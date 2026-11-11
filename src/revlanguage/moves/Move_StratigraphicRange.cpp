@@ -55,8 +55,6 @@ Move_StratigraphicRange* Move_StratigraphicRange::clone(void) const
  * associated with the variable (DAG-node). The internal move object is created by calling its
  * constructor and passing the move-parameters (the variable and other parameters) as arguments of the
  * constructor. The move constructor takes care of the proper hook-ups.
- *
- * \return A new internal distribution object.
  */
 void Move_StratigraphicRange::constructInternalObject( void )
 {
@@ -121,8 +119,9 @@ std::string Move_StratigraphicRange::getMoveName( void ) const
 /**
  * Get the member rules used to create the constructor of this object.
  *
- * The member rules of the scale move are:
- * (1) the variable which must be a time-tree.
+ * The member rules are:
+ * (1) the variable, which must be a time tree.
+ * (2) the move weight.
  *
  * \return The member rules.
  */

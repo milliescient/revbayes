@@ -8,15 +8,15 @@
 namespace RevLanguage {
     
     /**
-     * The RevLanguage wrapper of the Fossilized-Birth-Death Range Process
+     * The RevLanguage wrapper of the Fossilized-Birth-Death Speciation Process
      *
-     * The RevLanguage wrapper of the fossilzed-birth-death process connects
-     * the variables/parameters of the process and creates the internal FossilizedBirthDeathRangeProcess object.
+     * The RevLanguage wrapper of the fossilized-birth-death speciation process connects
+     * the variables/parameters of the process and creates the internal FossilizedBirthDeathSpeciationProcess object.
      *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (Sebastian Hoehna)
      * @since 2014-01-26, version 1.0
-     *c
+     *
      */
     class Dist_FBDSP : public FossilizedBirthDeathRangeProcess<TimeTree> {
         
@@ -46,7 +46,7 @@ namespace RevLanguage {
 
         RevPtr<const RevVariable>                               lambda_a;                                                                               //!< The anagenetic speciation rate(s)
         RevPtr<const RevVariable>                               beta;                                                                                   //!< The probability that a speciation is symmetric
-        RevPtr<const RevVariable>                               start_age;                                                                              //!< The start time of the process since the origin
+        RevPtr<const RevVariable>                               start_age;                                                                              //!< The origin time of the process
         RevPtr<const RevVariable>                               psi_mixture_rates;                                                                      //!< The relative psi of each mixture component
         RevPtr<const RevVariable>                               psi_mixture_weights;                                                                    //!< The mixture weights
 

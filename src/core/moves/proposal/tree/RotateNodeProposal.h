@@ -14,12 +14,10 @@ namespace RevBayesCore {
     class TopologyNode;
 
     /**
-     * Move the continuation of the parent's species to another child of a random internal node,
-     * leaving every age and the topology alone. Where beta > 0, a node's three states are either child
-     * continuing or neither, and the move proposes one of the other two uniformly.
+     * @brief Move the continuation of a node's species to another child, or with beta > 0 to neither, leaving ages and topology alone.
      *
-     * On a dnFBDSP tree each sampled ancestor's successor joins the nodes it picks from, and picking one
-     * flips its mode between anagenesis and symmetric speciation.
+     * On a dnFBDSP tree a sampled ancestor's successor is also a candidate, and picking it flips its mode between anagenesis and symmetric speciation.
+
      *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (June Walker)

@@ -30,7 +30,7 @@ SingletonReversibleJumpProposal::SingletonReversibleJumpProposal( StochasticNode
 }
 
 
-/** An exact age leaves nothing to separate. */
+/** Taxa with one occurrence whose age is an interval. */
 void SingletonReversibleJumpProposal::collectEligible( void )
 {
     Distribution &d = ( matrix != NULL ? unconstrained( (Distribution&)matrix->getDistribution() )
@@ -134,7 +134,8 @@ void SingletonReversibleJumpProposal::printParameterSummary(std::ostream &o, boo
 
 void SingletonReversibleJumpProposal::undoProposal( void )
 {
-    // the distribution restores the ages and the status; a proposal that never jumped has nothing to restore
+    // the distribution restores the ages and the status
+
     if ( matrix != NULL && failed == false )
     {
         MatrixReal& v = matrix->getValue();

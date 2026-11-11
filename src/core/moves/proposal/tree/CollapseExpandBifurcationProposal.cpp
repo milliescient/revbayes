@@ -217,8 +217,8 @@ void CollapseExpandBifurcationProposal::undoProposal( void )
     TopologyNode &b = *stored_b;
     TopologyNode &i = *stored_tip;
 
-    // the ages first, so no parent is ever younger than its child once the wiring is back
     i.setSampledAncestor( false );
+
     rewire( a, stored_a_kids, b, stored_b_kids );
     b.setAge( stored_b_age );
     i.setAge( stored_tip_age );

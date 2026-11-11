@@ -1759,7 +1759,8 @@ bool TopologyNode::isSampledAncestorParent() const
 }
 
 
-/** Only a move that changes dimension may make or break such a branch: a slide off it has no reverse. */
+/** Only a dimension-changing move may make or break such a branch, since a slide off it has no reverse. */
+
 bool TopologyNode::hasZeroLengthBranch(void) const
 {
     return isRoot() == false && getAge() == getParent().getAge();

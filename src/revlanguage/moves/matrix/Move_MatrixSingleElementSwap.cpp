@@ -57,7 +57,7 @@ void Move_MatrixSingleElementSwap::constructInternalObject( void )
         throw RbException("mvMatrixElementSwap takes a margin, a row or a column, not more than one.");
     }
 
-    // row and col imply the margin; an index of -1 draws the line at random
+    // row and col set the margin, and an index of -1 picks the row or column at random
     std::int64_t mg = 0;
     std::int64_t i  = -1;
 

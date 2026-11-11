@@ -12,7 +12,7 @@ namespace RevLanguage {
      * The RevLanguage wrapper of the Fossilized-Birth-Death Range Matrix Process
      *
      * The RevLanguage wrapper of the fossilized-birth-death range matrix process connects
-     * the variables/parameters of the process and creates the internal FossilizedBirthDeathRangeMatrixProcess object.
+     * the variables/parameters of the process and creates the internal FossilizedBirthDeathRangeProcess object.
      *
      * The fossil-record term and the reporting model belong to a separate dnFossilRecord node.
      *
@@ -40,7 +40,7 @@ namespace RevLanguage {
         RevBayesCore::FossilizedBirthDeathRangeProcess*         createDistribution(void) const;
 
     protected:
-        //!< Which process the arguments are handed to, so a variant need not unpack them again.
+        //!< The core process the unpacked arguments are handed to
         virtual RevBayesCore::FossilizedBirthDeathRangeProcess* makeProcess(RevBayesCore::DagNode *l,
                                                                            RevBayesCore::DagNode *m,
                                                                            RevBayesCore::DagNode *p,
@@ -59,8 +59,8 @@ namespace RevLanguage {
 
     private:
 
-        RevPtr<const RevVariable>                               coexistence;                                                            //!< Weight each birth by how many lineages could have produced it?
-        RevPtr<const RevVariable>                               require_parent;                                                         //!< Reject a birth with none alive? Follows coexistence when left out.
+        RevPtr<const RevVariable>                               coexistence;                                                            //!< The coexistence argument
+        RevPtr<const RevVariable>                               require_parent;                                                         //!< The requireParent argument
 
         RevPtr<const RevVariable>                               psi_mixture_rates;                                                      //!< The relative psi of each mixture component
         RevPtr<const RevVariable>                               psi_mixture_weights;                                                    //!< The mixture weights

@@ -11,12 +11,9 @@ namespace RevBayesCore {
     class AbstractFossilizedBirthDeathRangeProcess;
 
     /**
-     * Move one taxon's extinction time between the present and a time above it.
+     * @brief Jump an extinct taxon's extinction time to or from the present, where rho < 1 puts a point mass.
      *
-     * Under rho < 1 a taxon reported extinct has a point mass at the present, which the
-     * continuous element moves cannot reach.
-     *
-     * It takes the range matrix of a dnFBDRP, or the tree of an extended dnFBDSP.
+     * Takes the range matrix of a dnFBDRP or the tree of an extended dnFBDSP.
      *
      * @copyright Copyright 2009-
      * @author The RevBayes Development Core Team (June Walker)
@@ -47,14 +44,15 @@ namespace RevBayesCore {
 
     private:
 
-        AbstractFossilizedBirthDeathRangeProcess& rangeProcess(void) const;                         //!< The distribution, which owns the present and the taxa.
+        AbstractFossilizedBirthDeathRangeProcess& rangeProcess(void) const;
         void                                    collectEligible(void);                              //!< Taxa the record reports extinct, fixed for the run.
 
         StochasticNode<MatrixReal>*             matrix = NULL;                                      //!< One of these is the variable, the other stays null.
         StochasticNode<Tree>*                   tree   = NULL;
 
-        std::vector<size_t>                     eligible;                                           //!< Taxa reported extinct, the only ones with a point mass.
-        size_t                                  stored_index = 0;                                   //!< The row touched, for the restore.
+        std::vector<size_t>                     eligible;                                           //!< Taxa reported extinct
+        size_t                                  stored_index = 0;
+
         double                                  stored_death = 0.0;
     };
 

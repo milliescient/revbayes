@@ -68,7 +68,7 @@ Dist_ConstrainedTopology* Dist_ConstrainedTopology::clone( void ) const
 }
 
 
-/** The base distribution's methods, read off this variable, since its distribution passes them through. */
+/** The base distribution's methods, called on this variable. */
 MethodTable Dist_ConstrainedTopology::getDistributionMethods( void ) const
 {
     MethodTable methods = TypedDistribution<TimeTree>::getDistributionMethods();
