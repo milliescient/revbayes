@@ -4,6 +4,7 @@
 
 #include "CollapseExpandBifurcationProposal.h"
 #include "AbstractFossilizedBirthDeathRangeProcess.h"
+#include "FossilizedBirthDeathSpeciationProcess.h"
 #include "RandomNumberFactory.h"
 #include "RandomNumberGenerator.h"
 #include "RbConstants.h"
@@ -33,6 +34,16 @@ CollapseExpandBifurcationProposal::CollapseExpandBifurcationProposal( Stochastic
 
     const AbstractFossilizedBirthDeathRangeProcess *range = dynamic_cast<const AbstractFossilizedBirthDeathRangeProcess *>( &unconstrained( tree->getDistribution() ) );
     if ( range != NULL ) present = range->getPresent();
+
+    registerMove();
+}
+
+
+/** Tell a dnFBDSP this move is present, on construction and on each model copy. */
+void CollapseExpandBifurcationProposal::registerMove( void )
+{
+    FossilizedBirthDeathSpeciationProcess *f = dynamic_cast<FossilizedBirthDeathSpeciationProcess *>( &unconstrained( tree->getDistribution() ) );
+    if ( f != NULL ) f->setHasBifurcationMove();
 }
 
 
@@ -233,7 +244,11 @@ void CollapseExpandBifurcationProposal::setProposalTuningParameter(double tp)
 
 void CollapseExpandBifurcationProposal::swapNodeInternal(DagNode *oldN, DagNode *newN)
 {
-    if ( oldN == tree ) tree = static_cast<StochasticNode<Tree>* >( newN );
+    if ( oldN == tree )
+    {
+        tree = static_cast<StochasticNode<Tree>* >( newN );
+        registerMove();
+    }
 }
 
 

@@ -49,6 +49,7 @@ namespace RevBayesCore {
     private:
         double                                  collapse(TopologyNode &i);
         double                                  expand(TopologyNode &i);
+        void                                    registerMove(void);                                            //!< Tell a dnFBDSP this move is present
         void                                    rewire(TopologyNode &a, const std::vector<TopologyNode*> &a_kids, TopologyNode &b, const std::vector<TopologyNode*> &b_kids);
 
         StochasticNode<Tree>*                   tree;

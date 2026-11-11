@@ -70,6 +70,7 @@ namespace RevBayesCore {
         bool                                            redrawTopology(void);                                               //!< Gibbs-redraw the budding topology with the ranges fixed. Pure budding only.
         void                                            setHasModeMove(void) { has_mode_move = true; }                       //!< Registered by mvSpeciationMode.
         void                                            setHasSampledAncestorMove(void) { has_sampled_ancestor_move = true; } //!< Registered by mvCollapseExpandFossilBranch.
+        void                                            setHasBifurcationMove(void) { has_bifurcation_move = true; }         //!< Registered by mvCollapseExpandBifurcation.
         bool                                            hasAnagenesis(void) const;                                          //!< True when any interval's anagenetic rate is positive.
         bool                                            hasSymmetricSpeciation(void) const;                                 //!< True when any interval's symmetric speciation probability is positive.
         bool                                            isModeSuccessor(const TopologyNode &n) const;                       //!< n begins its range at a sampled ancestor, and its flag holds how.
@@ -175,8 +176,10 @@ namespace RevBayesCore {
         mutable bool                                    invalid_continuation = false;                            //!< Some node's children do not name exactly one continuation.
         bool                                            has_mode_move = false;
         bool                                            has_sampled_ancestor_move = false;
+        bool                                            has_bifurcation_move = false;
         mutable bool                                    warned_no_mode = false;
         mutable bool                                    warned_no_sampled_ancestor = false;
+        mutable bool                                    warned_inert_bifurcation = false;
 
         mutable std::vector<double>                     anagenetic;                                              //!< The sorted anagenetic speciation rates.
         mutable std::vector<double>                     symmetric;                                               //!< The sorted symmetric speciation probabilities.

@@ -749,6 +749,11 @@ void FossilizedBirthDeathSpeciationProcess::setMcmcMode(bool tf)
         warned_no_sampled_ancestor = true;
         RBOUT("Warning: no mvCollapseExpandFossilBranch move. Sampled ancestors will not be sampled.");
     }
+    if ( hasSymmetricSpeciation() == false && has_bifurcation_move == true && warned_inert_bifurcation == false )
+    {
+        warned_inert_bifurcation = true;
+        RBOUT("Warning: beta is 0, so mvCollapseExpandBifurcation has nothing to do.");
+    }
 }
 
 
