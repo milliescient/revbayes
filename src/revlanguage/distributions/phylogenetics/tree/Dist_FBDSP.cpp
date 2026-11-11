@@ -78,15 +78,13 @@ RevBayesCore::FossilizedBirthDeathSpeciationProcess* Dist_FBDSP::createDistribut
 {
     // get the parameters
 
-    // the start age
+    // the origin
     RevBayesCore::TypedDagNode<double>* sa = static_cast<const RealPos &>( start_age->getRevObject() ).getDagNode();
-
-    // get the parameters
 
     // sampling condition
     const std::string& cond  = static_cast<const RlString &>( condition->getRevObject() ).getValue();
     
-    // get the taxa to simulate either from a vector of rev taxon objects or a vector of names
+    // taxa
     std::vector<RevBayesCore::Taxon> t = static_cast<const ModelVector<Taxon> &>( taxa->getRevObject() ).getValue();
 
     // speciation rate
@@ -95,7 +93,7 @@ RevBayesCore::FossilizedBirthDeathSpeciationProcess* Dist_FBDSP::createDistribut
     RevBayesCore::DagNode* m = mu->getRevObject().getDagNode();
     // fossilization rate
     RevBayesCore::DagNode* p = psi->getRevObject().getDagNode();
-    // anagnetic speciation rate
+    // anagenetic speciation rate
     RevBayesCore::DagNode* la = lambda_a->getRevObject().getDagNode();
     // the probability that a speciation is symmetric
     RevBayesCore::DagNode* b = beta->getRevObject().getDagNode();
@@ -112,7 +110,6 @@ RevBayesCore::FossilizedBirthDeathSpeciationProcess* Dist_FBDSP::createDistribut
 
     double pres = static_cast<const RealPos &>( present->getRevObject() ).getValue();
 
-    // relative fossil sampling rates, one component drawn by each species at birth
     RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> >* mr = NULL;
     if ( psi_mixture_rates != NULL && psi_mixture_rates->getRevObject() != RevNullObject::getInstance() )
     {
@@ -123,17 +120,6 @@ RevBayesCore::FossilizedBirthDeathSpeciationProcess* Dist_FBDSP::createDistribut
     {
         if ( mr == NULL ) throw RbException("psiMixtureWeights needs psiMixtureRates.");
         mw = static_cast<const Simplex &>( psi_mixture_weights->getRevObject() ).getDagNode();
-    }
-
-    // beta is fixed at zero only as a constant; anything else may become positive
-    bool budding_only = false;
-    if ( b->isConstant() == true )
-    {
-        const RevBayesCore::TypedDagNode<double> *hb = dynamic_cast<const RevBayesCore::TypedDagNode<double>*>( b );
-        const RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> > *vb = dynamic_cast<const RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> >*>( b );
-        budding_only = true;
-        if ( hb != NULL ) budding_only = ( hb->getValue() == 0.0 );
-        if ( vb != NULL ) for (double x : vb->getValue()) budding_only = budding_only && ( x == 0.0 );
     }
 
     RevBayesCore::FossilizedBirthDeathSpeciationProcess* d = new RevBayesCore::FossilizedBirthDeathSpeciationProcess(sa, l, m, p, r, la, b, rt, cond, t, true, pres, mr, mw);
@@ -204,11 +190,6 @@ std::string Dist_FBDSP::getDistributionFunctionName( void ) const
 /**
  * Get the member rules used to create the constructor of this object.
  *
- * The member rules of the constant-rate birth-death process are:
- * (1) the speciation rate lambda which must be a positive real.
- * (2) the extinction rate mu that must be a positive real.
- * (3) all member rules specified by BirthDeathProcess.
- *
  * \return The member rules.
  */
 const MemberRules& Dist_FBDSP::getParameterRules(void) const
@@ -221,7 +202,7 @@ const MemberRules& Dist_FBDSP::getParameterRules(void) const
     {
         dist_member_rules.push_back( new ArgumentRule( "origin", RealPos::getClassTypeSpec(), "The origin time of the process.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY ) );
 
-        // the range-process rules, without the reporting args
+        // the range-process rules
         const MemberRules &parentRules = FossilizedBirthDeathRangeProcess<TimeTree>::getCoreParameterRules();
         dist_member_rules.insert(dist_member_rules.end(), parentRules.begin(), parentRules.end());
 
@@ -328,8 +309,7 @@ RevLanguage::MethodTable Dist_FBDSP::getDistributionMethods( void ) const
     ArgumentRules* component_arg_rules = new ArgumentRules();
     methods.addFunction( new DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> >( "getPsiMixtureComponents", variable, component_arg_rules, true ) );
 
-    // by branch, as dnPhyloCTMC's branchRates are: the Poisson means of the hidden speciations above each
-    // species' tau_1, and the observed event that began the species
+    // indexed by branch, like dnPhyloCTMC's branchRates
     for (const std::string &name : { "getHiddenSpeciation", "getObservedSpeciation" })
     {
         std::vector<std::string> modes = { "all", "budding", "bifurcation", "anagenesis", "cladogenesis" };
@@ -338,8 +318,7 @@ RevLanguage::MethodTable Dist_FBDSP::getDistributionMethods( void ) const
         methods.addFunction( new DistributionMemberFunction<Dist_FBDSP, ModelVector<RealPos> >( name, variable, mode_rules, true ) );
     }
 
-    // the sampled tree the tree projects to, for viewing: each species cut back to its last appearance. Not
-    // forced, so it is projected only when something reads it, as a monitor does at each print
+    // each species cut back to its last appearance, computed only when read
     methods.addFunction( new DistributionMemberFunction<Dist_FBDSP, TimeTree>( "getSampledTree", variable, new ArgumentRules(), false ) );
 
     return methods;

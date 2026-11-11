@@ -114,7 +114,8 @@ double FossilTipTimeSlideUniformProposal::getProposalTuningParameter( void ) con
  */
 double FossilTipTimeSlideUniformProposal::doProposal( void )
 {
-    
+    failed = false;
+
     // Get random number generator
     RandomNumberGenerator* rng     = GLOBAL_RNG;
     
@@ -331,7 +332,8 @@ void FossilTipTimeSlideUniformProposal::printParameterSummary(std::ostream &o, b
  */
 void FossilTipTimeSlideUniformProposal::undoProposal( void )
 {
-    
+    if ( failed == true ) return;
+
     // undo the proposal
     Tree& tau = tree->getValue();
     TopologyNode* node = &tau.getNode(node_index);

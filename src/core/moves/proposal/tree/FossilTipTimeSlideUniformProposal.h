@@ -67,7 +67,7 @@ namespace RevBayesCore {
         TopologyNode*                           stored_sibling = NULL;                                          //!< A sibling at the parent's age, moved with it
         double                                  lambda;                                                         //!< The value we propose.
 
-        bool                                    failed;
+        bool                                    failed = false;
     };
     
 }
