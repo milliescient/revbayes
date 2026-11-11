@@ -1,0 +1,12 @@
+every draw sits between the oldest appearance and the divergence:
+TRUE	
+the integrated mean agrees with the average of 4000 draws:
+TRUE	
+raising psi does not lower the mean origination:
+TRUE	
+five intervals of equal rates match one interval:
+TRUE	
+status is extant exactly at an extinction time of zero:
+TRUE	
+rho = 1 marks the three reported extant taxa and no others:
+TRUE	
