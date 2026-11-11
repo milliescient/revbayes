@@ -56,8 +56,7 @@ void Move_WilsonBalding::constructInternalObject( void )
     
     double w = static_cast<const RealPos &>( weight->getRevObject() ).getValue();
     
-    bool sym = static_cast<const RlBoolean &>( symmetric->getRevObject() ).getValue();
-    RevBayesCore::Proposal *p = new RevBayesCore::WilsonBaldingProposal( t, sym );
+    RevBayesCore::Proposal *p = new RevBayesCore::WilsonBaldingProposal( t );
     value = new RevBayesCore::MetropolisHastingsMove(p,w,false);
 }
 
@@ -95,7 +94,7 @@ std::string Move_WilsonBalding::getMoveName( void ) const
 }
 
 
-/** Return member rules (no members) */
+/** Return member rules */
 const MemberRules& Move_WilsonBalding::getParameterRules(void) const
 {
     
@@ -106,7 +105,6 @@ const MemberRules& Move_WilsonBalding::getParameterRules(void) const
     {
         
         memberRules.push_back( new ArgumentRule( "tree"  , TimeTree::getClassTypeSpec(), "The time tree to rearrange.", ArgumentRule::BY_REFERENCE, ArgumentRule::STOCHASTIC ) );
-        memberRules.push_back( new ArgumentRule( "symmetric", RlBoolean::getClassTypeSpec(), "Whether a regrafted node may also be a symmetric speciation, continuing neither child. Use with beta > 0.", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean( false ) ) );
         
         /* Inherit weight (but not tuneTarget!) from Move and put it after the arguments created above */
         const MemberRules& inheritedRules = Move::getParameterRules();
@@ -159,10 +157,6 @@ void Move_WilsonBalding::setConstParameter(const std::string& name, const RevPtr
     if ( name == "tree" )
     {
         tree = var;
-    }
-    else if ( name == "symmetric" )
-    {
-        symmetric = var;
     }
     else
     {

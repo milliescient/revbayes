@@ -7,17 +7,18 @@
 #include "RandomNumberGenerator.h"
 #include "RbConstants.h"
 #include "RbException.h"
+#include "FossilizedBirthDeathSpeciationProcess.h"
 #include "TopologyNode.h"
 #include "TreeDistributionProperties.h"
 
 using namespace RevBayesCore;
 
 
-WilsonBaldingProposal::WilsonBaldingProposal( StochasticNode<Tree> *n, bool sym ) : Proposal(),
+WilsonBaldingProposal::WilsonBaldingProposal( StochasticNode<Tree> *n ) : Proposal(),
     tree( n ),
     allow_sampled_ancestors( false ),
     budding( false ),
-    symmetric( sym ),
+    symmetric( false ),
     failed( false ),
     node( NULL ),
     parent( NULL ),
@@ -75,6 +76,10 @@ double WilsonBaldingProposal::doProposal( void )
 {
     failed = false;
 
+    // a node may also be a symmetric speciation where the tree's process allows one
+    const FossilizedBirthDeathSpeciationProcess *fbdsp = dynamic_cast<const FossilizedBirthDeathSpeciationProcess *>( &unconstrained( tree->getDistribution() ) );
+    symmetric = ( budding == true && fbdsp != NULL && fbdsp->hasSymmetricSpeciation() == true );
+
     RandomNumberGenerator* rng = GLOBAL_RNG;
     Tree &t = tree->getValue();
 
@@ -104,7 +109,7 @@ double WilsonBaldingProposal::doProposal( void )
         return RbConstants::Double::neginf;
     }
 
-    // a regraft onto a fossil makes only a successor with its flag off, so a pruned node with it on could never come back
+    // a regraft onto a fossil leaves the pruned node not continuing, so the reverse cannot exist
     if ( from_sampled_ancestor == true && budding == true && node->continuesParentLineage() == true )
     {
         failed = true;
@@ -257,7 +262,8 @@ void WilsonBaldingProposal::undoProposal( void )
     target->setSampledAncestor( stored_target_sa );
     target->setContinuesParentLineage( stored_target_continues );
 
-    // the parent's own link first: a listener walks up from each change, and a stale one can loop through the sibling
+    // relink the parent first, since a listener walks up from each change and a stale link can loop through the sibling
+
     grandparent->removeChild( sibling );
     parent->setParent( grandparent );
     grandparent->addChild( parent, pos_parent );

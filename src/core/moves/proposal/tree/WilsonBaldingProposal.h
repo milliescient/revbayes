@@ -11,18 +11,18 @@
 namespace RevBayesCore {
 
     /**
-     * The Wilson-Balding proposal on a time tree that may hold sampled ancestors.
+     * @brief The Wilson-Balding proposal on a time tree that may hold sampled ancestors.
      *
      * A subtree and its parent node are pruned and regrafted either onto a branch, at an age
      * drawn uniformly along it, or onto an older fossil tip, which becomes a sampled ancestor
-     * (Wilson and Balding 1998; Gavryushkina et al. 2014). Species continuation flags travel
-     * with the branches, so the move suits budding trees too. The root is never pruned or
-     * regrafted above.
+     * (Wilson and Balding 1998, Gavryushkina et al. 2014). Species continuation flags travel
+     * with the branches. The root is never pruned or regrafted above.
+
      */
     class WilsonBaldingProposal : public Proposal {
 
     public:
-        WilsonBaldingProposal( StochasticNode<Tree> *n, bool sym = false );
+        WilsonBaldingProposal( StochasticNode<Tree> *n );
 
         void                                    cleanProposal(void);
         WilsonBaldingProposal*                  clone(void) const;
@@ -44,7 +44,7 @@ namespace RevBayesCore {
         StochasticNode<Tree>*                   tree;
         bool                                    allow_sampled_ancestors;
         bool                                    budding;
-        bool                                    symmetric;                                  //!< Whether a regrafted node may also be symmetric, continuing neither child
+        bool                                    symmetric;                                  //!< Whether a regrafted node may also be symmetric, read at each proposal
 
         // stored state to undo the proposal
         bool                                    failed = false;
