@@ -9,6 +9,7 @@
 #include "MethodTable.h"
 #include "RlRelativeNodeAgeConstraints.h"
 #include "RlTimeTree.h"
+#include "RevNullObject.h"
 #include "DagMemberFunction.h"
 #include "DeterministicNode.h"
 #include "Distribution.h"
@@ -74,9 +75,16 @@ RevBayesCore::NodeOrderConstrainedTreeDistribution* Dist_ConstrainedNodeOrder::c
     const RevBayesCore::RelativeNodeAgeConstraints& c = static_cast<const RlRelativeNodeAgeConstraints &>( constraints->getRevObject() ).getValue();
     const Distribution&                                     rlDistribution  = static_cast<const Distribution &>( baseDistribution->getRevObject() );
     RevBayesCore::TypedDistribution<RevBayesCore::Tree>*    base            = dynamic_cast<RevBayesCore::TypedDistribution<RevBayesCore::Tree>* >( rlDistribution.createDistribution() );
-    
+
+    // tree for initialization
+    RevBayesCore::Tree* init = NULL;
+    if ( initial_tree != NULL && initial_tree->getRevObject() != RevNullObject::getInstance() )
+    {
+        init = static_cast<const TimeTree &>( initial_tree->getRevObject() ).getDagNode()->getValue().clone();
+    }
+
     // create the internal distribution object
-    RevBayesCore::NodeOrderConstrainedTreeDistribution* d = new RevBayesCore::NodeOrderConstrainedTreeDistribution(base, c);
+    RevBayesCore::NodeOrderConstrainedTreeDistribution* d = new RevBayesCore::NodeOrderConstrainedTreeDistribution(base, c, init);
     
     return d;
 }
@@ -157,6 +165,7 @@ const MemberRules& Dist_ConstrainedNodeOrder::getParameterRules(void) const
         
         memberRules.push_back( new ArgumentRule( "treeDistribution", TypedDistribution<TimeTree>::getClassTypeSpec(), "The base distribution for the tree.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY ) );
         memberRules.push_back( new ArgumentRule( "constraints", RlRelativeNodeAgeConstraints::getClassTypeSpec(), "The node order constraints.", ArgumentRule::BY_VALUE, ArgumentRule::ANY ) );
+        memberRules.push_back( new ArgumentRule( "initialTree", TimeTree::getClassTypeSpec(), "Instead of drawing a tree from the distribution, initialize distribution with this tree.", ArgumentRule::BY_VALUE, ArgumentRule::ANY, NULL ) );
         
         rules_set = true;
     }
@@ -199,6 +208,10 @@ void Dist_ConstrainedNodeOrder::setConstParameter(const std::string& name, const
     else if ( name == "treeDistribution" )
     {
         baseDistribution = var;
+    }
+    else if ( name == "initialTree" )
+    {
+        initial_tree = var;
     }
     else
     {

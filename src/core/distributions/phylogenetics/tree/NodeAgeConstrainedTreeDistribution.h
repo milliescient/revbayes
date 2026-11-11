@@ -29,7 +29,7 @@ template <class variableType> class StochasticNode;
     class NodeAgeConstrainedTreeDistribution : public TypedDistribution<Tree>, public TreeDistributionProperties {
         
     public:
-        NodeAgeConstrainedTreeDistribution(TypedDistribution<Tree> *base_dist, const std::vector< RbVector<Clade> > &c);
+        NodeAgeConstrainedTreeDistribution(TypedDistribution<Tree> *base_dist, const std::vector< RbVector<Clade> > &c, Tree *t = NULL);
         NodeAgeConstrainedTreeDistribution(const NodeAgeConstrainedTreeDistribution &d);
         
         virtual ~NodeAgeConstrainedTreeDistribution();
@@ -77,6 +77,8 @@ template <class variableType> class StochasticNode;
         // members
         TypedDistribution<Tree>*                                base_distribution;                                                           //!< Tree distribution.
         std::vector< RbVector<Clade> >                          constraints;                                        //!< Node age constraints.
+        Tree*                                                   starting_tree = NULL;                               //!< Given in place of a draw, since a draw rarely meets many constraints
+        void                                                    adoptStartingTree(void);
         
     };
     

@@ -23,7 +23,7 @@ namespace RevBayesCore {
     class NodeOrderConstrainedTreeDistribution : public TypedDistribution<Tree>, public TreeDistributionProperties {
 
     public:
-        NodeOrderConstrainedTreeDistribution(TypedDistribution<Tree> *base_dist, const RelativeNodeAgeConstraints &c);
+        NodeOrderConstrainedTreeDistribution(TypedDistribution<Tree> *base_dist, const RelativeNodeAgeConstraints &c, Tree *t = NULL);
         NodeOrderConstrainedTreeDistribution(const NodeOrderConstrainedTreeDistribution &d);
 
         virtual ~NodeOrderConstrainedTreeDistribution();
@@ -78,6 +78,8 @@ namespace RevBayesCore {
 
         // just for testing
         bool                                                    owns_tree;
+        Tree*                                                   starting_tree = NULL;                               //!< Given in place of a draw, since a draw rarely meets many constraints
+        void                                                    adoptStartingTree(void);
 
     };
 

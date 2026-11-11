@@ -46,6 +46,7 @@ namespace RevLanguage {
         
         RevPtr<const RevVariable>                           baseDistribution;
         RevPtr<const RevVariable>                           constraints;                                                                            //!< The base tree distribution
+        RevPtr<const RevVariable>                           initial_tree;                                                                           //!< A tree to start from instead of a draw
     };
 }
 

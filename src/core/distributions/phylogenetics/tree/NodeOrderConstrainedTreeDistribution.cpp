@@ -34,12 +34,13 @@ using namespace RevBayesCore;
  * \param[in]    tn        Taxon names used during initialization.
  * \param[in]    c         Clade constraints.
  */
-NodeOrderConstrainedTreeDistribution::NodeOrderConstrainedTreeDistribution(TypedDistribution<Tree> *base_dist, const RelativeNodeAgeConstraints &c) : TypedDistribution<Tree>( new Tree() ),
+NodeOrderConstrainedTreeDistribution::NodeOrderConstrainedTreeDistribution(TypedDistribution<Tree> *base_dist, const RelativeNodeAgeConstraints &c, Tree *t) : TypedDistribution<Tree>( new Tree() ),
     base_distribution( base_dist ),
     constraints( c ),
     constrained_nodes(),
     node_ages(),
-    owns_tree( false )
+    owns_tree( false ),
+    starting_tree( t )
 {
     // add the parameters to our set (in the base class)
     // in that way other class can easily access the set of our parameters
@@ -62,6 +63,8 @@ NodeOrderConstrainedTreeDistribution::NodeOrderConstrainedTreeDistribution(Typed
         value = &base_distribution->getValue();
     }
 
+    if ( starting_tree != NULL ) adoptStartingTree();
+
     updateSetOfConstrainedNodes();
 }
 
@@ -71,7 +74,8 @@ NodeOrderConstrainedTreeDistribution::NodeOrderConstrainedTreeDistribution(const
     constraints( d.constraints ),
     constrained_nodes( d.constrained_nodes ),
     node_ages( d.node_ages ),
-    owns_tree( d.owns_tree )
+    owns_tree( d.owns_tree ),
+    starting_tree( d.starting_tree == NULL ? NULL : d.starting_tree->clone() )
 {
     // the copy constructor of the TypedDistribution creates a new copy of the value
     // however, here we want to hold exactly the same value as the base-distribution
@@ -107,6 +111,7 @@ NodeOrderConstrainedTreeDistribution::~NodeOrderConstrainedTreeDistribution()
 {
 
     delete base_distribution;
+    delete starting_tree;
 
     // DO NOT DELETE THE VALUE
     // the base distribution is the actual owner of the value!!!
@@ -244,6 +249,11 @@ void NodeOrderConstrainedTreeDistribution::updateMapOfNodeAges()
  */
 void NodeOrderConstrainedTreeDistribution::redrawValue( void )
 {
+    if ( starting_tree != NULL )
+    {
+        adoptStartingTree();
+        return;
+    }
 
     base_distribution->redrawValue();
     // if we own the tree, then we need to free the memory before we create a new random variable
@@ -379,4 +389,11 @@ void NodeOrderConstrainedTreeDistribution::repairCheckpointValue(Tree& tree)
 void NodeOrderConstrainedTreeDistribution::prepareForClamping(Tree& tree)
 {
     base_distribution->prepareForClamping(tree);
+}
+
+/** Hand the base a copy of the given starting tree, which it owns, and share it. */
+void NodeOrderConstrainedTreeDistribution::adoptStartingTree( void )
+{
+    base_distribution->setValue( starting_tree->clone() );
+    value = &base_distribution->getValue();
 }

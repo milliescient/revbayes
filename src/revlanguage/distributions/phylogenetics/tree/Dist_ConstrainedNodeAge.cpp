@@ -10,6 +10,7 @@
 #include "ModelVector.h"
 #include "RlClade.h"
 #include "RlTimeTree.h"
+#include "RevNullObject.h"
 #include "DagMemberFunction.h"
 #include "DeterministicNode.h"
 #include "Distribution.h"
@@ -77,9 +78,16 @@ RevBayesCore::NodeAgeConstrainedTreeDistribution* Dist_ConstrainedNodeAge::creat
     const RevBayesCore::RbVector<RevBayesCore::RbVector<RevBayesCore::Clade> >& c               = static_cast<const ModelVector< ModelVector< Clade > > &>( constraints->getRevObject() ).getValue();
     const Distribution&                                                         rlDistribution  = static_cast<const Distribution &>( baseDistribution->getRevObject() );
     RevBayesCore::TypedDistribution<RevBayesCore::Tree>*                        base            = dynamic_cast<RevBayesCore::TypedDistribution<RevBayesCore::Tree>* >( rlDistribution.createDistribution() );
-    
+
+    // tree for initialization
+    RevBayesCore::Tree* init = NULL;
+    if ( initial_tree != NULL && initial_tree->getRevObject() != RevNullObject::getInstance() )
+    {
+        init = static_cast<const TimeTree &>( initial_tree->getRevObject() ).getDagNode()->getValue().clone();
+    }
+
     // create the internal distribution object
-    RevBayesCore::NodeAgeConstrainedTreeDistribution* d = new RevBayesCore::NodeAgeConstrainedTreeDistribution(base, c);
+    RevBayesCore::NodeAgeConstrainedTreeDistribution* d = new RevBayesCore::NodeAgeConstrainedTreeDistribution(base, c, init);
     
     return d;
 }
@@ -160,6 +168,7 @@ const MemberRules& Dist_ConstrainedNodeAge::getParameterRules(void) const
         
         memberRules.push_back( new ArgumentRule( "treeDistribution", TypedDistribution<TimeTree>::getClassTypeSpec(), "The base distribution for the tree.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY ) );
         memberRules.push_back( new ArgumentRule( "constraints", ModelVector< ModelVector<Clade> >::getClassTypeSpec(),"The node Age constraints.", ArgumentRule::BY_VALUE, ArgumentRule::ANY ) );
+        memberRules.push_back( new ArgumentRule( "initialTree", TimeTree::getClassTypeSpec(), "Instead of drawing a tree from the distribution, initialize distribution with this tree.", ArgumentRule::BY_VALUE, ArgumentRule::ANY, NULL ) );
         
         rules_set = true;
     }
@@ -202,6 +211,10 @@ void Dist_ConstrainedNodeAge::setConstParameter(const std::string& name, const R
     else if ( name == "treeDistribution" )
     {
         baseDistribution = var;
+    }
+    else if ( name == "initialTree" )
+    {
+        initial_tree = var;
     }
     else
     {

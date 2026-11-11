@@ -26,9 +26,10 @@ using namespace RevBayesCore;
  * \param[in]    tn        Taxon names used during initialization.
  * \param[in]    c         Clade constraints.
  */
-NodeAgeConstrainedTreeDistribution::NodeAgeConstrainedTreeDistribution(TypedDistribution<Tree> *base_dist, const std::vector< RbVector<Clade> > &c) : TypedDistribution<Tree>( new Tree() ),
+NodeAgeConstrainedTreeDistribution::NodeAgeConstrainedTreeDistribution(TypedDistribution<Tree> *base_dist, const std::vector< RbVector<Clade> > &c, Tree *t) : TypedDistribution<Tree>( new Tree() ),
     base_distribution( base_dist ),
-    constraints( c )
+    constraints( c ),
+    starting_tree( t )
 {
     // add the parameters to our set (in the base class)
     // in that way other class can easily access the set of our parameters
@@ -43,13 +44,15 @@ NodeAgeConstrainedTreeDistribution::NodeAgeConstrainedTreeDistribution(TypedDist
     
     // we just set our pointer to the same pointer to the value of the base distribution
     value = &base_distribution->getValue();
-    
+
+    if ( starting_tree != NULL ) adoptStartingTree();
 }
 
 
 NodeAgeConstrainedTreeDistribution::NodeAgeConstrainedTreeDistribution(const NodeAgeConstrainedTreeDistribution &d) : TypedDistribution<Tree>( d ),
     base_distribution( d.base_distribution->clone() ),
-    constraints( d.constraints )
+    constraints( d.constraints ),
+    starting_tree( d.starting_tree == NULL ? NULL : d.starting_tree->clone() )
 {
     // the copy constructor of the TypedDistribution creates a new copy of the value
     // however, here we want to hold exactly the same value as the base-distribution
@@ -76,6 +79,7 @@ NodeAgeConstrainedTreeDistribution::~NodeAgeConstrainedTreeDistribution()
 {
     
     delete base_distribution;
+    delete starting_tree;
     
     // DO NOT DELETE THE VALUE
     // the base distribution owned it, and our base class would delete it again
@@ -164,7 +168,12 @@ bool NodeAgeConstrainedTreeDistribution::matchesConstraints( void )
  */
 void NodeAgeConstrainedTreeDistribution::redrawValue( void )
 {
-    
+    if ( starting_tree != NULL )
+    {
+        adoptStartingTree();
+        return;
+    }
+
     base_distribution->redrawValue();
     // we just replace the current pointer with the pointer
     // to the new value of the base distribution
@@ -260,4 +269,11 @@ void NodeAgeConstrainedTreeDistribution::repairCheckpointValue(Tree& tree)
 void NodeAgeConstrainedTreeDistribution::prepareForClamping(Tree& tree)
 {
     base_distribution->prepareForClamping(tree);
+}
+
+/** Hand the base a copy of the given starting tree, which it owns, and share it. */
+void NodeAgeConstrainedTreeDistribution::adoptStartingTree( void )
+{
+    base_distribution->setValue( starting_tree->clone() );
+    value = &base_distribution->getValue();
 }
