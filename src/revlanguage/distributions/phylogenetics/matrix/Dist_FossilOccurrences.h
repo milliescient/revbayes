@@ -33,6 +33,7 @@ namespace RevLanguage {
 
         RevPtr<const RevVariable>                       ranges;
         RevPtr<const RevVariable>                       reporting;
+        RevPtr<const RevVariable>                       bins;
     };
 
 }

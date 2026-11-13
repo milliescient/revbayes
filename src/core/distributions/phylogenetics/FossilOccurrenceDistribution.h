@@ -18,7 +18,7 @@ namespace RevBayesCore {
     class FossilOccurrenceDistribution : public TypedDistribution< RbVector<Taxon> > {
 
     public:
-        FossilOccurrenceDistribution(const DagNode *ranges, AbstractFossilizedBirthDeathRangeProcess::Reporting reporting);
+        FossilOccurrenceDistribution(const DagNode *ranges, AbstractFossilizedBirthDeathRangeProcess::Reporting reporting, const std::vector<double> &bins = std::vector<double>());
         virtual ~FossilOccurrenceDistribution() {}
 
         FossilOccurrenceDistribution* clone(void) const override;
@@ -37,6 +37,7 @@ namespace RevBayesCore {
         AbstractFossilizedBirthDeathRangeProcess*        ranges;
         AbstractFossilizedBirthDeathRangeProcess::Reporting reporting;
         std::vector<Taxon>                               taxa;
+        std::vector<double>                              bins;                   //!< Interval boundaries for simulated occurrences, empty for exact ages.
     };
 }
 

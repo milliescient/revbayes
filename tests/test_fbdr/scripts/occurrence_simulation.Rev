@@ -1,0 +1,95 @@
+# dnFossilOccurrences draws a record from fixed ranges, tau_1 = 5.6 and tau_K = 1.3, into bins
+# [0,1), [1,2), [2,3), [3,5) and [5,inf). Each pattern must be drawn as often as its density says.
+# Complete and firstlast score labeled occurrences, so a pattern of N occurrences with n_j in bin j
+# has probability exp(lnProbability) * N! / prod(n_j!). Presence scores the pattern itself.
+# Every line printed must be TRUE.
+seed(7)
+
+taxa <- readTaxonData("data/fbdr_presence.tsv")
+
+lambda <- 0.4
+mu     <- 0.1
+psi    <- 0.3
+origin <- 20.0
+bins   <- v(1.0, 2.0, 3.0, 5.0)
+n      <- 20000
+
+out = "output/occurrence_simulation.txt"
+
+# each record node needs its own range process, which holds the reporting rule
+# columns are death, youngest, oldest, divergence
+for ( c in 1:4 )
+{
+    bd[c] ~ dnFBDRP(taxa=taxa, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+                    condition="time", origin=origin)
+    bd[c].setValue( matrix( v( v(0.5, 1.3, 5.6, 12.0) ) ) )
+}
+
+# within 4 standard errors
+function Bool close(Real k, Real p) { return abs(k/n - p) < 4.0 * sqrt(p * (1.0 - p) / n) }
+
+# presence: [2,3) and [3,5) are reported independently
+pres ~ dnFossilOccurrences(ranges=bd[1], reporting="presence", bins=bins)
+q2 <- exp(-psi)
+q3 <- exp(-2.0 * psi)
+p <- v( q2 * q3, (1 - q2) * q3, q2 * (1 - q3), (1 - q2) * (1 - q3) )
+k <- v(0, 0, 0, 0)
+other <- 0
+for ( i in 1:n )
+{
+    pres.redraw()
+    lp <- pres.lnProbability()
+    found <- FALSE
+    for ( j in 1:4 )
+    {
+        if ( abs(lp - ln(p[j])) < 1E-9 ) { k[j] <- k[j] + 1; found <- TRUE }
+    }
+    if ( found == FALSE ) other <- other + 1
+}
+
+print(filename=out, "presence draws only the four patterns, at their densities:\n")
+print(filename=out, append=TRUE, other == 0 && close(k[1], p[1]) && close(k[2], p[2]) && close(k[3], p[3]) && close(k[4], p[4]), "\n")
+
+# complete: nothing inside, one in [2,3), or one beside tau_K in [1,2)
+comp ~ dnFossilOccurrences(ranges=bd[2], reporting="complete", bins=bins)
+Lambda <- 4.3 * psi
+p <- v( exp(-Lambda), exp(-Lambda) * psi, exp(-Lambda) * 0.7 * psi )
+labels <- v(2, 6, 3)
+k <- v(0, 0, 0)
+for ( i in 1:n )
+{
+    comp.redraw()
+    lp <- comp.lnProbability()
+    for ( j in 1:3 )
+    {
+        if ( abs(lp + ln(labels[j]) - ln(p[j])) < 1E-9 ) k[j] <- k[j] + 1
+    }
+}
+
+print(filename=out, append=TRUE, "complete draws its patterns at their densities:\n")
+print(filename=out, append=TRUE, close(k[1], p[1]) && close(k[2], p[2]) && close(k[3], p[3]), "\n")
+
+# firstlast: only the extremes, in [1,2) and [5,inf)
+fl ~ dnFossilOccurrences(ranges=bd[3], reporting="firstlast", bins=bins)
+fl.redraw()
+
+print(filename=out, append=TRUE, "firstlast draws only the extremes:\n")
+print(filename=out, append=TRUE, abs(fl.lnProbability() - ln(0.5)) < 1E-9 && fl[1].getMinAge() == 1.0, "\n")
+
+# without bins the ages are exact
+exact ~ dnFossilOccurrences(ranges=bd[4], reporting="complete")
+exact.redraw()
+
+print(filename=out, append=TRUE, "without bins the extremes are tau_K and tau_1:\n")
+print(filename=out, append=TRUE, exact[1].getMinAge() == 1.3 && exact[1].getMaxAge() == 5.6, "\n")
+
+# a singleton draws its one occurrence
+single <- readTaxonData("data/fbdr_presence_single.tsv")
+bd1 ~ dnFBDRP(taxa=single, lambda=lambda, mu=mu, psi=psi, rho=1.0, present=0.0,
+              condition="time", origin=origin)
+bd1.setValue( matrix( v( v(0.5, 3.5, 3.5, 12.0) ) ) )
+one ~ dnFossilOccurrences(ranges=bd1, reporting="complete")
+one.redraw()
+
+print(filename=out, append=TRUE, "a singleton draws one occurrence at tau_1:\n")
+print(filename=out, append=TRUE, one[1].getMinAge() == 3.5 && one[1].getMaxAge() == 3.5 && abs(one.lnProbability()) < 1E-9, "\n")

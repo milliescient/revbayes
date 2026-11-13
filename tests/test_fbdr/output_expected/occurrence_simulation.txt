@@ -1,0 +1,10 @@
+presence draws only the four patterns, at their densities:
+TRUE	
+complete draws its patterns at their densities:
+TRUE	
+firstlast draws only the extremes:
+TRUE	
+without bins the extremes are tau_K and tau_1:
+TRUE	
+a singleton draws one occurrence at tau_1:
+TRUE	

@@ -4,11 +4,13 @@
 #include <cmath>
 #include <cstddef>
 #include <ostream>
+#include <set>
 #include <sstream>
 #include <vector>
 
 
 #include "DagNode.h"
+#include "DistributionPoisson.h"
 #include "RandomNumberFactory.h"
 #include "RandomNumberGenerator.h"
 #include "RbConstants.h"
@@ -187,7 +189,7 @@ AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProce
 
 
 /** Derive from the occurrence record the reporting model and the bounds on the appearances. */
-void AbstractFossilizedBirthDeathRangeProcess::updateRecord( void )
+void AbstractFossilizedBirthDeathRangeProcess::updateRecord( bool keep_ranges )
 {
     record_terms.clear();
 
@@ -203,7 +205,6 @@ void AbstractFossilizedBirthDeathRangeProcess::updateRecord( void )
         ranges[i].first_max = RbConstants::Double::inf;
         ranges[i].last_min  = 0.0;
         ranges[i].last_max  = RbConstants::Double::inf;
-        ranges[i].singleton = true;
     }
 
     max_present_age = RbConstants::Double::inf;
@@ -227,11 +228,13 @@ void AbstractFossilizedBirthDeathRangeProcess::updateRecord( void )
             max_present_age = std::min(max_present_age, ranges[i].last_max);
         }
 
-        ranges[i].singleton = ( count < 2 );
-
         ranges[i].first_max = taxa[i].getAgeRange()->getMax();
         ranges[i].last_min  = taxa[i].getAgeRange()->getMin();
 
+        // a record drawn from the ranges leaves them as they are
+        if ( keep_ranges == true ) continue;
+
+        ranges[i].singleton = ( count < 2 );
         ranges[i].last = ranges[i].last_max;
     }
 
@@ -280,7 +283,7 @@ void AbstractFossilizedBirthDeathRangeProcess::checkPresenceIntervals( void ) co
 
 
 /** Adopt a clamped record's occurrences as the data and re-derive the record model. */
-void AbstractFossilizedBirthDeathRangeProcess::setOccurrences( const std::vector<Taxon> &t )
+void AbstractFossilizedBirthDeathRangeProcess::setOccurrences( const std::vector<Taxon> &t, bool keep_ranges )
 {
     bool changed = ( t.size() != taxa.size() );
 
@@ -294,7 +297,7 @@ void AbstractFossilizedBirthDeathRangeProcess::setOccurrences( const std::vector
 
     taxa = t;
 
-    updateRecord();
+    updateRecord( keep_ranges );
 
     prepareProbComputation();
 
@@ -777,6 +780,83 @@ double AbstractFossilizedBirthDeathRangeProcess::computeLnFossilRecord( size_t i
     }
 
     return result;
+}
+
+
+/** Draw a record from the ranges, keeping only what the reporting model reports. Without bins the ages are exact. */
+std::vector<Taxon> AbstractFossilizedBirthDeathRangeProcess::simulateRecord( const std::vector<double> &bins ) const
+{
+    RandomNumberGenerator* rng = GLOBAL_RNG;
+
+    prepareProbComputation();
+
+    std::vector<double> edges = bins;
+    if ( edges.empty() == false && edges.front() < times.front() )
+    {
+        throw RbException("dnFossilOccurrences: bins must not start before the present.");
+    }
+    if ( edges.empty() == false && edges.front() != times.front() ) edges.insert( edges.begin(), times.front() );
+
+    // the bin holding t, the last one open above
+    auto occurrence = [&]( double t ) -> TimeInterval
+    {
+        if ( edges.empty() == true ) return TimeInterval( t, t );
+
+        size_t k = std::prev( std::upper_bound( edges.begin(), edges.end(), t ) ) - edges.begin();
+        return TimeInterval( edges[k], k+1 < edges.size() ? edges[k+1] : RbConstants::Double::inf );
+    };
+
+    std::vector<Taxon> record;
+
+    for ( size_t i = 0; i < taxa.size(); i++ )
+    {
+        // an extant sample with no fossils is not the record's to draw
+        if ( taxa[i].getAgeRange()->getMax() == times.front() )
+        {
+            record.push_back( taxa[i] );
+            continue;
+        }
+
+        double o = ranges[i].first;
+        double y = ranges[i].last;
+
+        std::vector<double> ages( 1, o );
+        if ( ranges[i].singleton == false ) ages.push_back( y );
+
+        // the interior is a Poisson process at psi
+        if ( ranges[i].singleton == false && record_reporting != FIRSTLAST )
+        {
+            for ( size_t j = 0; j < num_intervals; j++ )
+            {
+                double top = ( j < num_intervals-1 ? times[j+1] : RbConstants::Double::inf );
+                double lo = std::max( y, times[j] );
+                double hi = std::min( o, top );
+                if ( hi <= lo || fossil[j] <= 0.0 ) continue;
+
+                int n = RbStatistics::Poisson::rv( fossil[j] * (hi - lo), *rng );
+                for ( int k = 0; k < n; k++ ) ages.push_back( lo + rng->uniform01() * (hi - lo) );
+            }
+        }
+
+        Taxon t( taxa[i].getName() );
+        t.setSpeciesName( taxa[i].getSpeciesName() );
+        t.setExtinct( taxa[i].isExtinct() );
+
+        std::set<TimeInterval> present;
+        for ( double a : ages )
+        {
+            TimeInterval F = occurrence( a );
+
+            // presence reports each interval once
+            if ( record_reporting == PRESENCE && present.insert( F ).second == false ) continue;
+
+            t.addOccurrence( F );
+        }
+
+        record.push_back( t );
+    }
+
+    return record;
 }
 
 

@@ -94,7 +94,8 @@ namespace RevBayesCore {
         enum Reporting { COMPLETE, FIRSTLAST, PRESENCE };                                                           //!< Which occurrences the record reports.
         void                                            setReporting(Reporting r);                                  //!< The reporting model, pushed here by dnFossilOccurrences.
 
-        virtual void                                    setOccurrences(const std::vector<Taxon> &t);                //!< Adopt a clamped record's occurrences as the data.
+        virtual void                                    setOccurrences(const std::vector<Taxon> &t, bool keep_ranges = false);  //!< Adopt a record's occurrences as the data.
+        std::vector<Taxon>                              simulateRecord(const std::vector<double> &bins) const;      //!< Draw a record from the ranges.
         const std::vector<const DagNode*>&              getRangeParameters(void) const { return range_parameters; } //!< The rate and timeline nodes a dnFossilOccurrences adopts as parents.
 
     protected:
@@ -144,7 +145,7 @@ namespace RevBayesCore {
         void                                            checkPresenceIntervals(void) const;                     //!< Under PRESENCE, refuse a taxon whose intervals overlap.
         double                                          max_present_age;                                        //!< Youngest occurrence maximum. The timeline may not start above it.
 
-        void                                            updateRecord(void);                                     //!< Refresh the reported bins and the bounds they put on the appearances.
+        void                                            updateRecord(bool keep_ranges = false);                                     //!< Refresh the reported bins and the bounds they put on the appearances.
 
         size_t                                          num_intervals;
 

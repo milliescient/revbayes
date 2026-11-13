@@ -8,6 +8,8 @@
 #include "ArgumentRules.h"
 #include "ModelVector.h"
 #include "OptionRule.h"
+#include "RealPos.h"
+#include "RevNullObject.h"
 #include "RlString.h"
 #include "RlMatrixReal.h"
 #include "RlTaxon.h"
@@ -38,7 +40,14 @@ RevBayesCore::FossilOccurrenceDistribution* Dist_FossilOccurrences::createDistri
     typedef RevBayesCore::AbstractFossilizedBirthDeathRangeProcess Ranges;
     Ranges::Reporting rep = rule == "complete" ? Ranges::COMPLETE : ( rule == "presence" ? Ranges::PRESENCE : Ranges::FIRSTLAST );
 
-    RevBayesCore::FossilOccurrenceDistribution* d = new RevBayesCore::FossilOccurrenceDistribution( rn, rep );
+    std::vector<double> b;
+    if ( bins->getRevObject() != RevNullObject::getInstance() )
+    {
+        const RevBayesCore::RbVector<double> &v = static_cast<const ModelVector<RealPos> &>( bins->getRevObject() ).getValue();
+        b.assign( v.begin(), v.end() );
+    }
+
+    RevBayesCore::FossilOccurrenceDistribution* d = new RevBayesCore::FossilOccurrenceDistribution( rn, rep, b );
 
     return d;
 }
@@ -81,6 +90,8 @@ const MemberRules& Dist_FossilOccurrences::getParameterRules(void) const
         optionsReporting.push_back( "presence" );
         dist_member_rules.push_back( new OptionRule( "reporting", new RlString("firstlast"), optionsReporting, "Which sampled occurrences are reported: all of them (complete), the oldest and youngest (firstlast), or at least one in each interval (presence)." ) );
 
+        dist_member_rules.push_back( new ArgumentRule( "bins", ModelVector<RealPos>::getClassTypeSpec(), "Time interval boundaries for simulated occurrence age uncertainty. If omitted, simulated occurrences have exact ages.", ArgumentRule::BY_VALUE, ArgumentRule::ANY, NULL ) );
+
         rules_set = true;
     }
 
@@ -104,6 +115,10 @@ void Dist_FossilOccurrences::setConstParameter(const std::string& name, const Re
     else if ( name == "reporting" )
     {
         reporting = var;
+    }
+    else if ( name == "bins" )
+    {
+        bins = var;
     }
     else
     {

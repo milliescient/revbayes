@@ -6,6 +6,8 @@
 #include "TimeInterval.h"
 #include "RbException.h"
 
+#include <algorithm>
+
 using namespace RevBayesCore;
 
 
@@ -23,16 +25,22 @@ AbstractFossilizedBirthDeathRangeProcess* FossilOccurrenceDistribution::rangesOf
 
 
 /** The value is the range process's taxa, which carry the occurrences. */
-FossilOccurrenceDistribution::FossilOccurrenceDistribution(const DagNode *rn, AbstractFossilizedBirthDeathRangeProcess::Reporting rule) :
+FossilOccurrenceDistribution::FossilOccurrenceDistribution(const DagNode *rn, AbstractFossilizedBirthDeathRangeProcess::Reporting rule, const std::vector<double> &b) :
     TypedDistribution< RbVector<Taxon> >( new RbVector<Taxon>() ),
     ranges_node( rn ),
     ranges( rangesOf( rn ) ),
     reporting( rule ),
-    taxa()
+    taxa(),
+    bins( b )
 {
     if ( ranges == NULL )
     {
         throw RbException("dnFossilOccurrences requires a fossilized birth-death range process (e.g. dnFBDRP) as its first argument.");
+    }
+
+    if ( std::is_sorted( bins.begin(), bins.end() ) == false )
+    {
+        throw RbException("dnFossilOccurrences: bins must be in ascending order.");
     }
 
     addParameter( ranges_node );
@@ -113,8 +121,12 @@ double FossilOccurrenceDistribution::computeLnProbability( void )
 }
 
 
+/** Draw a record from the current ranges, which keep their values. */
 void FossilOccurrenceDistribution::redrawValue( void )
 {
+    taxa = ranges->simulateRecord( bins );
+    ranges->setOccurrences( taxa, true );
+
     (*this->value) = taxa;
 }
 
