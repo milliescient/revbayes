@@ -12,6 +12,7 @@ Set `reporting` to describe how sampled occurrences entered the data. Use `"comp
 June Walker
 ## see_also
 dnFossilizedBirthDeathRange
+mvSingletonRJSwitch
 ## example
     taxa <- readTaxonData("fossil_ranges.tsv")
 

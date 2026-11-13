@@ -33,7 +33,7 @@ namespace RevBayesCore {
 
         bool    singleton = true;                           //!< Fewer than two occurrences, so the appearances are one age.
 
-        bool    survived = false;                           //!< Alive at the present.
+        bool    survived = false;                           //!< Alive at the present. Only mvExtinctionRJSwitch changes it.
 
 
         //! Ages never decrease into the past, and each appearance sits within the bins reporting it.
@@ -80,14 +80,23 @@ namespace RevBayesCore {
         virtual ~AbstractFossilizedBirthDeathRangeProcess(){};
 
         void                                            setHasReportingNode(void) { has_reporting_node = true; }     //!< Registered by dnFossilOccurrences.
+        void                                            setHasSurvivalMove(void) { has_survival_move = true; }       //!< Registered by mvExtinctionRJSwitch.
+        void                                            setHasSingletonMove(void) { has_singleton_move = true; }     //!< Registered by mvSingletonRJSwitch.
 
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const;   //!< Expose the appearances and the origination/extinction times.
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, double &rv) const;              //!< Expose the origin.
         double                                          getPresent() const { return times.front(); }               //!< The youngest interval boundary, which extinction times cannot precede.
         const std::vector<Taxon>&                       getTaxa() const { return taxa; }
+        bool                                            hasSurvived(size_t i) const { return ranges[i].survived; }  //!< Taxon i's latent status: alive at the present.
+        void                                            switchSurvived(size_t i);                                   //!< Flip that status, arming the undo. Only mvExtinctionRJSwitch may.
+        double                                          getFirstAppearance(size_t i) const { return ranges[i].first; } //!< tau_1.
+        bool                                            samplesSingletons(void) const { return record_reporting == PRESENCE; } //!< Only presence leaves a one-occurrence record free to hold more.
+        double                                          switchSingleton(size_t i);                                  //!< Expand tau_1 above tau_K or collapse it onto tau_K, arming the undo. Only mvSingletonRJSwitch may.
         void                                            warnIfNoReportingNode(void) const;                          //!< Warn once when psi has no data.
         void                                            warnIfImpossibleInputs(const TypedDagNode<double> *start = NULL) const;  //!< Warn once when fixed inputs make the density zero. start stands in for a missing origin_age.
         void                                            warnIfInertNTaxaCondition(void) const;                      //!< Warn once when rho leaves nTaxa conditioning inert.
+        void                                            warnIfNoSurvivalMove(void) const;                           //!< Warn once when rho < 1 and no move samples survival.
+        void                                            warnIfNoSingletonMove(void) const;                          //!< Warn once when a presence record has one occurrence and no move samples singleton status.
         void                                            initializeFirstLast(size_t i);                              //!< Draw taxon i's appearances, nested within the range and its reported bins.
         void                                            drawRanges();                                               //!< Draw an initial range and appearances for every taxon.
         double                                          computeLnFossilTotal();                                     //!< Total fossil-record log-density, for a dnFossilOccurrences node.
@@ -181,6 +190,15 @@ namespace RevBayesCore {
 
 
                                 
+        size_t                                          stored_range = 0;                                       //!< The range whose appearances moved.
+        double                                          stored_first = 0.0;                                     //!< The ages it replaced.
+        double                                          stored_last  = 0.0;
+
+        size_t                                          switched_range = 0;                                     //!< The range a switch flipped.
+        bool                                            stored_survived = false;                                //!< The statuses before the switch.
+        bool                                            stored_singleton = true;
+        bool                                            switched = false;                                       //!< That undo is armed.
+
         bool                                            weld_origin = true;                                     //!< Only the origin node drags the oldest birth.
 
         std::vector<RangeEntry>                         stored_ranges;                                          //!< The table as the proposal found it, restored when it is rejected.
@@ -205,9 +223,14 @@ namespace RevBayesCore {
         
         bool                                            touched;                                               //!< Indicates whether any terms need updating
         bool                                            has_reporting_node = false;                             //!< Set by dnFossilOccurrences when it attaches.
+        bool                                            has_survival_move = false;                              //!< Set by mvExtinctionRJSwitch when it attaches.
+        bool                                            has_singleton_move = false;                             //!< Set by mvSingletonRJSwitch when it attaches.
         mutable bool                                    warned_no_reporting = false;
         mutable bool                                    warned_inert_ntaxa = false;
+        mutable bool                                    warned_no_survival = false;
+        mutable bool                                    warned_no_singleton = false;
         mutable bool                                    warned_impossible = false;
+        bool                                            resampled;                                              //!< The appearance undo is armed.
         double                                          present_time = 0.0;                                     //!< The present, where the timeline starts.
     };
 }

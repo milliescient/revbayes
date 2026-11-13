@@ -13,12 +13,16 @@ Add a `dnFossilOccurrences` node with `ranges` set to this matrix and clamp it t
 
 Each birth is weighted by the number of coexisting sampled species, and a birth with no such species has zero probability.
 
+RevBayes warns at the start of an MCMC about missing required moves, including `mvExtinctionRJSwitch` when `rho` < 1.
+
 `getOriginationTimes()` draws each species' own origination time. This differs from its birth time when it descends from an unsampled lineage.
 ## authors
 June Walker
 ## see_also
 dnFossilOccurrences
 mvMatrixElementSwap
+mvExtinctionRJSwitch
+mvSingletonRJSwitch
 ## example
     taxa <- readTaxonData("fossil_ranges.tsv")
 

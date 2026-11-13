@@ -59,6 +59,7 @@ AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProce
     origin_age( inorigin ),
     origin(0.0),
     max_birth(0),
+    resampled(false),
     touched(false),
     present_time(inpresent)
 {
@@ -1308,6 +1309,92 @@ void AbstractFossilizedBirthDeathRangeProcess::warnIfInertNTaxaCondition( void )
 }
 
 
+/** Warn once when rho < 1 and no mvExtinctionRJSwitch moves taxa on or off the present. */
+void AbstractFossilizedBirthDeathRangeProcess::warnIfNoSurvivalMove( void ) const
+{
+    if ( has_survival_move == true || warned_no_survival == true ) return;
+    if ( homogeneous_rho->getValue() == 1.0 ) return;
+
+    for (size_t i = 0; i < taxa.size(); i++)
+    {
+        if ( taxa[i].isExtinct() == true )
+        {
+            warned_no_survival = true;
+            RBOUT("Warning: rho < 1 and no mvExtinctionRJSwitch move. Survival will not be sampled.");
+            return;
+        }
+    }
+}
+
+
+/** Warn once when a presence record has a single occurrence and no move samples singleton status. */
+void AbstractFossilizedBirthDeathRangeProcess::warnIfNoSingletonMove( void ) const
+{
+    if ( has_singleton_move == true || warned_no_singleton == true ) return;
+    if ( record_reporting != PRESENCE ) return;
+
+    for ( size_t i = 0; i < taxa.size(); i++ )
+    {
+        const auto &ages = taxa[i].getOccurrences();
+
+        // an exact age leaves nothing to separate
+        if ( ranges[i].singleton == true && ages.empty() == false && ages.begin()->first.getMin() != ages.begin()->first.getMax() )
+        {
+            warned_no_singleton = true;
+            RBOUT("Warning: no mvSingletonRJSwitch move. Single occurrences stay single ages.");
+            return;
+        }
+    }
+}
+
+
+
+/** Flip taxon i between surviving and dying. The caller sets the death time to match. */
+void AbstractFossilizedBirthDeathRangeProcess::switchSurvived(size_t i)
+{
+    switched_range   = i;
+    stored_survived  = ranges[i].survived;
+    stored_singleton = ranges[i].singleton;
+    switched         = true;
+
+    ranges[i].survived = !ranges[i].survived;
+
+    dirty_taxa[i] = true;
+}
+
+
+/**
+ * Expand taxon i's tau_1 uniformly above tau_K, or collapse it onto tau_K.
+ *
+ * \return The log hastings ratio.
+ */
+double AbstractFossilizedBirthDeathRangeProcess::switchSingleton(size_t i)
+{
+    double y     = ranges[i].last;
+    double width = std::min( taxa[i].getAgeRange()->getMax(), ranges[i].divergence ) - y;
+
+    if ( width <= 0.0 ) return RbConstants::Double::neginf;
+
+    stored_range = i;
+    stored_first = ranges[i].first;
+    stored_last  = y;
+    resampled    = true;
+
+    switched_range   = i;
+    stored_survived  = ranges[i].survived;
+    stored_singleton = ranges[i].singleton;
+    switched         = true;
+
+    bool single = ranges[i].singleton;
+    ranges[i].singleton = !single;
+    ranges[i].first = single ? y + GLOBAL_RNG->uniform01() * width : y;
+
+    dirty_taxa[i] = true;
+
+    return single ? log( width ) : -log( width );
+}
+
+
 void AbstractFossilizedBirthDeathRangeProcess::drawRanges()
 {
     RandomNumberGenerator* rng = GLOBAL_RNG;
@@ -1421,6 +1508,8 @@ void AbstractFossilizedBirthDeathRangeProcess::drawRanges()
 /** Flags clear on recompute, not here, since a checkpoint restore keeps before computing. */
 void AbstractFossilizedBirthDeathRangeProcess::keepSpecialization(const DagNode *toucher)
 {
+    resampled = false;
+    switched = false;
     touched = false;
     weld_origin = true;
 }
@@ -1434,8 +1523,22 @@ void AbstractFossilizedBirthDeathRangeProcess::restoreSpecialization(const DagNo
 
     ranges = stored_ranges;
 
+    if ( resampled )
+    {
+        ranges[stored_range].first = stored_first;
+        ranges[stored_range].last  = stored_last;
+    }
+
+    if ( switched )
+    {
+        ranges[switched_range].survived  = stored_survived;
+        ranges[switched_range].singleton = stored_singleton;
+    }
+
     dirty_taxa = std::vector<bool>(taxa.size(), false);
 
+    resampled = false;
+    switched = false;
     touched = false;
     weld_origin = true;
 }

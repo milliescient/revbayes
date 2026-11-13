@@ -87,6 +87,8 @@ void FossilizedBirthDeathRangeProcess::setMcmcMode(bool tf)
     // the appearances live in the value, where the element moves reach them
     if ( tf == true ) warnIfNoReportingNode();
     if ( tf == true ) warnIfInertNTaxaCondition();
+    if ( tf == true ) warnIfNoSurvivalMove();
+    if ( tf == true ) warnIfNoSingletonMove();
     if ( tf == true ) warnIfImpossibleInputs();
 }
 
