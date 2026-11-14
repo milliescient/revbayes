@@ -132,6 +132,7 @@
 #include "Move_MatrixSingleElementScale.h"
 #include "Move_MatrixSingleElementSlide.h"
 #include "Move_MatrixSingleElementSwap.h"
+#include "Move_RateRangeJoint.h"
 
 /* Moves on correlation matrices */
 #include "Move_ConjugateInverseWishart.h"
@@ -347,6 +348,7 @@ void RevLanguage::Workspace::initializeMoveGlobalWorkspace(void)
         addType( new Move_MatrixSingleElementScale() );
         addType( new Move_MatrixSingleElementSlide() );
         addType( new Move_MatrixSingleElementSwap()          );
+        addType( new Move_RateRangeJoint()                   );
 
         /* Moves on matrices of correlations */
         addType( new Move_CorrelationMatrixUpdate()                   );
