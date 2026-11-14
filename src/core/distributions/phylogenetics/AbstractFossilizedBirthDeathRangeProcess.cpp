@@ -1666,10 +1666,13 @@ void AbstractFossilizedBirthDeathRangeProcess::appendIntervalRates( size_t j, st
 }
 
 
-/** A change in interval j dirties only the taxa born in or above it. */
+/**
+ * A change in interval j dirties only the taxa born in or above it. Interval j's top edge counts as
+ * part of it, since q_tilde_i[j] reads it and a taxon's birth can cross it.
+ */
 void AbstractFossilizedBirthDeathRangeProcess::dirtyChangedIntervals( void )
 {
-    std::vector<double> shared( times.begin(), times.end() );
+    std::vector<double> shared( 1, times.front() );
     shared.push_back( homogeneous_rho->getValue() );
     shared.insert( shared.end(), mixture_rates.begin(), mixture_rates.end() );
     shared.insert( shared.end(), mixture_weights.begin(), mixture_weights.end() );
@@ -1680,6 +1683,7 @@ void AbstractFossilizedBirthDeathRangeProcess::dirtyChangedIntervals( void )
     {
         start[j] = rates.size();
         appendIntervalRates( j, rates );
+        if ( j + 1 < times.size() ) rates.push_back( times[j+1] );
     }
     start[num_intervals] = rates.size();
 

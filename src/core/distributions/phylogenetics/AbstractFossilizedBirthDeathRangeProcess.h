@@ -149,7 +149,7 @@ namespace RevBayesCore {
         virtual double                                  observedRangeRate(size_t j) const { return 0.0; }           //!< A rate in interval j at which an observed range must have no event, beside lambda and mu.
         virtual void                                    appendIntervalRates(size_t j, std::vector<double> &v) const;  //!< Every rate of interval j a range term reads.
         void                                            storeRangeTerms(void);                                      //!< Keep the range terms and what they were computed under, for a rejected proposal.
-        void                                            dirtyChangedIntervals(void);                                //!< Dirty the taxa born in or above the youngest interval whose rates changed.
+        void                                            dirtyChangedIntervals(void);                                //!< Dirty the taxa born in or above the youngest interval whose rates or top edge changed.
 
         // Parameter management functions
         void                                            swapParameterInternal(const DagNode *oldP, const DagNode *newP);                //!< Swap a parameter
