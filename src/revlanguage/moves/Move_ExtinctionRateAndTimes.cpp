@@ -1,4 +1,4 @@
-#include "Move_RateRangeJoint.h"
+#include "Move_ExtinctionRateAndTimes.h"
 
 #include <cstdint>
 #include <string>
@@ -9,7 +9,7 @@
 #include "MetropolisHastingsMove.h"
 #include "Natural.h"
 #include "Probability.h"
-#include "RateRangeJointProposal.h"
+#include "ExtinctionRateAndTimesProposal.h"
 #include "RbException.h"
 #include "RealPos.h"
 #include "RevObject.h"
@@ -24,19 +24,19 @@
 using namespace RevLanguage;
 
 
-Move_RateRangeJoint::Move_RateRangeJoint() : Move()
+Move_ExtinctionRateAndTimes::Move_ExtinctionRateAndTimes() : Move()
 {
 
 }
 
 
-Move_RateRangeJoint* Move_RateRangeJoint::clone(void) const
+Move_ExtinctionRateAndTimes* Move_ExtinctionRateAndTimes::clone(void) const
 {
-    return new Move_RateRangeJoint(*this);
+    return new Move_ExtinctionRateAndTimes(*this);
 }
 
 
-void Move_RateRangeJoint::constructInternalObject( void )
+void Move_ExtinctionRateAndTimes::constructInternalObject( void )
 {
     delete value;
 
@@ -59,7 +59,7 @@ void Move_RateRangeJoint::constructInternalObject( void )
     }
     if ( m == NULL && tr == NULL )
     {
-        throw RbException("mvRateRangeJoint: ranges must be a stochastic range matrix or extended tree.");
+        throw RbException("mvExtinctionRateAndTimes: ranges must be a stochastic range matrix or extended tree.");
     }
 
     RevBayesCore::Proposal *p = NULL;
@@ -67,17 +67,17 @@ void Move_RateRangeJoint::constructInternalObject( void )
     {
         RevBayesCore::TypedDagNode<std::int64_t>* tx = static_cast<const Natural &>( x->getRevObject() ).getDagNode();
         RevBayesCore::StochasticNode<std::int64_t>* s = dynamic_cast<RevBayesCore::StochasticNode<std::int64_t>*>( tx );
-        if ( s == NULL ) throw RbException("mvRateRangeJoint: x must be a stochastic node.");
-        if ( rj == true ) throw RbException("mvRateRangeJoint: rjSwitch needs a dnReversibleJumpMixture jump, not a 0/1 indicator.");
-        p = new RevBayesCore::RateRangeJointProposal( s, m, tr );
+        if ( s == NULL ) throw RbException("mvExtinctionRateAndTimes: x must be a stochastic node.");
+        if ( rj == true ) throw RbException("mvExtinctionRateAndTimes: rjSwitch needs a dnReversibleJumpMixture jump, not a 0/1 indicator.");
+        p = new RevBayesCore::ExtinctionRateAndTimesProposal( s, m, tr );
         t = false;
     }
     else
     {
         RevBayesCore::TypedDagNode<double>* tx = static_cast<const RealPos &>( x->getRevObject() ).getDagNode();
         RevBayesCore::StochasticNode<double>* r = dynamic_cast<RevBayesCore::StochasticNode<double>*>( tx );
-        if ( r == NULL ) throw RbException("mvRateRangeJoint: x must be a stochastic node.");
-        p = new RevBayesCore::RateRangeJointProposal( r, m, tr, l, rj, sd );
+        if ( r == NULL ) throw RbException("mvExtinctionRateAndTimes: x must be a stochastic node.");
+        p = new RevBayesCore::ExtinctionRateAndTimesProposal( r, m, tr, l, rj, sd );
         if ( rj == true ) t = false;
     }
     p->setTargetAcceptanceRate( tt );
@@ -86,15 +86,15 @@ void Move_RateRangeJoint::constructInternalObject( void )
 }
 
 
-const std::string& Move_RateRangeJoint::getClassType(void)
+const std::string& Move_ExtinctionRateAndTimes::getClassType(void)
 {
-    static std::string rev_type = "Move_RateRangeJoint";
+    static std::string rev_type = "Move_ExtinctionRateAndTimes";
 
     return rev_type;
 }
 
 
-const TypeSpec& Move_RateRangeJoint::getClassTypeSpec(void)
+const TypeSpec& Move_ExtinctionRateAndTimes::getClassTypeSpec(void)
 {
     static TypeSpec rev_type_spec = TypeSpec( getClassType(), new TypeSpec( Move::getClassTypeSpec() ) );
 
@@ -102,13 +102,13 @@ const TypeSpec& Move_RateRangeJoint::getClassTypeSpec(void)
 }
 
 
-std::string Move_RateRangeJoint::getMoveName( void ) const
+std::string Move_ExtinctionRateAndTimes::getMoveName( void ) const
 {
-    return "RateRangeJoint";
+    return "ExtinctionRateAndTimes";
 }
 
 
-const MemberRules& Move_RateRangeJoint::getParameterRules(void) const
+const MemberRules& Move_ExtinctionRateAndTimes::getParameterRules(void) const
 {
     static MemberRules move_member_rules;
     static bool rules_set = false;
@@ -139,7 +139,7 @@ const MemberRules& Move_RateRangeJoint::getParameterRules(void) const
 }
 
 
-const TypeSpec& Move_RateRangeJoint::getTypeSpec( void ) const
+const TypeSpec& Move_ExtinctionRateAndTimes::getTypeSpec( void ) const
 {
     static TypeSpec type_spec = getClassTypeSpec();
 
@@ -147,13 +147,13 @@ const TypeSpec& Move_RateRangeJoint::getTypeSpec( void ) const
 }
 
 
-void Move_RateRangeJoint::printValue(std::ostream &o) const
+void Move_ExtinctionRateAndTimes::printValue(std::ostream &o) const
 {
-    o << "Move_RateRangeJoint(" << ( x != NULL ? x->getName() : "?" ) << ")";
+    o << "Move_ExtinctionRateAndTimes(" << ( x != NULL ? x->getName() : "?" ) << ")";
 }
 
 
-void Move_RateRangeJoint::setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var)
+void Move_ExtinctionRateAndTimes::setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var)
 {
     if      ( name == "x" )      x = var;
     else if ( name == "ranges" ) ranges = var;

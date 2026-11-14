@@ -1,5 +1,5 @@
-#ifndef Move_RateRangeJoint_H
-#define Move_RateRangeJoint_H
+#ifndef Move_ExtinctionRateAndTimes_H
+#define Move_ExtinctionRateAndTimes_H
 
 #include <ostream>
 
@@ -12,13 +12,13 @@ namespace RevLanguage {
 
     class TypeSpec;
 
-    /** mvRateRangeJoint: a rate scale, shift flip or RJ shift switch that redraws the extinction times it affects. */
-    class Move_RateRangeJoint : public Move {
+    /** mvExtinctionRateAndTimes: an extinction rate scale, shift flip or RJ shift switch that redraws the extinction times it affects. */
+    class Move_ExtinctionRateAndTimes : public Move {
 
     public:
-        Move_RateRangeJoint(void);
+        Move_ExtinctionRateAndTimes(void);
 
-        virtual Move_RateRangeJoint*                clone(void) const;
+        virtual Move_ExtinctionRateAndTimes*                clone(void) const;
         void                                        constructInternalObject(void);
         static const std::string&                   getClassType(void);
         static const TypeSpec&                      getClassTypeSpec(void);

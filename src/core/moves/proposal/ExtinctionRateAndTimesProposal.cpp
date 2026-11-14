@@ -1,4 +1,4 @@
-#include "RateRangeJointProposal.h"
+#include "ExtinctionRateAndTimesProposal.h"
 
 #include <cmath>
 #include <iostream>
@@ -18,7 +18,7 @@
 using namespace RevBayesCore;
 
 
-RateRangeJointProposal::RateRangeJointProposal( StochasticNode<double> *r, StochasticNode<MatrixReal> *m, StochasticNode<Tree> *tr, double l, bool rj, double sd ) : Proposal(),
+ExtinctionRateAndTimesProposal::ExtinctionRateAndTimesProposal( StochasticNode<double> *r, StochasticNode<MatrixReal> *m, StochasticNode<Tree> *tr, double l, bool rj, double sd ) : Proposal(),
     rate( r ),
     shift( NULL ),
     ranges( m ),
@@ -35,7 +35,7 @@ RateRangeJointProposal::RateRangeJointProposal( StochasticNode<double> *r, Stoch
 }
 
 
-RateRangeJointProposal::RateRangeJointProposal( StochasticNode<std::int64_t> *s, StochasticNode<MatrixReal> *m, StochasticNode<Tree> *tr ) : Proposal(),
+ExtinctionRateAndTimesProposal::ExtinctionRateAndTimesProposal( StochasticNode<std::int64_t> *s, StochasticNode<MatrixReal> *m, StochasticNode<Tree> *tr ) : Proposal(),
     rate( NULL ),
     shift( s ),
     ranges( m ),
@@ -51,7 +51,7 @@ RateRangeJointProposal::RateRangeJointProposal( StochasticNode<std::int64_t> *s,
 }
 
 
-void RateRangeJointProposal::addValueNode( void )
+void ExtinctionRateAndTimesProposal::addValueNode( void )
 {
     if ( tree != NULL )
     {
@@ -59,7 +59,7 @@ void RateRangeJointProposal::addValueNode( void )
         const TreeDistributionProperties *props = dynamic_cast<const TreeDistributionProperties *>( &tree->getDistribution() );
         if ( props == NULL || props->isExtended() == false )
         {
-            throw RbException("mvRateRangeJoint requires an extended tree, whose tips are extinction times.");
+            throw RbException("mvExtinctionRateAndTimes requires an extended tree, whose tips are extinction times.");
         }
         addNode( tree );
     }
@@ -70,25 +70,25 @@ void RateRangeJointProposal::addValueNode( void )
 }
 
 
-AbstractFossilizedBirthDeathRangeProcess* RateRangeJointProposal::process( void ) const
+AbstractFossilizedBirthDeathRangeProcess* ExtinctionRateAndTimesProposal::process( void ) const
 {
     Distribution &d = ( tree != NULL ? unconstrained( tree->getDistribution() ) : unconstrained( ranges->getDistribution() ) );
     AbstractFossilizedBirthDeathRangeProcess* p = dynamic_cast<AbstractFossilizedBirthDeathRangeProcess*>( &d );
     if ( p == NULL )
     {
-        throw RbException("mvRateRangeJoint: the ranges must be drawn from a fossilized birth-death range process.");
+        throw RbException("mvExtinctionRateAndTimes: the ranges must be drawn from a fossilized birth-death range process.");
     }
     return p;
 }
 
 
-double RateRangeJointProposal::extinctionTime( size_t i ) const
+double ExtinctionRateAndTimesProposal::extinctionTime( size_t i ) const
 {
     return ( tree != NULL ) ? tree->getValue().getNode( i ).getAge() : ranges->getValue()[i][0];
 }
 
 
-void RateRangeJointProposal::setExtinctionTime( size_t i, double d )
+void ExtinctionRateAndTimesProposal::setExtinctionTime( size_t i, double d )
 {
     if ( tree != NULL )
     {
@@ -103,39 +103,39 @@ void RateRangeJointProposal::setExtinctionTime( size_t i, double d )
 }
 
 
-void RateRangeJointProposal::cleanProposal( void )
+void ExtinctionRateAndTimesProposal::cleanProposal( void )
 {
     stored_ends.clear();
 }
 
 
-RateRangeJointProposal* RateRangeJointProposal::clone( void ) const
+ExtinctionRateAndTimesProposal* ExtinctionRateAndTimesProposal::clone( void ) const
 {
-    return new RateRangeJointProposal( *this );
+    return new ExtinctionRateAndTimesProposal( *this );
 }
 
 
-const std::string& RateRangeJointProposal::getProposalName( void ) const
+const std::string& ExtinctionRateAndTimesProposal::getProposalName( void ) const
 {
-    static std::string name = "RateRangeJoint";
+    static std::string name = "ExtinctionRateAndTimes";
 
     return name;
 }
 
 
-double RateRangeJointProposal::getProposalTuningParameter( void ) const
+double ExtinctionRateAndTimesProposal::getProposalTuningParameter( void ) const
 {
     return ( rate != NULL && rj_switch == false ) ? lambda : RbConstants::Double::nan;
 }
 
 
-void RateRangeJointProposal::readRates( AbstractFossilizedBirthDeathRangeProcess *process, std::vector<double> &t, std::vector<double> &mu, std::vector<double> &psi ) const
+void ExtinctionRateAndTimesProposal::readRates( AbstractFossilizedBirthDeathRangeProcess *process, std::vector<double> &t, std::vector<double> &mu, std::vector<double> &psi ) const
 {
     process->currentExtinctionAndSampling( t, mu, psi );
 }
 
 
-void RateRangeJointProposal::probeRate( double value, AbstractFossilizedBirthDeathRangeProcess *process, std::vector<double> &t, std::vector<double> &mu, std::vector<double> &psi )
+void ExtinctionRateAndTimesProposal::probeRate( double value, AbstractFossilizedBirthDeathRangeProcess *process, std::vector<double> &t, std::vector<double> &mu, std::vector<double> &psi )
 {
     // setValue, not the reference: a dnReversibleJumpMixture keeps which branch it is on beside the value
     rate->setValue( new double( value ) );
@@ -148,7 +148,7 @@ void RateRangeJointProposal::probeRate( double value, AbstractFossilizedBirthDea
  * The density mu(x) exp(-H) on (lo, hi], with H the hazard mu + psi accumulated down from hi, the last
  * fossil. Interval j is [t[j], t[j+1]), the last one open.
  */
-double RateRangeJointProposal::lnDensity( double x, double lo, double hi, const std::vector<double> &t, const std::vector<double> &mu, const std::vector<double> &psi ) const
+double ExtinctionRateAndTimesProposal::lnDensity( double x, double lo, double hi, const std::vector<double> &t, const std::vector<double> &mu, const std::vector<double> &psi ) const
 {
     if ( !( x > lo && x <= hi ) ) return RbConstants::Double::neginf;
 
@@ -183,7 +183,7 @@ double RateRangeJointProposal::lnDensity( double x, double lo, double hi, const 
 }
 
 
-double RateRangeJointProposal::draw( double lo, double hi, const std::vector<double> &t, const std::vector<double> &mu, const std::vector<double> &psi ) const
+double ExtinctionRateAndTimesProposal::draw( double lo, double hi, const std::vector<double> &t, const std::vector<double> &mu, const std::vector<double> &psi ) const
 {
     RandomNumberGenerator* rng = GLOBAL_RNG;
 
@@ -230,14 +230,14 @@ double RateRangeJointProposal::draw( double lo, double hi, const std::vector<dou
 }
 
 
-double RateRangeJointProposal::lnLognormal( double x, double centre ) const
+double ExtinctionRateAndTimesProposal::lnLognormal( double x, double centre ) const
 {
     double z = ( log( x ) - log( centre ) ) / sigma;
     return -log( x ) - log( sigma ) - 0.5 * log( 2.0 * M_PI ) - 0.5 * z * z;
 }
 
 
-double RateRangeJointProposal::doProposal( void )
+double ExtinctionRateAndTimesProposal::doProposal( void )
 {
     RandomNumberGenerator* rng = GLOBAL_RNG;
 
@@ -370,13 +370,13 @@ double RateRangeJointProposal::doProposal( void )
 }
 
 
-void RateRangeJointProposal::prepareProposal( void )
+void ExtinctionRateAndTimesProposal::prepareProposal( void )
 {
 
 }
 
 
-void RateRangeJointProposal::printParameterSummary( std::ostream &o, bool name_only ) const
+void ExtinctionRateAndTimesProposal::printParameterSummary( std::ostream &o, bool name_only ) const
 {
     if ( rate != NULL && rj_switch == true )
     {
@@ -391,7 +391,7 @@ void RateRangeJointProposal::printParameterSummary( std::ostream &o, bool name_o
 }
 
 
-void RateRangeJointProposal::undoProposal( void )
+void ExtinctionRateAndTimesProposal::undoProposal( void )
 {
     for ( std::vector< std::pair<size_t,double> >::reverse_iterator it = stored_ends.rbegin(); it != stored_ends.rend(); ++it )
     {
@@ -412,7 +412,7 @@ void RateRangeJointProposal::undoProposal( void )
 }
 
 
-void RateRangeJointProposal::swapNodeInternal( DagNode *oldN, DagNode *newN )
+void ExtinctionRateAndTimesProposal::swapNodeInternal( DagNode *oldN, DagNode *newN )
 {
     if ( ranges != NULL && oldN == ranges )
     {
@@ -433,13 +433,13 @@ void RateRangeJointProposal::swapNodeInternal( DagNode *oldN, DagNode *newN )
 }
 
 
-void RateRangeJointProposal::setProposalTuningParameter( double tp )
+void ExtinctionRateAndTimesProposal::setProposalTuningParameter( double tp )
 {
     if ( rate != NULL && rj_switch == false ) lambda = tp;
 }
 
 
-void RateRangeJointProposal::tune( double r )
+void ExtinctionRateAndTimesProposal::tune( double r )
 {
     if ( rate == NULL || rj_switch == true ) return;
 

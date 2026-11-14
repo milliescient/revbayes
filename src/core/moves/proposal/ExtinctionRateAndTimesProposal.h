@@ -1,5 +1,5 @@
-#ifndef RateRangeJointProposal_H
-#define RateRangeJointProposal_H
+#ifndef ExtinctionRateAndTimesProposal_H
+#define ExtinctionRateAndTimesProposal_H
 
 #include <cstddef>
 #include <cstdint>
@@ -28,14 +28,14 @@ namespace RevBayesCore {
      * is proposed lognormally about the rate its cells already have, and one switched off returns
      * them to the rate they inherit.
      */
-    class RateRangeJointProposal : public Proposal {
+    class ExtinctionRateAndTimesProposal : public Proposal {
 
     public:
-        RateRangeJointProposal( StochasticNode<double> *r, StochasticNode<MatrixReal> *m, StochasticNode<Tree> *t, double l, bool rj = false, double sd = 0.5 );
-        RateRangeJointProposal( StochasticNode<std::int64_t> *s, StochasticNode<MatrixReal> *m, StochasticNode<Tree> *t );
+        ExtinctionRateAndTimesProposal( StochasticNode<double> *r, StochasticNode<MatrixReal> *m, StochasticNode<Tree> *t, double l, bool rj = false, double sd = 0.5 );
+        ExtinctionRateAndTimesProposal( StochasticNode<std::int64_t> *s, StochasticNode<MatrixReal> *m, StochasticNode<Tree> *t );
 
         void                                    cleanProposal(void);
-        RateRangeJointProposal*                 clone(void) const;
+        ExtinctionRateAndTimesProposal*                 clone(void) const;
         double                                  doProposal(void);
         const std::string&                      getProposalName(void) const;
         double                                  getProposalTuningParameter(void) const;
