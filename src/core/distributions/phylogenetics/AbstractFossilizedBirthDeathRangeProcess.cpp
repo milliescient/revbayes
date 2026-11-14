@@ -53,11 +53,13 @@ AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProce
                                                                          const TypedDagNode<double> *inorigin,
                                                                          double inpresent,
                                                                          const TypedDagNode<RbVector<double> > *inrates,
-                                                                         const TypedDagNode<Simplex> *inweights) :
+                                                                         const TypedDagNode<Simplex> *inweights,
+                                                                         const std::vector<const TypedDagNode<RbVector<double> >*> &inratetimes) :
     taxa(intaxa),
     condition(incondition),
     homogeneous_rho(inrho),
     timeline( intimes ),
+    rate_timeline( inratetimes ),
     origin_age( inorigin ),
     psi_mixture_rates( inrates ),
     psi_mixture_weights( inweights ),
@@ -97,8 +99,57 @@ AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProce
     range_parameters.push_back( psi_mixture_rates );
     range_parameters.push_back( psi_mixture_weights );
 
-    // setup the timeline
-    if ( timeline == NULL )
+    // lambda, mu and psi, each with its own timeline or NULL for the global one
+    rate_timeline.resize( 3, NULL );
+    for ( const TypedDagNode<RbVector<double> >* tl : rate_timeline )
+    {
+        if ( tl != NULL )
+        {
+            per_rate_timelines = true;
+            range_parameters.push_back( tl );
+        }
+    }
+
+    // every timeline, global or per rate, must be ascending and no younger than the present
+    std::vector<const TypedDagNode<RbVector<double> >*> given = rate_timeline;
+    given.push_back( timeline );
+    for ( const TypedDagNode<RbVector<double> >* tl : given )
+    {
+        if ( tl == NULL ) continue;
+        const std::vector<double> &tv = tl->getValue();
+        if ( std::is_sorted( tv.begin(), tv.end() ) == false ) throw RbException("Interval times must be provided in ascending order");
+        if ( tv.empty() == false && tv.front() < present_time ) throw RbException("An interval time is younger than present");
+    }
+
+    if ( per_rate_timelines == true )
+    {
+        const TypedDagNode<double >*           homog[3] = { homogeneous_lambda, homogeneous_mu, homogeneous_psi };
+        const TypedDagNode<RbVector<double> >* heter[3] = { heterogeneous_lambda, heterogeneous_mu, heterogeneous_psi };
+        const char*                            name[3]  = { "lambda", "mu", "psi" };
+        for ( size_t r = 0; r < 3; r++ )
+        {
+            const TypedDagNode<RbVector<double> >* tl = ownTimeline( r );
+            if ( heter[r] != NULL )
+            {
+                if ( tl == NULL ) throw RbException() << "No time intervals provided for the heterogeneous " << name[r] << ".";
+                size_t n = 1;
+                for ( double x : tl->getValue() ) n += ( x > present_time );
+                if ( heter[r]->getValue().size() != n )
+                {
+                    throw RbException() << name[r] << " has " << heter[r]->getValue().size() << " rates but its timeline makes " << n << " intervals.";
+                }
+            }
+            else if ( rate_timeline[r] != NULL || homog[r] == NULL )
+            {
+                throw RbException() << name[r] << "Timeline was given for a constant " << name[r] << ".";
+            }
+        }
+
+        std::vector<double> t, b, d, f;
+        mergedRates( t, b, d, f );
+        num_intervals = t.size();
+    }
+    else if ( timeline == NULL )
     {
         num_intervals = 1;
     }
@@ -107,7 +158,7 @@ AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProce
         num_intervals = timeline->getValue().size() + (timeline->getValue().front() != present_time);
     }
 
-    if ( num_intervals > 1 )
+    if ( per_rate_timelines == false && num_intervals > 1 )
     {
         std::vector<double> times = timeline->getValue();
         std::vector<double> times_sorted_ascending = times;
@@ -125,6 +176,8 @@ AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProce
         }
     }
 
+    if ( per_rate_timelines == false )
+    {
     RbException no_timeline_err = RbException("No time intervals provided for heterogeneous fossilized birth death process");
 
     RbException inconsistent_rates = RbException("Inconsistent number of rates in fossilized birth death process.");
@@ -162,6 +215,7 @@ AbstractFossilizedBirthDeathRangeProcess::AbstractFossilizedBirthDeathRangeProce
         std::stringstream ss;
         ss << "Number of rates does not match number of time intervals in fossilized birth death process.";
         throw(RbException(ss.str()));
+    }
     }
 
     if ( num_components == 0 )
@@ -1658,11 +1712,100 @@ void AbstractFossilizedBirthDeathRangeProcess::dirtyChangedIntervals( void )
 }
 
 
+/** Read from the rate nodes, not the cached vectors, so a move sees a rate it has just set. */
+void AbstractFossilizedBirthDeathRangeProcess::currentRates( std::vector<double> &t, std::vector<double> &lambda, std::vector<double> &mu, std::vector<double> &psi ) const
+{
+    if ( per_rate_timelines == true )
+    {
+        mergedRates( t, lambda, mu, psi );
+        return;
+    }
+
+    lambda = ( homogeneous_lambda != NULL ) ? std::vector<double>( num_intervals, homogeneous_lambda->getValue() ) : std::vector<double>( heterogeneous_lambda->getValue() );
+    mu     = ( homogeneous_mu != NULL )     ? std::vector<double>( num_intervals, homogeneous_mu->getValue() )     : std::vector<double>( heterogeneous_mu->getValue() );
+    psi    = ( homogeneous_psi != NULL )    ? std::vector<double>( num_intervals, homogeneous_psi->getValue() )    : std::vector<double>( heterogeneous_psi->getValue() );
+
+    t = ( timeline != NULL ) ? std::vector<double>( timeline->getValue() ) : std::vector<double>();
+    if ( t.size() < num_intervals )
+    {
+        t.insert( t.begin(), present_time );
+    }
+}
+
+
+void AbstractFossilizedBirthDeathRangeProcess::currentExtinctionAndSampling( std::vector<double> &t, std::vector<double> &mu, std::vector<double> &psi ) const
+{
+    std::vector<double> lambda;
+    currentRates( t, lambda, mu, psi );
+}
+
+
+const TypedDagNode<RbVector<double> >* AbstractFossilizedBirthDeathRangeProcess::ownTimeline( size_t r ) const
+{
+    return ( r < rate_timeline.size() && rate_timeline[r] != NULL ) ? rate_timeline[r] : timeline;
+}
+
+
+/**
+ * The union of every boundary in use, duplicates kept so the interval count never changes, and each
+ * rate on it: a cell takes the rate of the interval of that rate's own timeline it starts in.
+ */
+void AbstractFossilizedBirthDeathRangeProcess::mergedRates( std::vector<double> &t, std::vector<double> &b, std::vector<double> &d, std::vector<double> &f ) const
+{
+    const TypedDagNode<double >*           homog[3] = { homogeneous_lambda, homogeneous_mu, homogeneous_psi };
+    const TypedDagNode<RbVector<double> >* heter[3] = { heterogeneous_lambda, heterogeneous_mu, heterogeneous_psi };
+
+    std::vector<double> edges;
+    bool global_used = false;
+    for ( size_t r = 0; r < 3; r++ )
+    {
+        if ( heter[r] != NULL && rate_timeline[r] == NULL ) global_used = true;
+    }
+    if ( global_used == true && timeline != NULL )
+    {
+        for ( double x : timeline->getValue() ) if ( x > present_time ) edges.push_back( x );
+    }
+    for ( size_t r = 0; r < 3; r++ )
+    {
+        if ( rate_timeline[r] == NULL ) continue;
+        for ( double x : rate_timeline[r]->getValue() ) if ( x > present_time ) edges.push_back( x );
+    }
+    std::sort( edges.begin(), edges.end() );
+
+    t.assign( 1, present_time );
+    t.insert( t.end(), edges.begin(), edges.end() );
+
+    std::vector<double>* out[3] = { &b, &d, &f };
+    for ( size_t r = 0; r < 3; r++ )
+    {
+        if ( heter[r] == NULL )
+        {
+            out[r]->assign( t.size(), homog[r]->getValue() );
+            continue;
+        }
+        std::vector<double> own;
+        for ( double x : ownTimeline( r )->getValue() ) if ( x > present_time ) own.push_back( x );
+        const std::vector<double> &v = heter[r]->getValue();
+        out[r]->resize( t.size() );
+        for ( size_t j = 0; j < t.size(); j++ )
+        {
+            (*out[r])[j] = v[ std::upper_bound( own.begin(), own.end(), t[j] ) - own.begin() ];
+        }
+    }
+}
+
+
 /**
  * Fill the per-interval rates and times, and p_i, q_i and q_tilde_i at each interval.
  */
 void AbstractFossilizedBirthDeathRangeProcess::prepareProbComputation( void ) const
 {
+    if ( per_rate_timelines == true )
+    {
+        mergedRates( times, birth, death, fossil );
+    }
+    else
+    {
     if ( homogeneous_lambda != NULL )
     {
         birth = std::vector<double>(num_intervals, homogeneous_lambda->getValue() );
@@ -1700,6 +1843,7 @@ void AbstractFossilizedBirthDeathRangeProcess::prepareProbComputation( void ) co
     if ( times.size() < num_intervals )
     {
         times.insert(times.begin(), present_time);
+    }
     }
 
     for (size_t i = 0; i < num_intervals; i++)
@@ -1948,6 +2092,13 @@ void AbstractFossilizedBirthDeathRangeProcess::swapParameterInternal(const DagNo
     else if (oldP == timeline)
     {
         timeline = static_cast<const TypedDagNode< RbVector<double> >* >( newP );
+    }
+    else if ( std::find( rate_timeline.begin(), rate_timeline.end(), oldP ) != rate_timeline.end() )
+    {
+        for ( const TypedDagNode<RbVector<double> >* &tl : rate_timeline )
+        {
+            if ( tl == oldP ) tl = static_cast<const TypedDagNode< RbVector<double> >* >( newP );
+        }
     }
     else if (oldP == origin_age)
     {

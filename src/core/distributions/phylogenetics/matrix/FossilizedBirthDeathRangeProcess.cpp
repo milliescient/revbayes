@@ -63,9 +63,10 @@ FossilizedBirthDeathRangeProcess::FossilizedBirthDeathRangeProcess(const DagNode
                                                                      const TypedDagNode<double> *inorigin,
                                                                      double inpresent,
                                                                      const TypedDagNode<RbVector<double> > *inrates,
-                                                                     const TypedDagNode<Simplex> *inweights) :
+                                                                     const TypedDagNode<Simplex> *inweights,
+                                                                     const std::vector<const TypedDagNode<RbVector<double> >*> &rate_timelines) :
     TypedDistribution<MatrixReal>(new MatrixReal(intaxa.size(), 4)),
-    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, complete_record, inorigin, inpresent, inrates, inweights),
+    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, complete_record, inorigin, inpresent, inrates, inweights, rate_timelines),
     coexistence( coexistence ),
     require_parent( require_parent )
 {

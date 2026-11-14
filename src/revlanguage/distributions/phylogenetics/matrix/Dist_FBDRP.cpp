@@ -139,7 +139,7 @@ RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_FBDRP::createDistribution( 
         need_parent = static_cast<const RlBoolean &>( require_parent->getRevObject() ).getValue();
     }
 
-    return makeProcess(l, m, p, r, rt, cond, t, oa, pres, mr, mw, coexist, need_parent);
+    return makeProcess(l, m, p, r, rt, cond, t, oa, pres, mr, mw, coexist, need_parent, createRateTimelines());
 }
 
 
@@ -155,9 +155,10 @@ RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_FBDRP::makeProcess(RevBayes
                                                                        RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> > *mr,
                                                                        RevBayesCore::TypedDagNode<RevBayesCore::Simplex> *mw,
                                                                        bool coexist,
-                                                                       bool need_parent) const
+                                                                       bool need_parent,
+                                                                       const std::vector<const RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> >*> &rate_timelines) const
 {
-    return new RevBayesCore::FossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, coexist, need_parent, oa, pres, mr, mw);
+    return new RevBayesCore::FossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, coexist, need_parent, oa, pres, mr, mw, rate_timelines);
 }
 
 

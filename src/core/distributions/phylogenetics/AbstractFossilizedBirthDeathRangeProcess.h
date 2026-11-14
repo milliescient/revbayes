@@ -81,7 +81,8 @@ namespace RevBayesCore {
                                             const TypedDagNode<double>* origin = NULL,
                                             double present = 0.0,
                                             const TypedDagNode<RbVector<double> >* psi_mixture_rates = NULL,
-                                            const TypedDagNode<Simplex>* psi_mixture_weights = NULL);  //!< Constructor
+                                            const TypedDagNode<Simplex>* psi_mixture_weights = NULL,
+                                            const std::vector<const TypedDagNode<RbVector<double> >*> &rate_timelines = {});  //!< Constructor
 
         virtual ~AbstractFossilizedBirthDeathRangeProcess(){};
 
@@ -94,6 +95,8 @@ namespace RevBayesCore {
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, RbVector<double> &rv) const;   //!< Expose the appearances and the origination/extinction times.
         void                                            executeMethod(const std::string &n, const std::vector<const DagNode*> &args, double &rv) const;              //!< Expose the origin.
         double                                          getPresent() const { return times.front(); }               //!< The youngest interval boundary, which extinction times cannot precede.
+        void                                            currentExtinctionAndSampling(std::vector<double> &t, std::vector<double> &mu, std::vector<double> &psi) const; //!< Interval starts, present first, and mu and psi as the rate nodes hold them now.
+        void                                            currentRates(std::vector<double> &t, std::vector<double> &lambda, std::vector<double> &mu, std::vector<double> &psi) const; //!< Interval starts, present first, and all three rates as the rate nodes hold them now.
         const std::vector<Taxon>&                       getTaxa() const { return taxa; }
         void                                            resampleFirstLast(size_t i);                                //!< Redraw taxon i's appearances within its reported bins.
         bool                                            hasSurvived(size_t i) const { return ranges[i].survived; }  //!< Taxon i's latent status: alive at the present.
@@ -166,6 +169,8 @@ namespace RevBayesCore {
         double                                          meanOrigination(size_t i) const;                      //!< The conditional mean of species i's origination.
 
         virtual void                                    prepareProbComputation(void) const;
+        void                                            mergedRates(std::vector<double> &t, std::vector<double> &b, std::vector<double> &d, std::vector<double> &f) const; //!< Each rate on the union of the rates' own timelines.
+        const TypedDagNode<RbVector<double> >*          ownTimeline(size_t r) const;                                //!< Rate r's timeline: its own, else the global one.
 
         void                                            keepSpecialization(const DagNode *toucher);                  /* NOT VIRTUAL */
         void                                            restoreSpecialization(const DagNode *toucher);               /* NOT VIRTUAL */
@@ -192,6 +197,8 @@ namespace RevBayesCore {
         const TypedDagNode<RbVector<double> >*          heterogeneous_psi;                                     //!< The heterogeneous fossil sampling rates.
         const TypedDagNode<double >*                    homogeneous_rho;                                       //!< The sampling probability at the present.
         const TypedDagNode<RbVector<double> >*          timeline;                                              //!< The interval boundaries.
+        std::vector<const TypedDagNode<RbVector<double> >*> rate_timeline;                                     //!< Per-rate boundaries for lambda, mu and psi, each NULL to use the global ones.
+        bool                                            per_rate_timelines = false;                             //!< Whether any rate has its own boundaries, as BDSTP allows.
         const TypedDagNode<double >*                    origin_age;                                            //!< The optional process start (NULL = the oldest birth, under no prior).
         const TypedDagNode<RbVector<double> >*          psi_mixture_rates;                                     //!< The relative psi of each mixture component (NULL = one component).
         const TypedDagNode<Simplex>*                    psi_mixture_weights;                                   //!< The mixture weights (NULL = equal).

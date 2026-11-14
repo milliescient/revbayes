@@ -108,6 +108,12 @@ RevBayesCore::FossilizedBirthDeathSpeciationProcess* Dist_FBDSP::createDistribut
         rt = static_cast<const ModelVector<RealPos> &>( timeline->getRevObject() ).getDagNode();
     }
 
+    // the shared argument list offers per-rate timelines, which only the range processes support yet
+    for ( const RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> >* tl : createRateTimelines() )
+    {
+        if ( tl != NULL ) throw RbException("dnFBDSP does not take lambdaTimeline, muTimeline or psiTimeline. Use timeline.");
+    }
+
     double pres = static_cast<const RealPos &>( present->getRevObject() ).getValue();
 
     RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> >* mr = NULL;

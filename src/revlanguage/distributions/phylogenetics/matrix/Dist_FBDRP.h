@@ -53,7 +53,8 @@ namespace RevLanguage {
                                                                            RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> > *mr,
                                                                            RevBayesCore::TypedDagNode<RevBayesCore::Simplex> *mw,
                                                                            bool coexist,
-                                                                           bool need_parent) const;
+                                                                           bool need_parent,
+                                                                           const std::vector<const RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> >*> &rate_timelines) const;
 
         void                                                    setConstParameter(const std::string& name, const RevPtr<const RevVariable> &var);     //!< Set member variable
 
