@@ -25,7 +25,9 @@ namespace RevBayesCore {
                                                  bool require_parent,
                                                  const TypedDagNode<double>* origin = NULL,
                                                  double present = 0.0,
-                                                 const std::vector<const TypedDagNode<RbVector<double> >*> &rate_timelines = {});
+                                                 const TypedDagNode<RbVector<double> >* speciation_timeline = NULL,
+                                                 const TypedDagNode<RbVector<double> >* extinction_timeline = NULL,
+                                                 const TypedDagNode<RbVector<double> >* sampling_timeline = NULL);
 
         CompleteFossilizedBirthDeathRangeProcess*       clone(void) const override;
 

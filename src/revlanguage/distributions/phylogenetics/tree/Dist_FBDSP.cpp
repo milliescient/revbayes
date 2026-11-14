@@ -108,11 +108,6 @@ RevBayesCore::FossilizedBirthDeathSpeciationProcess* Dist_FBDSP::createDistribut
         rt = static_cast<const ModelVector<RealPos> &>( timeline->getRevObject() ).getDagNode();
     }
 
-    // the shared argument list offers per-rate timelines, which only the range processes support yet
-    for ( const RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> >* tl : createRateTimelines() )
-    {
-        if ( tl != NULL ) throw RbException("dnFBDSP does not take lambdaTimeline, muTimeline or psiTimeline. Use timeline.");
-    }
 
     double pres = static_cast<const RealPos &>( present->getRevObject() ).getValue();
 
@@ -128,7 +123,8 @@ RevBayesCore::FossilizedBirthDeathSpeciationProcess* Dist_FBDSP::createDistribut
         mw = static_cast<const Simplex &>( psi_mixture_weights->getRevObject() ).getDagNode();
     }
 
-    RevBayesCore::FossilizedBirthDeathSpeciationProcess* d = new RevBayesCore::FossilizedBirthDeathSpeciationProcess(sa, l, m, p, r, la, b, rt, cond, t, true, pres, mr, mw);
+    std::vector<const RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> >*> rate_timelines = createRateTimelines();
+    RevBayesCore::FossilizedBirthDeathSpeciationProcess* d = new RevBayesCore::FossilizedBirthDeathSpeciationProcess(sa, l, m, p, r, la, b, rt, cond, t, true, pres, mr, mw, rate_timelines[0], rate_timelines[1], rate_timelines[2]);
 
     return d;
 }
@@ -215,12 +211,12 @@ const MemberRules& Dist_FBDSP::getParameterRules(void) const
         std::vector<TypeSpec> paramTypes;
         paramTypes.push_back( RealPos::getClassTypeSpec() );
         paramTypes.push_back( ModelVector<RealPos>::getClassTypeSpec() );
-        dist_member_rules.push_back( new ArgumentRule( "lambda_a",  paramTypes, "The anagenetic speciation rate(s).", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, new RealPos(0.0) ) );
+        dist_member_rules.push_back( new ArgumentRule( "lambda_a",  paramTypes, "The anagenetic speciation rate(s), on the speciation rate's timeline.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, new RealPos(0.0) ) );
 
         std::vector<TypeSpec> betaTypes;
         betaTypes.push_back( Probability::getClassTypeSpec() );
         betaTypes.push_back( ModelVector<Probability>::getClassTypeSpec() );
-        dist_member_rules.push_back( new ArgumentRule( "beta",  betaTypes, "The probability that a speciation is symmetric, ending its parent species with two new ones, rather than budding.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, new Probability(0.0) ) );
+        dist_member_rules.push_back( new ArgumentRule( "beta",  betaTypes, "The probability that a speciation is symmetric, ending its parent species with two new ones, rather than budding, on the speciation rate's timeline.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, new Probability(0.0) ) );
 
 
         dist_member_rules.push_back( new ArgumentRule( "psiMixtureRates", ModelVector<RealPos>::getClassTypeSpec(), "The relative fossil sampling rate of each mixture component, which multiplies psi. Each new species draws its own component, however it arose. Left out, there is one component.", ArgumentRule::BY_CONSTANT_REFERENCE, ArgumentRule::ANY, NULL ) );

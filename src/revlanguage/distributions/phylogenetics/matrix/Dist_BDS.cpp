@@ -85,7 +85,7 @@ RevBayesCore::FossilizedBirthDeathRangeProcess* Dist_BDS::makeProcess(RevBayesCo
                                                                       bool need_parent,
                                                                       const std::vector<const RevBayesCore::TypedDagNode<RevBayesCore::RbVector<double> >*> &rate_timelines) const
 {
-    return new RevBayesCore::CompleteFossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, coexist, need_parent, oa, pres, rate_timelines);
+    return new RevBayesCore::CompleteFossilizedBirthDeathRangeProcess(l, m, p, r, rt, cond, t, true, coexist, need_parent, oa, pres, rate_timelines[0], rate_timelines[1], rate_timelines[2]);
 }
 
 

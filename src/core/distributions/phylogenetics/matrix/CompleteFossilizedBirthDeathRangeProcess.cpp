@@ -26,8 +26,10 @@ CompleteFossilizedBirthDeathRangeProcess::CompleteFossilizedBirthDeathRangeProce
                                                                                          bool require_parent,
                                                                                          const TypedDagNode<double> *inorigin,
                                                                                          double inpresent,
-                                                                                         const std::vector<const TypedDagNode<RbVector<double> >*> &rate_timelines) :
-    FossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, complete_record, coexistence, require_parent, inorigin, inpresent, NULL, NULL, rate_timelines)
+                                                                                         const TypedDagNode<RbVector<double> >* speciation_timeline,
+                                                                                         const TypedDagNode<RbVector<double> >* extinction_timeline,
+                                                                                         const TypedDagNode<RbVector<double> >* sampling_timeline) :
+    FossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, complete_record, coexistence, require_parent, inorigin, inpresent, NULL, NULL, speciation_timeline, extinction_timeline, sampling_timeline)
 {
 
 }

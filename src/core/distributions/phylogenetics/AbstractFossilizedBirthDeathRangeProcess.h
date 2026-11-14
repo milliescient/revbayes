@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <set>
 
 #include "RbConstants.h"
 #include "FossilizedBirthDeathRangeRateClassClosedForm.h"
@@ -82,7 +83,9 @@ namespace RevBayesCore {
                                             double present = 0.0,
                                             const TypedDagNode<RbVector<double> >* psi_mixture_rates = NULL,
                                             const TypedDagNode<Simplex>* psi_mixture_weights = NULL,
-                                            const std::vector<const TypedDagNode<RbVector<double> >*> &rate_timelines = {});  //!< Constructor
+                                            const TypedDagNode<RbVector<double> >* speciation_timeline = NULL,
+                                            const TypedDagNode<RbVector<double> >* extinction_timeline = NULL,
+                                            const TypedDagNode<RbVector<double> >* sampling_timeline = NULL);  //!< Constructor
 
         virtual ~AbstractFossilizedBirthDeathRangeProcess(){};
 
@@ -169,8 +172,11 @@ namespace RevBayesCore {
         double                                          meanOrigination(size_t i) const;                      //!< The conditional mean of species i's origination.
 
         virtual void                                    prepareProbComputation(void) const;
-        void                                            mergedRates(std::vector<double> &t, std::vector<double> &b, std::vector<double> &d, std::vector<double> &f) const; //!< Each rate on the union of the rates' own timelines.
-        const TypedDagNode<RbVector<double> >*          ownTimeline(size_t r) const;                                //!< Rate r's timeline: its own, else the global one.
+        void                                            prepareTimeline(std::vector<double> &global_timeline, std::vector<double> &lambda, std::vector<double> &mu, std::vector<double> &psi) const; //!< With per-rate timelines, as in BDSTP: their union, and each rate on it.
+        void                                            addTimesToGlobalTimeline(std::multiset<double> &event_times, const TypedDagNode<RbVector<double> > *par_times) const; //!< Adds a rate's boundaries to those the global timeline is made from.
+        void                                            expandNonGlobalRateParameterVector(std::vector<double> &par, const std::vector<double> &par_times, const std::vector<double> &global_timeline) const; //!< Puts par, given on its own timeline, on the global one.
+        std::vector<double>                             intervalStarts(const TypedDagNode<RbVector<double> > *par_times) const; //!< The present, then each boundary above it.
+        size_t                                          findIndex(double t, const std::vector<double> &timeline) const; //!< The index so that timeline[index] <= t < timeline[index+1].
 
         void                                            keepSpecialization(const DagNode *toucher);                  /* NOT VIRTUAL */
         void                                            restoreSpecialization(const DagNode *toucher);               /* NOT VIRTUAL */
@@ -197,8 +203,10 @@ namespace RevBayesCore {
         const TypedDagNode<RbVector<double> >*          heterogeneous_psi;                                     //!< The heterogeneous fossil sampling rates.
         const TypedDagNode<double >*                    homogeneous_rho;                                       //!< The sampling probability at the present.
         const TypedDagNode<RbVector<double> >*          timeline;                                              //!< The interval boundaries.
-        std::vector<const TypedDagNode<RbVector<double> >*> rate_timeline;                                     //!< Per-rate boundaries for lambda, mu and psi, each NULL to use the global ones.
-        bool                                            per_rate_timelines = false;                             //!< Whether any rate has its own boundaries, as BDSTP allows.
+        const TypedDagNode<RbVector<double> >*          interval_times_speciation;                              //!< lambda's own boundaries, in place of the global timeline.
+        const TypedDagNode<RbVector<double> >*          interval_times_extinction;                              //!< mu's own boundaries.
+        const TypedDagNode<RbVector<double> >*          interval_times_sampling;                                //!< psi's own boundaries.
+        bool                                            using_rate_timelines = false;                           //!< Whether the rates have their own boundaries instead of the global ones.
         const TypedDagNode<double >*                    origin_age;                                            //!< The optional process start (NULL = the oldest birth, under no prior).
         const TypedDagNode<RbVector<double> >*          psi_mixture_rates;                                     //!< The relative psi of each mixture component (NULL = one component).
         const TypedDagNode<Simplex>*                    psi_mixture_weights;                                   //!< The mixture weights (NULL = equal).

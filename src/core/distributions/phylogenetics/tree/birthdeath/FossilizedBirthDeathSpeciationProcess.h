@@ -55,7 +55,10 @@ namespace RevBayesCore {
                                       bool complete_record,
                                       double present = 0.0,
                                       const TypedDagNode<RbVector<double> >* psi_mixture_rates = NULL,
-                                      const TypedDagNode<Simplex>* psi_mixture_weights = NULL);  //!< Constructor
+                                      const TypedDagNode<Simplex>* psi_mixture_weights = NULL,
+                                      const TypedDagNode<RbVector<double> >* speciation_timeline = NULL,
+                                      const TypedDagNode<RbVector<double> >* extinction_timeline = NULL,
+                                      const TypedDagNode<RbVector<double> >* sampling_timeline = NULL);  //!< Constructor
         
         // public member functions
         FossilizedBirthDeathSpeciationProcess*          clone(void) const override;                                //!< Create an independent clone

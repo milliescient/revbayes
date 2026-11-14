@@ -39,7 +39,9 @@ namespace RevBayesCore {
                                             double present = 0.0,
                                           const TypedDagNode<RbVector<double> >* psi_mixture_rates = NULL,
                                           const TypedDagNode<Simplex>* psi_mixture_weights = NULL,
-                                          const std::vector<const TypedDagNode<RbVector<double> >*> &rate_timelines = {});
+                                          const TypedDagNode<RbVector<double> >* speciation_timeline = NULL,
+                                          const TypedDagNode<RbVector<double> >* extinction_timeline = NULL,
+                                          const TypedDagNode<RbVector<double> >* sampling_timeline = NULL);
         
         // public member functions
         void                                            setMcmcMode(bool tf) override;

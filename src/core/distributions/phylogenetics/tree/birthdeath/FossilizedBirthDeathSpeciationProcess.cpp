@@ -56,6 +56,9 @@ using namespace RevBayesCore;
  * \param[in]    inpresent      The present.
  * \param[in]    inmixture_rates   Optional relative psi of each mixture component.
  * \param[in]    inmixture_weights Optional mixture weights.
+ * \param[in]    inspeciationtimes  Optional timeline of lambda, which lambda_a and beta share.
+ * \param[in]    inextinctiontimes  Optional timeline of mu.
+ * \param[in]    insamplingtimes    Optional timeline of psi.
  */
 FossilizedBirthDeathSpeciationProcess::FossilizedBirthDeathSpeciationProcess(const TypedDagNode<double> *ra,
                                                            const DagNode *inspeciation,
@@ -70,9 +73,12 @@ FossilizedBirthDeathSpeciationProcess::FossilizedBirthDeathSpeciationProcess(con
                                                            bool comp,
                                                            double inpresent,
                                                            const TypedDagNode<RbVector<double> >* inmixture_rates,
-                                                           const TypedDagNode<Simplex>* inmixture_weights) :
+                                                           const TypedDagNode<Simplex>* inmixture_weights,
+                                                           const TypedDagNode<RbVector<double> >* inspeciationtimes,
+                                                           const TypedDagNode<RbVector<double> >* inextinctiontimes,
+                                                           const TypedDagNode<RbVector<double> >* insamplingtimes) :
     AbstractBirthDeathProcess(ra, incondition, intaxa, true, NULL),
-    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, comp, NULL, inpresent, inmixture_rates, inmixture_weights)
+    AbstractFossilizedBirthDeathRangeProcess(inspeciation, inextinction, inpsi, inrho, intimes, incondition, intaxa, comp, NULL, inpresent, inmixture_rates, inmixture_weights, inspeciationtimes, inextinctiontimes, insamplingtimes)
 {
     for(std::vector<const DagNode*>::iterator it = range_parameters.begin(); it != range_parameters.end(); it++)
     {
@@ -98,17 +104,20 @@ FossilizedBirthDeathSpeciationProcess::FossilizedBirthDeathSpeciationProcess(con
 
     RbException inconsistent_rates = RbException("Inconsistent number of rates in fossilized birth death process.");
 
+    // lambda_a and beta change where lambda does, so they count the intervals of lambda's timeline
+    const TypedDagNode<RbVector<double> >* lambda_timeline = ( using_rate_timelines == true ? interval_times_speciation : timeline );
+    size_t lambda_intervals = ( using_rate_timelines == true ? intervalStarts( lambda_timeline ).size() : num_intervals );
     if ( heterogeneous_lambda_a != NULL )
     {
-        if ( timeline == NULL ) throw no_timeline_err;
+        if ( lambda_timeline == NULL ) throw no_timeline_err;
 
-        if ( heterogeneous_lambda_a->getValue().size() != num_intervals ) throw inconsistent_rates;
+        if ( heterogeneous_lambda_a->getValue().size() != lambda_intervals ) throw inconsistent_rates;
     }
     if ( heterogeneous_beta != NULL )
     {
-        if ( timeline == NULL ) throw no_timeline_err;
+        if ( lambda_timeline == NULL ) throw no_timeline_err;
 
-        if ( heterogeneous_beta->getValue().size() != num_intervals ) throw inconsistent_rates;
+        if ( heterogeneous_beta->getValue().size() != lambda_intervals ) throw inconsistent_rates;
     }
 
     species        = std::vector<SpeciesEntry>(taxa.size());
@@ -1825,7 +1834,7 @@ void FossilizedBirthDeathSpeciationProcess::prepareProbComputation( void ) const
     {
         anagenetic = std::vector<double>(num_intervals, homogeneous_lambda_a->getValue() );
     }
-    else
+    else if ( using_rate_timelines == false )
     {
         anagenetic = heterogeneous_lambda_a->getValue();
     }
@@ -1833,9 +1842,26 @@ void FossilizedBirthDeathSpeciationProcess::prepareProbComputation( void ) const
     {
         symmetric = std::vector<double>(num_intervals, homogeneous_beta->getValue() );
     }
-    else
+    else if ( using_rate_timelines == false )
     {
         symmetric = heterogeneous_beta->getValue();
+    }
+    if ( using_rate_timelines == true && ( heterogeneous_lambda_a != NULL || heterogeneous_beta != NULL ) )
+    {
+        // these two change where lambda does, so they expand from lambda's timeline
+        std::vector<double> global_timeline, b, d, f;
+        prepareTimeline( global_timeline, b, d, f );
+        std::vector<double> lambda_times = intervalStarts( interval_times_speciation );
+        if ( heterogeneous_lambda_a != NULL )
+        {
+            anagenetic = heterogeneous_lambda_a->getValue();
+            expandNonGlobalRateParameterVector( anagenetic, lambda_times, global_timeline );
+        }
+        if ( heterogeneous_beta != NULL )
+        {
+            symmetric = heterogeneous_beta->getValue();
+            expandNonGlobalRateParameterVector( symmetric, lambda_times, global_timeline );
+        }
     }
 
     AbstractFossilizedBirthDeathRangeProcess::prepareProbComputation();
