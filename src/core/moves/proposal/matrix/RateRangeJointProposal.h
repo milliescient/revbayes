@@ -10,20 +10,19 @@
 #include "MatrixReal.h"
 #include "Proposal.h"
 #include "StochasticNode.h"
+#include "Tree.h"
 
 namespace RevBayesCore {
 
     class AbstractFossilizedBirthDeathRangeProcess;
 
     /**
-     * A rate move that carries the range ends with it.
+     * An extinction-rate move that carries the extinction times with it.
      *
-     * Scales a rate, or flips a shift indicator, and redraws every range end that can fall in an
-     * interval where that rate changed: on the extinction side each extinction time on
-     * (present, tauK] from mu(d) exp(-int_d^tauK (mu + psi)), on the origination side each origination
-     * time on (tau1, origin] from lambda(b) exp(-int_tau1^b (mu + psi)). Those densities omit the
-     * process's other terms, so they are only proposals, corrected by the Hastings ratio. The oldest
-     * origination is welded to the origin and never redrawn.
+     * Scales an extinction rate, or flips a shift indicator, and redraws every extinction time on
+     * (present, tauK] that can fall in an interval where the rate changed, from
+     * mu(d) exp(-int_d^tauK (mu + psi)). That density omits the process's other terms, so it is only a
+     * proposal, corrected by the Hastings ratio. The ranges are a range matrix or an extended tree.
      *
      * With rjSwitch, x is a dnReversibleJumpMixture jump that is 0 for no shift: a jump switched on
      * is proposed lognormally about the rate its cells already have, and one switched off returns
@@ -32,8 +31,8 @@ namespace RevBayesCore {
     class RateRangeJointProposal : public Proposal {
 
     public:
-        RateRangeJointProposal( StochasticNode<double> *r, StochasticNode<MatrixReal> *m, double l, bool rj = false, double sd = 0.5, bool births = false );
-        RateRangeJointProposal( StochasticNode<std::int64_t> *s, StochasticNode<MatrixReal> *m, bool births = false );
+        RateRangeJointProposal( StochasticNode<double> *r, StochasticNode<MatrixReal> *m, StochasticNode<Tree> *t, double l, bool rj = false, double sd = 0.5 );
+        RateRangeJointProposal( StochasticNode<std::int64_t> *s, StochasticNode<MatrixReal> *m, StochasticNode<Tree> *t );
 
         void                                    cleanProposal(void);
         RateRangeJointProposal*                 clone(void) const;
@@ -50,22 +49,27 @@ namespace RevBayesCore {
         void                                    swapNodeInternal(DagNode *oldN, DagNode *newN);
 
     private:
-        // the target rate (lambda or mu) and the hazard rates, read through the DAG
-        void                                    readRates( AbstractFossilizedBirthDeathRangeProcess *process, std::vector<double> &t, std::vector<double> &w, std::vector<double> &mu, std::vector<double> &psi ) const;
+        // the range matrix, or an extended tree whose tip ages are the extinction times
+        void                                    addValueNode(void);
+        AbstractFossilizedBirthDeathRangeProcess* process(void) const;
+        double                                  extinctionTime( size_t i ) const;
+        void                                    setExtinctionTime( size_t i, double d );
+        // the extinction and sampling rates, read through the DAG
+        void                                    readRates( AbstractFossilizedBirthDeathRangeProcess *process, std::vector<double> &t, std::vector<double> &mu, std::vector<double> &psi ) const;
         // set the rate, read the rates, and restore, leaving the new value in place
-        void                                    probeRate( double value, AbstractFossilizedBirthDeathRangeProcess *process, std::vector<double> &t, std::vector<double> &w, std::vector<double> &mu, std::vector<double> &psi );
-        // log density of a range end under the proposal, and a draw from it, on (lo, hi]
-        double                                  lnDensity( double x, double lo, double hi, const std::vector<double> &t, const std::vector<double> &w, const std::vector<double> &mu, const std::vector<double> &psi ) const;
-        double                                  draw( double lo, double hi, const std::vector<double> &t, const std::vector<double> &w, const std::vector<double> &mu, const std::vector<double> &psi ) const;
+        void                                    probeRate( double value, AbstractFossilizedBirthDeathRangeProcess *process, std::vector<double> &t, std::vector<double> &mu, std::vector<double> &psi );
+        // log density of an extinction time under the proposal, and a draw from it, on (lo, hi]
+        double                                  lnDensity( double x, double lo, double hi, const std::vector<double> &t, const std::vector<double> &mu, const std::vector<double> &psi ) const;
+        double                                  draw( double lo, double hi, const std::vector<double> &t, const std::vector<double> &mu, const std::vector<double> &psi ) const;
         double                                  lnLognormal( double x, double centre ) const;
 
         StochasticNode<double>*                 rate;
         StochasticNode<std::int64_t>*           shift;
         StochasticNode<MatrixReal>*             ranges;
+        StochasticNode<Tree>*                   tree;
         double                                  lambda;
         bool                                    rj_switch;
         double                                  sigma;
-        bool                                    births;                 // origination side: lambda and column 3, not mu and column 0
 
         double                                  stored_rate;
         std::int64_t                            stored_shift;

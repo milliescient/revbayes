@@ -36,7 +36,6 @@ namespace RevLanguage {
         RevPtr<const RevVariable>                   tune;
         RevPtr<const RevVariable>                   rj_switch;
         RevPtr<const RevVariable>                   sigma;
-        RevPtr<const RevVariable>                   side;
     };
 
 }

@@ -15,7 +15,8 @@
 #include "RevObject.h"
 #include "RlBoolean.h"
 #include "RlMatrixReal.h"
-#include "RlString.h"
+#include "RlTimeTree.h"
+#include "Tree.h"
 #include "StochasticNode.h"
 #include "TypeSpec.h"
 #include "TypedDagNode.h"
@@ -45,15 +46,20 @@ void Move_RateRangeJoint::constructInternalObject( void )
     double tt = static_cast<const Probability &>( tuneTarget->getRevObject() ).getValue();
     bool   rj = static_cast<const RlBoolean &>( rj_switch->getRevObject() ).getValue();
     double sd = static_cast<const RealPos &>( sigma->getRevObject() ).getValue();
-    const std::string &sd_side = static_cast<const RlString &>( side->getRevObject() ).getValue();
-    if ( sd_side != "extinction" && sd_side != "origination" ) throw RbException("mvRateRangeJoint: side must be \"extinction\" or \"origination\".");
-    bool births = ( sd_side == "origination" );
 
-    RevBayesCore::TypedDagNode<RevBayesCore::MatrixReal>* tm = static_cast<const MatrixReal &>( ranges->getRevObject() ).getDagNode();
-    RevBayesCore::StochasticNode<RevBayesCore::MatrixReal>* m = dynamic_cast<RevBayesCore::StochasticNode<RevBayesCore::MatrixReal>*>( tm );
-    if ( m == NULL )
+    RevBayesCore::StochasticNode<RevBayesCore::MatrixReal>* m = NULL;
+    RevBayesCore::StochasticNode<RevBayesCore::Tree>* tr = NULL;
+    if ( ranges->getRevObject().isType( TimeTree::getClassTypeSpec() ) )
     {
-        throw RbException("mvRateRangeJoint: ranges must be a stochastic range matrix.");
+        tr = dynamic_cast<RevBayesCore::StochasticNode<RevBayesCore::Tree>*>( static_cast<const TimeTree &>( ranges->getRevObject() ).getDagNode() );
+    }
+    else
+    {
+        m = dynamic_cast<RevBayesCore::StochasticNode<RevBayesCore::MatrixReal>*>( static_cast<const MatrixReal &>( ranges->getRevObject() ).getDagNode() );
+    }
+    if ( m == NULL && tr == NULL )
+    {
+        throw RbException("mvRateRangeJoint: ranges must be a stochastic range matrix or extended tree.");
     }
 
     RevBayesCore::Proposal *p = NULL;
@@ -63,7 +69,7 @@ void Move_RateRangeJoint::constructInternalObject( void )
         RevBayesCore::StochasticNode<std::int64_t>* s = dynamic_cast<RevBayesCore::StochasticNode<std::int64_t>*>( tx );
         if ( s == NULL ) throw RbException("mvRateRangeJoint: x must be a stochastic node.");
         if ( rj == true ) throw RbException("mvRateRangeJoint: rjSwitch needs a dnReversibleJumpMixture jump, not a 0/1 indicator.");
-        p = new RevBayesCore::RateRangeJointProposal( s, m, births );
+        p = new RevBayesCore::RateRangeJointProposal( s, m, tr );
         t = false;
     }
     else
@@ -71,7 +77,7 @@ void Move_RateRangeJoint::constructInternalObject( void )
         RevBayesCore::TypedDagNode<double>* tx = static_cast<const RealPos &>( x->getRevObject() ).getDagNode();
         RevBayesCore::StochasticNode<double>* r = dynamic_cast<RevBayesCore::StochasticNode<double>*>( tx );
         if ( r == NULL ) throw RbException("mvRateRangeJoint: x must be a stochastic node.");
-        p = new RevBayesCore::RateRangeJointProposal( r, m, l, rj, sd, births );
+        p = new RevBayesCore::RateRangeJointProposal( r, m, tr, l, rj, sd );
         if ( rj == true ) t = false;
     }
     p->setTargetAcceptanceRate( tt );
@@ -113,12 +119,14 @@ const MemberRules& Move_RateRangeJoint::getParameterRules(void) const
         std::vector<TypeSpec> x_types;
         x_types.push_back( Natural::getClassTypeSpec() );
         x_types.push_back( RealPos::getClassTypeSpec() );
-        move_member_rules.push_back( new ArgumentRule( "x", x_types, "The rate, or a 0/1 shift indicator, that the move changes.", ArgumentRule::BY_REFERENCE, ArgumentRule::STOCHASTIC ) );
-        move_member_rules.push_back( new ArgumentRule( "ranges", MatrixReal::getClassTypeSpec(), "The range matrix whose extinction times follow the rate.", ArgumentRule::BY_REFERENCE, ArgumentRule::STOCHASTIC ) );
+        move_member_rules.push_back( new ArgumentRule( "x", x_types, "The extinction rate, or a 0/1 shift indicator on it, that the move changes.", ArgumentRule::BY_REFERENCE, ArgumentRule::STOCHASTIC ) );
+        std::vector<TypeSpec> range_types;
+        range_types.push_back( MatrixReal::getClassTypeSpec() );
+        range_types.push_back( TimeTree::getClassTypeSpec() );
+        move_member_rules.push_back( new ArgumentRule( "ranges", range_types, "The range matrix, or extended tree, whose extinction times follow the rate.", ArgumentRule::BY_REFERENCE, ArgumentRule::STOCHASTIC ) );
         move_member_rules.push_back( new ArgumentRule( "lambda", RealPos::getClassTypeSpec(), "The scaling factor of a rate proposal.", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RealPos(1.0) ) );
         move_member_rules.push_back( new ArgumentRule( "tune", RlBoolean::getClassTypeSpec(), "Should we tune the scaling factor during burnin?", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean( true ) ) );
         move_member_rules.push_back( new ArgumentRule( "rjSwitch", RlBoolean::getClassTypeSpec(), "Switch a dnReversibleJumpMixture jump between 0 and a rate, instead of scaling it.", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlBoolean( false ) ) );
-        move_member_rules.push_back( new ArgumentRule( "side", RlString::getClassTypeSpec(), "Which range ends follow the rate: \"extinction\" times with an extinction rate, \"origination\" times with a speciation rate.", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RlString("extinction") ) );
         move_member_rules.push_back( new ArgumentRule( "sigma", RealPos::getClassTypeSpec(), "The log-scale sd of a switched-on rate about the rate its cells had.", ArgumentRule::BY_VALUE, ArgumentRule::ANY, new RealPos(0.5) ) );
 
         const MemberRules& inheritedRules = Move::getParameterRules();
@@ -153,6 +161,5 @@ void Move_RateRangeJoint::setConstParameter(const std::string& name, const RevPt
     else if ( name == "tune" )   tune = var;
     else if ( name == "rjSwitch" ) rj_switch = var;
     else if ( name == "sigma" )  sigma = var;
-    else if ( name == "side" )   side = var;
     else                         Move::setConstParameter( name, var );
 }
