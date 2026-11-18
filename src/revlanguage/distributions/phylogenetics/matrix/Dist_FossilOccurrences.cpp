@@ -44,7 +44,7 @@ RevBayesCore::FossilOccurrenceDistribution* Dist_FossilOccurrences::createDistri
     if ( bins->getRevObject() != RevNullObject::getInstance() )
     {
         const RevBayesCore::RbVector<double> &v = static_cast<const ModelVector<RealPos> &>( bins->getRevObject() ).getValue();
-        b.assign( v.begin(), v.end() );
+        for ( size_t i = 0; i < v.size(); ++i ) b.push_back( v[i] );
     }
 
     RevBayesCore::FossilOccurrenceDistribution* d = new RevBayesCore::FossilOccurrenceDistribution( rn, rep, b );
