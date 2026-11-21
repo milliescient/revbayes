@@ -104,6 +104,9 @@ RevBayesCore::TypedDistribution< RevBayesCore::AbstractHomologousDiscreteCharact
 {
     const std::string& dt = static_cast<const RlString &>( type->getRevObject() ).getValue();
 
+    // one redraw after all setters, not one per setter
+    dist->deferRedraw( true );
+
     // get the parameters
     RevBayesCore::TypedDagNode<RevBayesCore::Tree>* tau = static_cast<const Tree &>( tree->getRevObject() ).getDagNode();
     size_t nNodes = tau->getValue().getNumberOfNodes();
@@ -271,6 +274,9 @@ RevBayesCore::TypedDistribution< RevBayesCore::AbstractHomologousDiscreteCharact
       RevBayesCore::TypedDagNode<RevBayesCore::Simplex> *obs_error = static_cast<const Simplex &>(observation_error_frequencies->getRevObject()).getDagNode();
       dist->setObservationErrorFrequencies(obs_error);
     }
+
+    // performs the single redraw that the setters above deferred
+    dist->deferRedraw( false );
 
     return dist;
 }

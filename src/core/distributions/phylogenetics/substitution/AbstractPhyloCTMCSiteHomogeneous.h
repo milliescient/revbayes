@@ -226,6 +226,20 @@ namespace RevBayesCore {
         virtual void                                                        recursivelyDrawJointConditionalAncestralStates(const TopologyNode &node, std::vector<std::vector<charType> >& startStates, std::vector<std::vector<charType> >& endStates, const std::vector<size_t>& sampledSiteRates); //!< Simulate the ancestral states for a given node, conditional on its ancestor's state and the tip data
         virtual bool                                                        recursivelyDrawStochasticCharacterMap(const TopologyNode &node, std::vector<std::string>& character_histories, std::vector<std::vector<charType> >& start_states, std::vector<std::vector<charType> >& end_states, size_t site, bool use_simmap_default); //!< Simulate the history of evolution for a given site on a given branch, conditional on start and end states
         virtual void                                                        redrawValue(void);
+
+        // suppress the per-setter redraw and redraw once at the end
+        void                                                                deferRedraw(bool d)
+        {
+            defer_redraw = d;
+            if ( d == false && redraw_pending == true )
+            {
+                redraw_pending = false;
+                if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
+                {
+                    this->redrawValue();
+                }
+            }
+        }
         void                                                                reInitialized(void);
         void                                                                setMcmcMode(bool tf);                                                                       //!< Change the likelihood computation to or from MCMC mode.
         void                                                                setValue(AbstractHomologousDiscreteCharacterData *v, bool f=false);                         //!< Set the current value, e.g. attach an observation (clamp)
@@ -364,6 +378,8 @@ namespace RevBayesCore {
         const TypedDagNode< double >*                                       homogeneous_clock_rate = nullptr;
         const TypedDagNode< RbVector< double > >*                           heterogeneous_clock_rates = nullptr;
         const TypedDagNode< SiteMixtureModel >*                             mixture_model = nullptr;
+        bool                                                                defer_redraw = false;
+        bool                                                                redraw_pending = false;
         const TypedDagNode< RateGenerator >*                                homogeneous_rate_matrix = nullptr;
         const TypedDagNode< RbVector< RateGenerator > >*                    heterogeneous_rate_matrices = nullptr;
         const TypedDagNode< double >*                                       observation_error_probability = nullptr;
@@ -3093,7 +3109,11 @@ void RevBayesCore::AbstractPhyloCTMCSiteHomogeneous<charType>::setClockRate(cons
     this->addParameter( homogeneous_clock_rate );
 
     // redraw the current value
-    if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
+    if ( defer_redraw == true )
+    {
+        redraw_pending = true;
+    }
+    else if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
     {
         this->redrawValue();
     }
@@ -3126,7 +3146,11 @@ void RevBayesCore::AbstractPhyloCTMCSiteHomogeneous<charType>::setClockRate(cons
     this->addParameter( heterogeneous_clock_rates );
 
     // redraw the current value
-    if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
+    if ( defer_redraw == true )
+    {
+        redraw_pending = true;
+    }
+    else if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
     {
         this->redrawValue();
     }
@@ -3183,7 +3207,11 @@ void RevBayesCore::AbstractPhyloCTMCSiteHomogeneous<charType>::setObservationErr
     }
     
     // redraw the current value
-    if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
+    if ( defer_redraw == true )
+    {
+        redraw_pending = true;
+    }
+    else if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
     {
         this->redrawValue();
     }
@@ -3221,7 +3249,11 @@ void RevBayesCore::AbstractPhyloCTMCSiteHomogeneous<charType>::setObservationErr
     this->addParameter( observation_error_frequencies );
 
     // redraw the current value
-    if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
+    if ( defer_redraw == true )
+    {
+        redraw_pending = true;
+    }
+    else if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
     {
         this->redrawValue();
     }
@@ -3247,7 +3279,11 @@ void RevBayesCore::AbstractPhyloCTMCSiteHomogeneous<charType>::setPInv(const Typ
     this->addParameter( p_inv );
 
     // redraw the current value
-    if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
+    if ( defer_redraw == true )
+    {
+        redraw_pending = true;
+    }
+    else if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
     {
         this->redrawValue();
     }
@@ -3284,7 +3320,11 @@ void RevBayesCore::AbstractPhyloCTMCSiteHomogeneous<charType>::setRateMatrix(con
     this->addParameter( homogeneous_rate_matrix );
 
     // redraw the current value
-    if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
+    if ( defer_redraw == true )
+    {
+        redraw_pending = true;
+    }
+    else if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
     {
         this->redrawValue();
     }
@@ -3365,7 +3405,11 @@ void RevBayesCore::AbstractPhyloCTMCSiteHomogeneous<charType>::setRateMatrix(con
     this->addParameter( heterogeneous_rate_matrices );
 
     // redraw the current value
-    if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
+    if ( defer_redraw == true )
+    {
+        redraw_pending = true;
+    }
+    else if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
     {
         this->redrawValue();
     }
@@ -3394,7 +3438,11 @@ void RevBayesCore::AbstractPhyloCTMCSiteHomogeneous<charType>::setRootFrequencie
     this->addParameter( root_frequencies );
 
     // redraw the current value
-    if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
+    if ( defer_redraw == true )
+    {
+        redraw_pending = true;
+    }
+    else if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
     {
         this->redrawValue();
     }
@@ -3434,7 +3482,11 @@ void RevBayesCore::AbstractPhyloCTMCSiteHomogeneous<charType>::setSiteRates(cons
     this->addParameter( site_rates );
 
     // redraw the current value
-    if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
+    if ( defer_redraw == true )
+    {
+        redraw_pending = true;
+    }
+    else if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
     {
         this->redrawValue();
     }
@@ -3462,7 +3514,11 @@ void RevBayesCore::AbstractPhyloCTMCSiteHomogeneous<charType>::setSiteRatesProbs
     this->addParameter( site_rates_probs );
 
     // redraw the current value
-    if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
+    if ( defer_redraw == true )
+    {
+        redraw_pending = true;
+    }
+    else if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
     {
         this->redrawValue();
     }
@@ -3508,7 +3564,11 @@ void RevBayesCore::AbstractPhyloCTMCSiteHomogeneous<charType>::setUseSiteMatrice
     this->resizeLikelihoodVectors();
 
     // redraw the current value
-    if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
+    if ( defer_redraw == true )
+    {
+        redraw_pending = true;
+    }
+    else if ( this->dag_node == NULL || this->dag_node->isClamped() == false )
     {
         this->redrawValue();
     }
