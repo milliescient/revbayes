@@ -95,9 +95,13 @@ namespace RevBayesCore {
 
         // exchangeable states: the probability depends on the size of S alone
         bool                                                useFastInformative(void) const;
+        mutable int                                         fastInformativeCache = -1;     //!< -1 unknown, else 0 or 1
+        virtual void                                        touchSpecialization(const DagNode *toucher, bool touchAll);
+        virtual double                                      computeLnProbability(void);
         void                                                fastMerge(std::vector<double>::const_iterator l, std::vector<double>::const_iterator r, double *d) const;
         void                                                computeTipCorrectionFast(const TopologyNode &node, size_t nodeIndex);
         void                                                computeInternalNodeCorrectionFast(const TopologyNode &node, size_t nodeIndex, size_t left, size_t right);
+        void                                                computeInternalNodeCorrectionFast(const TopologyNode &node, size_t nodeIndex, size_t left, size_t right, size_t middle);
         void                                                computeRootCorrectionFast(size_t root, size_t left, size_t right);
         void                                                computeRootCorrectionFast(size_t root, size_t left, size_t right, size_t middle);
 
@@ -606,6 +610,12 @@ void RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::computeTipCorr
 template<class charType>
 void RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::computeInternalNodeCorrection(const TopologyNode &node, size_t node_index, size_t left, size_t right, size_t middle)
 {
+    if ( useFastInformative() )
+    {
+        computeInternalNodeCorrectionFast(node, node_index, left, right, middle);
+        return;
+    }
+
     // ensure we actually have a matrix to use
     this->updateTransitionProbabilityMatrix(node_index);
 
@@ -1165,9 +1175,40 @@ void RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::resizeLikeliho
 }
 
 
+// do not cache an answer formed before the rate matrix is attached
+template<class charType>
+double RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::computeLnProbability( void )
+{
+    fastInformativeCache = -1;
+    return PhyloCTMCSiteHomogeneous<charType>::computeLnProbability();
+}
+
+
+template<class charType>
+void RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::touchSpecialization( const DagNode *toucher, bool touchAll )
+{
+    fastInformativeCache = -1;
+    PhyloCTMCSiteHomogeneous<charType>::touchSpecialization(toucher, touchAll);
+}
+
+
+// cached until a touch
 template<class charType>
 bool RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::useFastInformative( void ) const
 {
+    // the entries are built after this is first called, and the fast path cannot fill them
+    if ( restrictedPatternOfEntry.empty() == false )
+        return false;
+
+    if (fastInformativeCache >= 0)
+        return fastInformativeCache == 1;
+
+    // no answer while both matrix slots are empty
+    if (this->homogeneous_rate_matrix == NULL && this->heterogeneous_rate_matrices == NULL)
+        return false;
+
+    fastInformativeCache = 0;
+
     // setting this falls back to the general recursion, which must give the same answer
     static const bool disabled = (getenv("RB_NO_FAST_INFORMATIVE") != NULL);
     if (disabled)
@@ -1176,14 +1217,23 @@ bool RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::useFastInforma
     if (coding != AscertainmentBias::INFORMATIVE || ordered || this->num_chars < 3)
         return false;
 
-    // a restricted entry cannot be filled by the fast path, whose layout differs
-    if ( restrictedPatternOfEntry.empty() == false )
-        return false;
-
-    // a shared Jukes-Cantor generator is the Mk model, whose states are exchangeable
-    if (this->homogeneous_rate_matrix == NULL)
-        return false;
-    if (dynamic_cast<const RateMatrix_JC *>( &this->homogeneous_rate_matrix->getValue() ) == NULL)
+    // a Jukes-Cantor generator is the Mk model, whose states are exchangeable. Rev hands a single
+    // Q to the vector form, so both have to be looked at
+    if (this->homogeneous_rate_matrix != NULL)
+    {
+        if (dynamic_cast<const RateMatrix_JC *>( &this->homogeneous_rate_matrix->getValue() ) == NULL)
+            return false;
+    }
+    else if (this->heterogeneous_rate_matrices != NULL)
+    {
+        const RbVector<RateGenerator> &qs = this->heterogeneous_rate_matrices->getValue();
+        if (qs.size() == 0)
+            return false;
+        for (size_t i = 0; i < qs.size(); i++)
+            if (dynamic_cast<const RateMatrix_JC *>( &qs[i] ) == NULL)
+                return false;
+    }
+    else
         return false;
 
     // root frequencies may still be given separately, and must be flat
@@ -1194,6 +1244,7 @@ bool RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::useFastInforma
             if (fabs(ff[i][j] - 1.0/this->num_chars) > 1e-12)
                 return false;
 
+    fastInformativeCache = 1;
     return true;
 }
 
@@ -1284,6 +1335,43 @@ void RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::computeInterna
         {
             size_t offset = mixture*correctionMixtureOffset + mask*correctionMaskOffset;
             fastMerge(p_left + offset, p_right + offset, &d[0]);
+
+            std::vector<double>::iterator u = p_node + offset;
+            for (size_t j = 0; j < k; j++)
+            {
+                double A = RB_FAST_A(d,j), B = RB_FAST_B(d,j), C = RB_FAST_C(d,j);
+                double nOther = (k - 1 > j ? k - 1 - j : 0);
+                RB_FAST_A(u,j) = same*A + j*diff*B + nOther*diff*C;
+                RB_FAST_B(u,j) = diff*A + same*B + (j >= 1 ? (j-1) : 0)*diff*B + nOther*diff*C;
+                RB_FAST_C(u,j) = diff*A + j*diff*B + same*C + (nOther >= 1 ? nOther - 1 : 0)*diff*C;
+            }
+        }
+    }
+}
+
+
+template<class charType>
+void RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::computeInternalNodeCorrectionFast(const TopologyNode &node, size_t node_index, size_t left, size_t right, size_t middle)
+{
+    this->updateTransitionProbabilityMatrix(node_index);
+
+    std::vector<double>::const_iterator p_left   = getCorrectionLikelihoodsForNode(left);
+    std::vector<double>::const_iterator p_right  = getCorrectionLikelihoodsForNode(right);
+    std::vector<double>::const_iterator p_middle = getCorrectionLikelihoodsForNode(middle);
+    std::vector<double>::iterator       p_node   = getMutableCorrectionLikelihoodsForNode(node_index);
+    size_t k = this->num_chars;
+    std::vector<double> lr(3*k), d(3*k);
+
+    for (size_t mixture = 0; mixture < this->num_site_mixtures; ++mixture)
+    {
+        const TransitionProbabilityMatrix &pij = this->pmatrices[node_index][mixture];
+        double same = pij[0][0], diff = pij[1][0];
+
+        for (size_t mask = 0; mask < numCorrectionMasks; mask++)
+        {
+            size_t offset = mixture*correctionMixtureOffset + mask*correctionMaskOffset;
+            fastMerge(p_left + offset, p_right + offset, &lr[0]);
+            fastMerge(lr.cbegin(), p_middle + offset, &d[0]);
 
             std::vector<double>::iterator u = p_node + offset;
             for (size_t j = 0; j < k; j++)
