@@ -382,99 +382,74 @@ bool RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::isSitePatternC
 template<class charType>
 bool RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::isSitePatternCompatible( std::map<RbBitSet, size_t> charCounts )
 {
-    // if the pattern is constant, then it is incompatible with the variable coding
-    if (charCounts.size() == 1) return !(coding & AscertainmentBias::VARIABLE);
+    // A character could have been recorded if any resolution of its ambiguous cells satisfies the
+    // coding, so each test below asks whether such a resolution exists rather than reading the
+    // cells as though each distinct set were a state of its own.
+    size_t k = this->num_chars;
 
-    // ordered: informative if some threshold between adjacent states has two taxa on each side;
-    // an ambiguous taxon spanning the threshold is on neither side
-    if (ordered && coding == AscertainmentBias::INFORMATIVE)
+    // a cell admitting every state carries nothing, so it can neither make a character vary nor
+    // supply one of the taxa an informative pattern needs
+    std::map<RbBitSet, size_t> scored;
+    for (std::map<RbBitSet, size_t>::iterator it = charCounts.begin(); it != charCounts.end(); it++)
+        if ( it->first.count() > 0 && it->first.count() < k )
+            scored[it->first] = it->second;
+
+    size_t total = 0;
+    for (std::map<RbBitSet, size_t>::iterator it = scored.begin(); it != scored.end(); it++)
+        total += it->second;
+
+    std::vector<size_t> admit(k, 0);
+    for (std::map<RbBitSet, size_t>::iterator it = scored.begin(); it != scored.end(); it++)
+        for (size_t i = 0; i < k && i < it->first.size(); i++)
+            if ( it->first.test(i) )
+                admit[i] += it->second;
+
+    if ( coding == AscertainmentBias::VARIABLE )
     {
-        for (size_t j = 1; j < this->num_chars; j++)
+        // every resolution is constant only when every cell is the same single state
+        return !( total > 0 && scored.size() == 1 && scored.begin()->first.count() == 1 );
+    }
+
+    if ( total < 4 )
+        return false;
+
+    // Two cells must take one state and two others a second state. Writing A and B for the cells
+    // admitting each, such an assignment exists exactly when |A| >= 2, |B| >= 2 and |A or B| >= 4.
+    if ( ordered )
+    {
+        for (size_t j = 1; j < k; j++)
         {
-            size_t below = 0;
-            size_t above = 0;
-            for (std::map<RbBitSet, size_t>::iterator it = charCounts.begin(); it != charCounts.end(); it++)
+            size_t below = 0, above = 0;
+            for (std::map<RbBitSet, size_t>::iterator it = scored.begin(); it != scored.end(); it++)
             {
-                const RbBitSet& r = it->first;
-                bool any_below = false;
-                bool any_above = false;
-                for (size_t i = 0; i < r.size(); i++)
-                {
-                    if ( r.test(i) )
-                    {
-                        (i < j ? any_below : any_above) = true;
-                    }
-                }
-                if (any_below && !any_above) below += it->second;
-                if (any_above && !any_below) above += it->second;
+                bool any_below = false, any_above = false;
+                for (size_t i = 0; i < k && i < it->first.size(); i++)
+                    if ( it->first.test(i) )
+                        ( i < j ? any_below : any_above ) = true;
+                if (any_below) below += it->second;
+                if (any_above) above += it->second;
             }
-            if (below > 1 && above > 1)
-            {
+            if ( below >= 2 && above >= 2 )
                 return true;
-            }
         }
         return false;
     }
 
-    // find the common_states
-    std::map<size_t,size_t> stateCounts;
-    size_t max = 0;
-
-    for (std::map<RbBitSet, size_t>::iterator it = charCounts.begin(); it != charCounts.end(); it++)
+    for (size_t x = 0; x < k; x++)
     {
-        RbBitSet r = it->first;
-        for (size_t i = 0; i < r.size(); i++)
+        for (size_t y = x + 1; y < k; y++)
         {
-            stateCounts[i] += r.test(i) * it->second;
-            if (stateCounts[i] > max)
-            {
-                max = stateCounts[i];
-            }
-        }
-    }
-
-    std::vector<size_t> common_states;
-    for (std::map<size_t, size_t>::iterator it = stateCounts.begin(); it != stateCounts.end(); it++)
-    {
-        if (it->second == max)
-        {
-            common_states.push_back(it->first);
-        }
-    }
-
-    // find characters not intersecting common state
-    // then get state counts
-    for (size_t i = 0; i < common_states.size(); i++)
-    {
-        stateCounts.clear();
-        for (std::map<RbBitSet, size_t>::iterator it = charCounts.begin(); it != charCounts.end(); it++)
-        {
-            RbBitSet r = it->first;
-
-            if ( r.test(common_states[i]) ) continue;
-
-            if ( it->second > 1 )
-            {
+            if ( admit[x] < 2 || admit[y] < 2 )
+                continue;
+            size_t either = 0;
+            for (std::map<RbBitSet, size_t>::iterator it = scored.begin(); it != scored.end(); it++)
+                if ( it->first.test(x) || it->first.test(y) )
+                    either += it->second;
+            if ( either >= 4 )
                 return true;
-            }
-
-            for (size_t j = 0; j < r.size(); j++)
-            {
-                if ( r.test(j) == false ) continue;
-
-                // if a state is found more than once among characters lacking the common state
-                // then this site pattern is parsimony informative
-                if ( stateCounts[j] > 0 )
-                {
-                    return true;
-                }
-                stateCounts[j]++;
-            }
         }
     }
-
-    // if the pattern is uninformative, then it is incompatible with the informative coding
-    return (coding != AscertainmentBias::INFORMATIVE);
+    return false;
 }
 
 
