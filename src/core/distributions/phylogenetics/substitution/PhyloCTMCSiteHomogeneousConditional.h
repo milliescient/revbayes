@@ -69,9 +69,17 @@ namespace RevBayesCore {
         std::vector<std::vector<bool> >                     correctionMaskMatrix;
         std::vector<size_t>                                 correctionMaskCounts;
         std::vector<size_t>                                 maskObservationCounts;
+        // one restricted entry per pattern needing it, count zero so it is never a divisor
+        size_t                                              numRealMasks;
+        std::vector<size_t>                                 restrictedPatternOfEntry;
+        std::vector<size_t>                                 restrictedEntryOfPattern;
         std::vector<double>                                 perMaskMixtureCorrections;
 
         virtual double                                      sumRootLikelihood( void );
+        virtual void                                        computeRootLikelihoods( std::vector<double> &rv ) const;
+        double                                              compatibleExcludedProb( size_t mask ) const;
+        double                                              excludedProbForMixture( std::vector<double>::const_iterator p_node, size_t mask, size_t mixture ) const;
+        void                                                buildRestrictedEntries( void );
         virtual bool                                        isSitePatternCompatible( std::map<size_t, size_t> );
         virtual bool                                        isSitePatternCompatible( std::map<RbBitSet, size_t> );
         std::vector<size_t>                                 getIncludedSiteIndices( void );
@@ -87,7 +95,7 @@ namespace RevBayesCore {
 
 template<class charType>
 RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::PhyloCTMCSiteHomogeneousConditional(const TypedDagNode<Tree> *t, size_t nChars, bool c, size_t nSites, bool amb, AscertainmentBias::Coding ty, bool internal, bool gapmatch) :
-    PhyloCTMCSiteHomogeneous<charType>(  t, nChars, c, nSites, amb, internal, gapmatch ), warned(false), coding(ty & ~AscertainmentBias::ORDERED), ordered(ty & AscertainmentBias::ORDERED), N(nSites), numCorrectionMasks(0)
+    PhyloCTMCSiteHomogeneous<charType>(  t, nChars, c, nSites, amb, internal, gapmatch ), warned(false), coding(ty & ~AscertainmentBias::ORDERED), ordered(ty & AscertainmentBias::ORDERED), N(nSites), numCorrectionMasks(0), numRealMasks(0)
 {
     if (coding != AscertainmentBias::ALL)
     {
@@ -148,6 +156,9 @@ RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::PhyloCTMCSiteHomoge
     correctionMaskMatrix(n.correctionMaskMatrix),
     correctionMaskCounts(n.correctionMaskCounts),
     maskObservationCounts(n.maskObservationCounts),
+numRealMasks(n.numRealMasks),
+restrictedPatternOfEntry(n.restrictedPatternOfEntry),
+restrictedEntryOfPattern(n.restrictedEntryOfPattern),
     perMaskMixtureCorrections(n.perMaskMixtureCorrections)
 {
 
@@ -308,6 +319,7 @@ std::vector<size_t> RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>:
     if (coding != AscertainmentBias::ALL)
     {
         numCorrectionMasks = correctionMaskCounts.size();
+        numRealMasks       = numCorrectionMasks;
     }
 
     return siteIndices;
@@ -537,6 +549,11 @@ void RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::computeTipCorr
         for (size_t mask = 0; mask < numCorrectionMasks; mask++)
         {
             bool gap = correctionMaskMatrix[mask][data_tip_index];
+            
+            // a restricted entry admits only the states its pattern records
+            RbBitSet admits;
+            if ( mask >= numRealMasks && mask - numRealMasks < restrictedPatternOfEntry.size() )
+                admits = this->ambiguous_char_matrix[data_tip_index][ restrictedPatternOfEntry[mask - numRealMasks] ];
 
             // iterate over ancestral (non-autapomorphic) states
             for (size_t a = 0; a < this->num_chars; a++)
@@ -568,7 +585,7 @@ void RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::computeTipCorr
                         // iterate over initial states
                         for (size_t ci = 0; ci < this->num_chars; ci++)
                         {
-                            uc[ci] = pij[ci][a];
+                            uc[ci] = ( admits.empty() || admits.test(a) ) ? pij[ci][a] : 0.0;
                         }
                     }
                     // if this is an autapomorphic state cj, fill with transition prob from ci to cj
@@ -580,7 +597,7 @@ void RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::computeTipCorr
                         // iterate over initial states
                         for (size_t ci = 0; ci < this->num_chars; ci++)
                         {
-                            uc[ci] = pij[ci][cj];
+                            uc[ci] = ( admits.empty() || admits.test(cj) ) ? pij[ci][cj] : 0.0;
                         }
                     }
                 }
@@ -858,6 +875,108 @@ void RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::computeRootCor
 }
 
 template<class charType>
+double RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::excludedProbForMixture( std::vector<double>::const_iterator p_node, size_t mask, size_t mixture ) const
+{
+    double prob = 0.0;
+    
+    // iterate over ancestral (non-autapomorphic) states
+    for (size_t a = 0; a < this->num_chars; a++)
+    {
+        size_t offset = mixture*correctionMixtureOffset + mask*correctionMaskOffset + a*correctionOffset;
+
+        std::vector<double>::const_iterator             u = p_node   + offset;
+
+        // iterate over combinations of autapomorphic states
+        for (size_t c = 0; c < numCorrectionPatterns; c++)
+        {
+            std::vector<double>::const_iterator         uc = u  + c*this->num_chars;
+
+            if (c == 0 && coding == AscertainmentBias::VARIABLE)
+            {
+                // iterate over initial states
+                for (size_t ci = 0; ci < this->num_chars; ci++)
+                {
+                    prob += uc[ci];
+                }
+            }
+            else if (coding == AscertainmentBias::INFORMATIVE)
+            {
+                // get number of autapomorphic states
+                size_t popcount = std::bitset<sizeof(size_t)*CHAR_BIT>(c).count();
+
+               /* if the number of observations is <= the number of autapomorphies then
+                * 1. don't count patterns with zero prob (num obs < num auto)
+                * 2. don't double-count patterns (num obs == num auto)
+                *
+                * if num obs == num auto + 1
+                * then count the all-autapomorphies pattern only once, when a is its
+                * smallest state (bits of c below a are the states below a)
+                */
+                // ordered: a pattern is uninformative only with at most one autapomorphic
+                // state below a and one above, so the all-autapomorphies pattern with one
+                // state on each side of a is counted only for that a
+                size_t lower = std::bitset<sizeof(size_t)*CHAR_BIT>(c & ((size_t(1) << a) - 1)).count();
+                if ( ordered && (lower > 1 || popcount - lower > 1) )
+                {
+                    continue;
+                }
+
+                if ( (maskObservationCounts[mask] == popcount + 1 && (lower == 0 || (ordered && popcount == 2))) ||
+                     maskObservationCounts[mask] > popcount + 1)
+                {
+                    // iterate over initial states
+                    for (size_t ci = 0; ci < this->num_chars; ci++)
+                    {
+                        prob += uc[ci];
+                    }
+                }
+            }
+        }
+    }
+    assert(std::isnan(prob) || (0.0 <= prob and prob <= 1.00000000001));
+    prob = std::min(prob, 1.0);
+    return prob;
+}
+
+template<class charType>
+double RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::compatibleExcludedProb( size_t mask ) const
+{
+    const TopologyNode &root = this->tau->getValue().getRoot();
+    std::vector<double>::const_iterator p_node = getCorrectionLikelihoodsForNode( root.getIndex() );
+    std::vector<double> mixtureProbs = this->getMixtureProbs();
+    double total = 0.0;
+    for (size_t mixture = 0; mixture < this->num_site_mixtures; ++mixture)
+        total += excludedProbForMixture(p_node, mask, mixture) * mixtureProbs[mixture];
+    return total;
+}
+
+template<class charType>
+void RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::computeRootLikelihoods( std::vector<double> &rv ) const
+{
+    PhyloCTMCSiteHomogeneous<charType>::computeRootLikelihoods( rv );
+
+    if ( restrictedEntryOfPattern.empty() || this->getPInv() > 0.0 )
+        return;
+
+    for (size_t p = 0; p < rv.size() && p < restrictedEntryOfPattern.size(); ++p)
+    {
+        size_t entry = restrictedEntryOfPattern[p];
+        if (entry == 0)
+            continue;
+
+        double removed = compatibleExcludedProb(entry);
+        size_t count = this->pattern_counts[p];
+        if (removed <= 0.0 || count == 0)
+            continue;
+
+        double adjusted = std::exp(rv[p] / double(count)) - removed;
+        if (adjusted <= 0.0)
+            continue;
+        rv[p] = std::log(adjusted) * double(count);
+    }
+}
+
+template<class charType>
 double RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::sumRootLikelihood( void )
 {
     double sumPartialProbs = PhyloCTMCSiteHomogeneous<charType>::sumRootLikelihood();
@@ -882,64 +1001,7 @@ double RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::sumRootLikel
         // iterate over all mixture categories
         for (size_t mixture = 0; mixture < this->num_site_mixtures; ++mixture)
         {
-            double prob = 0.0;
-            
-            // iterate over ancestral (non-autapomorphic) states
-            for (size_t a = 0; a < this->num_chars; a++)
-            {
-                size_t offset = mixture*correctionMixtureOffset + mask*correctionMaskOffset + a*correctionOffset;
-
-                std::vector<double>::const_iterator             u = p_node   + offset;
-
-                // iterate over combinations of autapomorphic states
-                for (size_t c = 0; c < numCorrectionPatterns; c++)
-                {
-                    std::vector<double>::const_iterator         uc = u  + c*this->num_chars;
-
-                    if (c == 0 && coding == AscertainmentBias::VARIABLE)
-                    {
-                        // iterate over initial states
-                        for (size_t ci = 0; ci < this->num_chars; ci++)
-                        {
-                            prob += uc[ci];
-                        }
-                    }
-                    else if (coding == AscertainmentBias::INFORMATIVE)
-                    {
-                        // get number of autapomorphic states
-                        size_t popcount = std::bitset<sizeof(size_t)*CHAR_BIT>(c).count();
-
-                       /* if the number of observations is <= the number of autapomorphies then
-                        * 1. don't count patterns with zero prob (num obs < num auto)
-                        * 2. don't double-count patterns (num obs == num auto)
-                        *
-                        * if num obs == num auto + 1
-                        * then count the all-autapomorphies pattern only once, when a is its
-                        * smallest state (bits of c below a are the states below a)
-                        */
-                        // ordered: a pattern is uninformative only with at most one autapomorphic
-                        // state below a and one above, so the all-autapomorphies pattern with one
-                        // state on each side of a is counted only for that a
-                        size_t lower = std::bitset<sizeof(size_t)*CHAR_BIT>(c & ((size_t(1) << a) - 1)).count();
-                        if ( ordered && (lower > 1 || popcount - lower > 1) )
-                        {
-                            continue;
-                        }
-
-                        if ( (maskObservationCounts[mask] == popcount + 1 && (lower == 0 || (ordered && popcount == 2))) ||
-                             maskObservationCounts[mask] > popcount + 1)
-                        {
-                            // iterate over initial states
-                            for (size_t ci = 0; ci < this->num_chars; ci++)
-                            {
-                                prob += uc[ci];
-                            }
-                        }
-                    }
-                }
-            }
-            assert(std::isnan(prob) || (0.0 <= prob and prob <= 1.00000000001));
-            prob = std::min(prob, 1.0);
+            double prob = excludedProbForMixture(p_node, mask, mixture);
 
 //            perMaskCorrections[mask] += prob * 0.25;
 //            perMaskMixtureCorrections[mask*this->num_site_mixtures + mixture] = (1.0 - prob) * 0.25;
@@ -981,8 +1043,75 @@ double RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::sumRootLikel
 }
 
 template<class charType>
+void RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::buildRestrictedEntries( void )
+{
+    restrictedPatternOfEntry.clear();
+    restrictedEntryOfPattern.clear();
+
+    if (coding == AscertainmentBias::ALL || numRealMasks == 0)
+        return;
+
+    if (correctionMaskCounts.size() > numRealMasks)
+    {
+        correctionMaskCounts.resize(numRealMasks);
+        maskObservationCounts.resize(numRealMasks);
+        correctionMaskMatrix.resize(numRealMasks);
+    }
+    numCorrectionMasks = numRealMasks;
+
+    size_t tips = this->gap_matrix.size();
+    if (this->using_ambiguous_characters == false || tips == 0 || this->pattern_block_size == 0)
+        return;
+
+    restrictedEntryOfPattern.assign(this->pattern_block_size, 0);
+
+    for (size_t p = 0; p < this->pattern_block_size; ++p)
+    {
+        bool needed = false;
+        if (coding == AscertainmentBias::VARIABLE)
+        {
+            // compress() has already found the states every scored cell admits
+            needed = ( p < this->site_invariant.size() && this->site_invariant[p] );
+        }
+        else
+        {
+            for (size_t t = 0; t < tips && needed == false; ++t)
+            {
+                if ( this->gap_matrix[t][p] )
+                    continue;
+                size_t n = this->ambiguous_char_matrix[t][p].count();
+                if ( n > 1 && n < this->num_chars )
+                    needed = true;
+            }
+        }
+        if (needed == false)
+            continue;
+
+        std::vector<bool> maskData(this->num_nodes, false);
+        size_t scored = 0;
+        for (size_t t = 0; t < tips; ++t)
+        {
+            bool g = this->gap_matrix[t][p]
+                     || this->ambiguous_char_matrix[t][p].count() >= this->num_chars;
+            maskData[t] = g;
+            if (g == false)
+                ++scored;
+        }
+
+        restrictedEntryOfPattern[p] = correctionMaskCounts.size();
+        restrictedPatternOfEntry.push_back(p);
+        correctionMaskCounts.push_back(0);
+        maskObservationCounts.push_back(scored);
+        correctionMaskMatrix.push_back(maskData);
+    }
+    numCorrectionMasks = correctionMaskCounts.size();
+}
+
+template<class charType>
 void RevBayesCore::PhyloCTMCSiteHomogeneousConditional<charType>::resizeLikelihoodVectors( void )
 {
+    buildRestrictedEntries();
+
 
     RevBayesCore::PhyloCTMCSiteHomogeneous<charType>::resizeLikelihoodVectors();
     

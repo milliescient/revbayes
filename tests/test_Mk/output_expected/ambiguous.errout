@@ -1,0 +1,8 @@
+   Attempting to read the contents of file "ambiguous_tree.nwk"
+   Successfully read file
+   Successfully read one character matrix from file 'data/ambiguous_variable.nex'
+   Successfully read one character matrix from file 'data/ambiguous_variable_resolved.nex'
+variable: ambiguous character matches its surviving resolution
+   Successfully read one character matrix from file 'data/ambiguous_informative.nex'
+   Successfully read one character matrix from file 'data/ambiguous_informative_resolved.nex'
+informative: ambiguous character matches its surviving resolution

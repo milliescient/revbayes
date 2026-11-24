@@ -1,0 +1,36 @@
+# A cell ambiguous between some states, but not all of them, still rules out the patterns the coding
+# excludes, so conditioning must drop those resolutions from the character's own likelihood. Each
+# character below has one surviving resolution, so it must take that resolution's likelihood.
+seed(12345)
+
+tree <- readTrees("data/ambiguous_tree.nwk")[1]
+Q <- fnJC(3)
+tol <- 1.0E-8
+
+# variable coding: 0,0,0,0,(0 2) is variable only by resolving to 0,0,0,0,2
+amb_v <- readDiscreteCharacterData("data/ambiguous_variable.nex")
+res_v <- readDiscreteCharacterData("data/ambiguous_variable_resolved.nex")
+seq_amb_v ~ dnPhyloCTMC(tree=tree, Q=Q, type="Standard", coding="variable", nSites=1)
+seq_amb_v.clamp(amb_v)
+seq_res_v ~ dnPhyloCTMC(tree=tree, Q=Q, type="Standard", coding="variable", nSites=1)
+seq_res_v.clamp(res_v)
+if ( abs(seq_amb_v.lnProbability() - seq_res_v.lnProbability()) < tol ) {
+    print("variable: ambiguous character matches its surviving resolution")
+} else {
+    print("variable: MISMATCH")
+}
+
+# informative coding: 0,0,0,1,(1 2) is informative only by resolving to 0,0,0,1,1
+amb_i <- readDiscreteCharacterData("data/ambiguous_informative.nex")
+res_i <- readDiscreteCharacterData("data/ambiguous_informative_resolved.nex")
+seq_amb_i ~ dnPhyloCTMC(tree=tree, Q=Q, type="Standard", coding="informative", nSites=1)
+seq_amb_i.clamp(amb_i)
+seq_res_i ~ dnPhyloCTMC(tree=tree, Q=Q, type="Standard", coding="informative", nSites=1)
+seq_res_i.clamp(res_i)
+if ( abs(seq_amb_i.lnProbability() - seq_res_i.lnProbability()) < tol ) {
+    print("informative: ambiguous character matches its surviving resolution")
+} else {
+    print("informative: MISMATCH")
+}
+
+q()
